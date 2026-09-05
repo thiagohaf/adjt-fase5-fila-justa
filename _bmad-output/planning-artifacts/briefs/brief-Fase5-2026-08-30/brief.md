@@ -1,17 +1,17 @@
 ---
 title: FilaJusta — Motor de Priorização e Alocação Inteligente (SUS)
-status: draft
+status: final
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-09-05
 ---
 
 # Product Brief: FilaJusta — Motor de Priorização e Alocação Inteligente [ASSUMPTION: nome de produto sugerido; troque livremente]
 
-> Contexto acadêmico: Hackathon FIAP Pós-Tech — Arquitetura e Desenvolvimento Java, Fase 5. Tema do edital: "Inovação para otimização de atendimento no SUS". Entrega solo — Thiago Henrique Alves Ferreira, RM369442, turma 11ADJT. Entregável exigido: MVP backend-only (sem frontend obrigatório), demonstrável via Postman/Swagger.
+> Contexto acadêmico: Hackathon FIAP Pós-Tech — Arquitetura e Desenvolvimento Java, Fase 5. Tema do edital: "Inovação para otimização de atendimento no SUS". Entrega solo — Thiago Henrique Alves Ferreira, RM369442, turma 11ADJT. Entregável exigido: MVP backend-only (sem frontend obrigatório), demonstrável via Swagger/Postman.
 
 ## Executive Summary
 
-O SUS perde eficiência não por falta de recursos, mas por falta de critério: filas cirúrgicas e de leitos são geridas de forma manual e fragmentada, entre sistemas que não conversam entre si (SISREG, SIH/SUS, e-SUS APS, DATASUS), e a prioridade de atendimento frequentemente segue a ordem de chegada em vez da gravidade clínica — abrindo espaço para esperas injustas, "fura-filas" e decisões que ninguém consegue explicar depois.
+O SUS perde eficiência não por falta de recursos, mas por falta de critério: filas cirúrgicas e de leitos são geridas de forma manual e fragmentada, entre sistemas que não conversam entre si (SISREG, SIH/SUS, e-SUS APS, DATASUS). A prioridade de atendimento frequentemente segue a ordem de chegada em vez da gravidade clínica — abrindo espaço para esperas injustas, "fura-filas" e decisões que ninguém consegue explicar depois.
 
 O **FilaJusta** é um motor de backend que calcula um score de prioridade clínica objetivo a partir de dados de triagem e empareia cada paciente com o leito ou especialista disponível mais adequado, em tempo real. Cada decisão fica registrada em um log auditável e explicável. Ele não substitui os sistemas oficiais do SUS: posiciona-se como uma camada de orquestração inteligente que, no mundo real, poderia se conectar a eles por meio de adaptadores.
 
@@ -22,7 +22,7 @@ Para o hackathon, a aposta é demonstrar esse mecanismo de ponta a ponta — tri
 Pesquisas recentes confirmam que a dor é real e documentada, não hipotética:
 
 - **Fragmentação de sistemas**: SISREG, SIH/SUS, e-SUS APS e os painéis DRAC/DATASUS não conversam entre si de forma confiável, impedindo uma visão unificada de demanda e oferta de leitos/vagas.
-- **Priorização sem critério objetivo**: pacientes costumam ser atendidos por ordem de chegada, não por gravidade clínica — o que tanto prejudica casos urgentes quanto abre espaço para fura-filas sem transparência.
+- **Priorização sem critério objetivo**: pacientes costumam ser atendidos por ordem de chegada, não por gravidade clínica — o que tanto prejudica casos urgentes quanto abre espaço para "fura-filas" sem transparência.
 - **Regulação manual**: o encaminhamento de pacientes entre unidades ainda depende, em muitos lugares, de telefone e fax, tornando o processo lento e sujeito a erro humano.
 - **Prontuário eletrônico instável**: falhas e lentidão em sistemas de prontuário (caso documentado no SUS-BH) já causaram filas físicas de mais de 40 pessoas disputando apenas 15 vagas de atendimento por dia.
 - **Insuficiência de leitos** combinada a regulação ineficiente prolonga a permanência de pacientes à espera de transferência.
@@ -67,7 +67,7 @@ Os critérios de sucesso desta entrega se dividem em duas frentes: o que os prof
 
 **Sinais de que o mecanismo em si funciona** [ASSUMPTION: valores ilustrativos, ajustar quando houver dataset de demo definido]:
 - O sistema recalcula a fila corretamente ao inserir um novo paciente de alta urgência, sem exigir reprocessamento manual.
-- Todas as decisões de alocação no log de auditoria podem ser explicadas (quais fatores levaram àquela prioridade/match) em 100% dos casos simulados na demo.
+- Todas as decisões de alocação no log auditável podem ser explicadas (quais fatores levaram àquela prioridade/match) em 100% dos casos simulados na demo.
 - Nenhum paciente de prioridade moderada fica "esquecido" indefinidamente no dataset de demonstração — a urgência acumulada garante progressão visível ao longo do tempo simulado.
 
 ## Scope
@@ -92,6 +92,6 @@ Decisões técnicas de implementação (stack, padrão arquitetural, cloud, estr
 
 ## Vision
 
-O sucesso, neste hackathon, é provar que priorização objetiva e auditabilidade cabem em um MVP backend construído por uma única pessoa, dentro do prazo disponível. Além dele, os passos naturais já identificados na sessão de brainstorming são: agendamento inteligente com redução de no-show, score de risco de deterioração para pacientes já na fila, e — o salto mais ambicioso — trocar a camada adaptadora simulada por integração real com os sistemas oficiais do SUS, o que exigiria parceria institucional fora do escopo acadêmico atual.
+O sucesso, neste hackathon, é provar que priorização objetiva e auditabilidade cabem em um MVP backend construído por uma única pessoa, dentro do prazo disponível. Além dele, os passos naturais já identificados na sessão de brainstorming são os itens listados em "Fora do MVP" acima — com destaque para o salto mais ambicioso: trocar a camada adaptadora simulada por integração real com os sistemas oficiais do SUS, o que exigiria parceria institucional fora do escopo acadêmico atual.
 
 Arquiteturalmente, a intenção declarada é evoluir de uma prova de conceito para uma base em microsserviços com Event Storming, CQRS e alta disponibilidade na AWS — como detalhado no `addendum.md` — mantendo desde já a disciplina de método (BMAD) que o aluno já validou na fase anterior do curso.
