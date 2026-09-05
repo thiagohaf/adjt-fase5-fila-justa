@@ -22,3 +22,21 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+
+# IDE
+.idea/
+.vscode/
+
+# Claude Code local-only settings
+.claude/settings.local.json
