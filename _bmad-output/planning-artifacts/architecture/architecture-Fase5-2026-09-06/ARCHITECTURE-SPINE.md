@@ -4,7 +4,7 @@ type: architecture-spine
 purpose: build-substrate
 altitude: feature
 paradigm: 'microsserviços + Clean Architecture por serviço + CQRS lógico'
-scope: 'Backend do FilaJusta (Triagem/Score, Matching/Alocação, Auditoria, Camada Adaptadora simulada) a partir do PRD final Fase5-2026-09-05'
+scope: 'Backend do FilaJusta (Triagem/Score, Matching/Alocação, Auditoria, Autenticação, Camada Adaptadora simulada) a partir do PRD final Fase5-2026-09-05'
 status: final
 created: '2026-09-06'
 updated: '2026-09-06'
@@ -32,7 +32,7 @@ A topologia completa de contêineres e a rede que os conecta está em Structural
 ### AD-1 — Bounded contexts e propriedade de dados
 
 - **Binds:** all
-- **Rule:** três serviços de runtime — `triagem-score-service` (Paciente, Triagem, Score), `matching-alocacao-service` (Recurso, Sugestão de Matching, Alocação, Prioridade Efetiva), `auditoria-service` (Log Auditável — só leitura + consumidor de eventos). `seed-adapter` (job Lambda, Quarkus) é um cliente comum: entra pelo `gateway-service` com o mesmo token mockado de qualquer outro cliente (FR-11), nunca chama `triagem-score-service`/`matching-alocacao-service` diretamente. `seed-adapter` faz *upsert* de Recursos por chave natural (`codigoRecurso`), nunca insere às cegas — reexecutar o job após um deploy falho não duplica o catálogo (Pacientes já são idempotentes por CPF, FR-1/FR-2). Qualquer dado de outro contexto só é obtido via API pública (pelo gateway), evento de domínio ou gRPC — nunca acesso direto a schema alheio.
+- **Rule:** três serviços de runtime de domínio — `triagem-score-service` (Paciente, Triagem, Score), `matching-alocacao-service` (Recurso, Sugestão de Matching, Alocação, Prioridade Efetiva), `auditoria-service` (Log Auditável — só leitura + consumidor de eventos) —, mais `auth-service` como serviço de suporte transversal (identidade de usuário sintético, sem dado de domínio clínico; ver AD-14). `seed-adapter` (job Lambda, Quarkus) é um cliente comum: autentica-se contra `auth-service` (AD-14) com um usuário técnico pré-cadastrado para obter seu próprio token, e entra pelo `gateway-service` como qualquer outro cliente (FR-11), nunca chama `triagem-score-service`/`matching-alocacao-service` diretamente. `seed-adapter` faz *upsert* de Recursos por chave natural (`codigoRecurso`), nunca insere às cegas — reexecutar o job após um deploy falho não duplica o catálogo (Pacientes já são idempotentes por CPF, FR-1/FR-2). Qualquer dado de outro contexto só é obtido via API pública (pelo gateway), evento de domínio ou gRPC — nunca acesso direto a schema alheio.
 - **Prevents:** dois serviços possuindo/mutando a mesma entidade; um serviço lendo/escrevendo direto na base de outro; um cliente contornando o gateway; um redeploy do seed duplicando o pool de Recursos.
 
 ### AD-2 — CQRS lógico e Clean Architecture por serviço
@@ -74,13 +74,13 @@ A topologia completa de contêineres e a rede que os conecta está em Structural
 ### AD-8 — Autenticação no Gateway
 
 - **Binds:** FR-11
-- **Rule:** `gateway-service` (Spring Cloud Gateway) é o único ponto que valida o token mockado (bearer estático) contra endpoints protegidos, para qualquer cliente incluindo `seed-adapter` (AD-1); health-check é público através de uma exceção estreita e nomeada de security group (AD-12) — não contradiz o isolamento de rede porque não reabre nenhuma outra rota. Chamadas internas (gRPC, consumo de fila) não passam pelo gateway — rede de confiança, isolada por security group (AD-12), sem RBAC (postura consciente herdada do PRD).
-- **Prevents:** cada serviço reimplementando checagem de token de forma divergente; um cliente externo acessando um serviço de domínio pulando o gateway; health-check público interpretado como uma abertura geral do security group.
+- **Rule:** `gateway-service` (Spring Cloud Gateway) é o único ponto que valida o token emitido por `auth-service` (AD-14) — verifica assinatura e expiração do JWT — contra endpoints protegidos, para qualquer cliente incluindo `seed-adapter` (AD-1); health-check e a rota de login (`POST /v1/auth/login`, AD-14) são públicos através de exceções estreitas e nomeadas de security group (AD-12) — não contradizem o isolamento de rede porque não reabrem nenhuma outra rota. Chamadas internas (gRPC, consumo de fila) não passam pelo gateway — rede de confiança, isolada por security group (AD-12), sem RBAC (postura consciente herdada do PRD).
+- **Prevents:** cada serviço reimplementando checagem de token de forma divergente; um cliente externo acessando um serviço de domínio pulando o gateway; health-check ou login público interpretados como uma abertura geral do security group.
 
 ### AD-9 — Isolamento por schema num único cluster Postgres
 
 - **Binds:** all (persistência)
-- **Rule:** um único cluster PostgreSQL 18; cada serviço tem schema e usuário de banco próprios (`triagem_score`, `matching_alocacao`, `auditoria`), com `REVOKE` explícito de qualquer grant cross-schema. Migrations versionadas por serviço; enforcement mecânico via uma regra ArchUnit por módulo de serviço, proibindo entidades/repositórios JPA fora do pacote/schema próprio daquele serviço, rodando como check obrigatório de CI — o isolamento é reforçado por permissão de banco e por CI, não só por convenção. Backup: snapshot automático diário do cluster (retenção mínima de 1–3 dias) — mínimo necessário para não perder tudo com uma migration ruim ou `DELETE` acidental durante o hackathon.
+- **Rule:** um único cluster PostgreSQL 18; cada serviço tem schema e usuário de banco próprios (`triagem_score`, `matching_alocacao`, `auditoria`, `auth`), com `REVOKE` explícito de qualquer grant cross-schema. Migrations versionadas por serviço; enforcement mecânico via uma regra ArchUnit por módulo de serviço, proibindo entidades/repositórios JPA fora do pacote/schema próprio daquele serviço, rodando como check obrigatório de CI — o isolamento é reforçado por permissão de banco e por CI, não só por convenção. Backup: snapshot automático diário do cluster (retenção mínima de 1–3 dias) — mínimo necessário para não perder tudo com uma migration ruim ou `DELETE` acidental durante o hackathon.
 - **Prevents:** acoplamento de banco entre serviços que a separação em microsserviços deveria eliminar; um desenvolvedor violando o isolamento "sem querer" por falta de barreira mecânica; perda total de dados por uma migration ruim ou erro humano sem caminho de recuperação; decisão também de custo (evita N instâncias RDS).
 
 ### AD-10 — Entrega e idempotência do Log Auditável
@@ -104,8 +104,14 @@ A topologia completa de contêineres e a rede que os conecta está em Structural
 ### AD-13 — Runtime por componente (Spring Boot vs. Quarkus)
 
 - **Binds:** all (build/runtime)
-- **Rule:** `gateway-service`, `triagem-score-service`, `matching-alocacao-service` e `auditoria-service` usam Spring Boot/Spring Cloud — o "salto de complexidade" para microsserviços de verdade é um objetivo pedagógico explícito do addendum. `seed-adapter`, por ser uma função Lambda one-shot, usa Quarkus (precedente da Fase 4: cold-start otimizado para Lambda) — a única mistura de runtime do projeto e deliberada.
+- **Rule:** `gateway-service`, `triagem-score-service`, `matching-alocacao-service`, `auditoria-service` e `auth-service` usam Spring Boot/Spring Cloud — o "salto de complexidade" para microsserviços de verdade é um objetivo pedagógico explícito do addendum. `seed-adapter`, por ser uma função Lambda one-shot, usa Quarkus (precedente da Fase 4: cold-start otimizado para Lambda) — a única mistura de runtime do projeto e deliberada.
 - **Prevents:** um desenvolvedor introduzindo Quarkus num serviço de domínio "porque já tem no projeto", perdendo a consistência de stack entre os serviços que compõem o sistema principal.
+
+### AD-14 — Emissão de token de autenticação via `auth-service` dedicado
+
+- **Binds:** FR-11
+- **Rule:** `[ASSUMPTION]` `auth-service` (Spring Boot, AD-13) tem schema próprio (`auth`, AD-9) com uma tabela de usuários sintéticos pré-cadastrados por migration (Flyway) na inicialização — não via `seed-adapter`/FR-10, que segue restrito a unidades de saúde, leitos e especialistas. Expõe `POST /v1/auth/login` (usuário + senha mockados) e retorna um JWT assinado (HS256, segredo compartilhado com `gateway-service` via variável de ambiente/AWS Secrets Manager — mesmo padrão de segredo compartilhado do AD-7) com um claim de papel (`role`) puramente informativo; nenhum serviço aplica controle de acesso por papel a partir desse claim (Non-Goal do PRD, FR-11). `gateway-service` (AD-8) é quem valida a assinatura e a expiração do JWT — `auth-service` só emite, nunca valida requisições de terceiros. A rota de login é pública através da mesma exceção estreita e nomeada de security group usada para health-check (AD-8/AD-12). `seed-adapter` usa um usuário técnico pré-cadastrado nessa mesma tabela para se autenticar antes de chamar o gateway (AD-1) — substituindo o bearer estático fixo que usava antes desta decisão.
+- **Prevents:** um bearer estático fixo em config como única credencial do sistema; um serviço de domínio reimplementando validação de token (mantém AD-8 como único ponto de enforcement); a rota de login vazando para fora do gateway; usuários mockados perdidos a cada redeploy por viverem só em memória em vez de persistidos; `seed-adapter` ficando sem meio de se autenticar após esta mudança.
 
 ## Consistency Conventions
 
@@ -113,7 +119,7 @@ A topologia completa de contêineres e a rede que os conecta está em Structural
 | --- | --- |
 | Naming (entidades, eventos, interfaces) | Eventos de domínio em PascalCase no passado (`ScoreCalculado`, `AlocacaoConfirmada`, `RecursoLiberado`); IDs internos = UUID v4 (`pacienteId`, `recursoId`, `alocacaoId`); CPF nunca é chave fora de `triagem-score-service`. |
 | Data & formats (ids, datas, erros, envelope) | Datas em ISO-8601 UTC; envelope de evento = `{eventId, eventType, occurredAt, version, correlationId, payload}`; cada `eventType` tem um schema companion (JSON Schema) versionado junto ao código do produtor, referenciado na Capability → Architecture Map; mudanças de schema são aditivas dentro de uma major version (só campos novos opcionais), consumidor ignora campos desconhecidos e uma `version` incompatível é roteada para a DLQ (AD-3) para revisão manual; erros de API REST seguem RFC 7807 Problem Details; as duas chamadas gRPC (AD-7) usam status codes gRPC padrão (`NOT_FOUND`, `UNAVAILABLE`, `DEADLINE_EXCEEDED`) com detalhes estruturados — o equivalente do RFC 7807 para o canal síncrono; contratos REST/proto/evento versionados (`/v1/`, pacote proto `vN`). |
-| State & cross-cutting (mutação, log, config, auth) | Mutação só via comando do serviço dono, sempre outbox na mesma transação (AD-3/AD-6); logging estruturado em JSON; segredos via variável de ambiente/AWS Secrets Manager, nunca no repositório; config não-sensível centralizada via Spring Cloud Config; auth só no gateway (AD-8), isolamento de rede via security group (AD-12). |
+| State & cross-cutting (mutação, log, config, auth) | Mutação só via comando do serviço dono, sempre outbox na mesma transação (AD-3/AD-6); logging estruturado em JSON; segredos via variável de ambiente/AWS Secrets Manager, nunca no repositório; config não-sensível centralizada via Spring Cloud Config; emissão de token via `auth-service` (AD-14), validação só no gateway (AD-8), isolamento de rede via security group (AD-12). |
 | Observabilidade | Cada serviço expõe health-check público (`/actuator/health`, AD-8/AD-12), fora da autenticação do gateway; `gateway-service` gera um `correlationId` (UUID) por requisição, propagado em header HTTP, em metadata gRPC (chamadas `ResolveCpfParaId`/`ObterCpfMascarado`) e no envelope de evento, permitindo rastrear uma decisão ponta a ponta nos logs estruturados sem exigir tracing distribuído completo. |
 
 ## Stack
@@ -127,6 +133,7 @@ A topologia completa de contêineres e a rede que os conecta está em Structural
 | Spring Cloud | 2025.1.2+ ("Oakwood", compatível com Spring Boot 4.1.x) — Gateway, Config, Netflix Eureka (discovery) |
 | gRPC | suporte gRPC nativo do Spring Boot 4.1 (Spring gRPC 1.1.0 integrado); starter standalone `org.springframework.grpc` 1.0.x como alternativa se o suporte integrado não se aplicar |
 | Quarkus | `seed-adapter` (job Lambda) — AD-13, precedente Fase 4, cold-start otimizado |
+| JWT (jjwt ou Spring Security Resource Server) | emissão em `auth-service` e validação de assinatura/expiração em `gateway-service` (AD-14) |
 | PostgreSQL | 18 (estável; nenhuma versão mais nova estável a superou em set/2026) |
 | AWS SNS + SQS FIFO | mensageria assíncrona de eventos de domínio (Outbox/fan-out, AD-3) |
 | AWS SQS standard | fila dedicada de delay para Liberação de Recurso (AD-6) — FIFO não suporta delay por mensagem |
@@ -142,6 +149,7 @@ graph TB
   subgraph AWS["AWS — conta única, região única"]
     subgraph ECS["ECS Fargate (0..N tasks, pausável via deploy/pause/destroy)"]
       GWc[gateway-service]
+      AUTHc[auth-service]
       TSc[triagem-score-service]
       MAc[matching-alocacao-service]
       AUc[auditoria-service]
@@ -151,9 +159,11 @@ graph TB
     DELQ[["SQS standard — delay de Liberação (AD-6)"]]
     LM[["Lambda: seed-adapter"]]
   end
+  GWc --> AUTHc
   GWc --> TSc
   GWc --> MAc
   GWc --> AUc
+  AUTHc --> PG
   TSc --> PG
   MAc --> PG
   AUc --> PG
@@ -179,7 +189,15 @@ erDiagram
 
 ```text
 fila-justa/
-  gateway-service/                # Spring Cloud Gateway — único ponto de auth (AD-8)
+  gateway-service/                # Spring Cloud Gateway — único ponto de validação de token (AD-8), valida JWT emitido por auth-service (AD-14)
+  auth-service/
+    domain/                       # Usuario (sintético, pré-cadastrado) — sem dependência de framework
+    application/
+      query/                      # AutenticarUsuario (verifica credenciais, emite JWT — não muta estado, AD-2)
+    infrastructure/
+      web/                        # POST /v1/auth/login (AD-14)
+      persistence/                # schema auth, migration com usuários sintéticos pré-cadastrados
+    src/main/resources/application.yml   # segredo JWT compartilhado com gateway-service (AD-14)
   triagem-score-service/
     domain/                       # Paciente, Triagem, Score — sem dependência de framework
     application/
@@ -227,7 +245,7 @@ fila-justa/
 | FR-8 Registro de decisão (Log Auditável) | `auditoria-service` | AD-3, AD-10 |
 | FR-9 Consulta de auditoria | `auditoria-service` | AD-7, AD-10 |
 | FR-10 Carga de dados sintéticos | `seed-adapter` (job) | AD-1, AD-8, AD-13 |
-| FR-11 Autenticação por token mockado | `gateway-service` | AD-8, AD-12 |
+| FR-11 Autenticação por token mockado | `auth-service` (emissão) + `gateway-service` (validação) | AD-8, AD-12, AD-14 |
 | FR-12 Confirmação/recusa da sugestão | `matching-alocacao-service` | AD-1, AD-5, AD-6 |
 | FR-13 Liberação de Recurso | `matching-alocacao-service` | AD-6 |
 
@@ -235,7 +253,7 @@ fila-justa/
 
 ## Deferred
 
-- **RBAC por papel** (FR-11) — postura consciente do MVP (qualquer token válido acessa qualquer endpoint); revisitável se a banca exigir isolamento por papel.
+- **RBAC por papel** (FR-11) — o JWT emitido por `auth-service` (AD-14) já carrega um claim de `role`, mas nenhum serviço aplica controle de acesso por papel nesta fase (qualquer token válido acessa qualquer endpoint); ativar RBAC seria estender AD-8 para inspecionar esse claim, não uma mudança estrutural. Revisitável se a banca exigir isolamento por papel.
 - **Conformidade legal plena com a LGPD** (base legal art. 11, retenção/eliminação art. 18, DPO) — fora do escopo deste MVP acadêmico (PRD §8); AD-7 cobre só os princípios de minimização/propagação.
 - **Calibração fina** dos valores `[ASSUMPTION]` (AD-4 k/teto, AD-6 duração por tipo de Recurso) — fonte única de verdade em `matching-alocacao-service/src/main/resources/application.yml` (`filajusta.aging.*`, `filajusta.liberacao.duracao.*`); catálogo completo de `especificidadeRank` (AD-5) e faixas fisiológicas (AD-11) similarmente centralizados em config, não espalhados pelo código. Ajustáveis durante epics/stories/build sem violar os ADs, desde que mudem só nesse local.
 - **RDS gerenciado vs. Postgres em container no próprio ECS** — decisão de custo fina, cabe a uma story de infraestrutura.

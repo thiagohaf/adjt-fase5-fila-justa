@@ -38,6 +38,7 @@ graph TB
 
   subgraph FilaJusta["FilaJusta"]
     GW["gateway-service<br/>(Spring Cloud Gateway)"]
+    AUTH["auth-service<br/>(Spring Boot)"]
     TS["triagem-score-service<br/>(Spring Boot)"]
     MA["matching-alocacao-service<br/>(Spring Boot)"]
     AU["auditoria-service<br/>(Spring Boot)"]
@@ -46,12 +47,15 @@ graph TB
     MSG[["SNS FIFO + SQS FIFO + DLQ"]]
   end
 
-  Client -->|"REST + token mockado"| GW
-  SEED -->|"REST + token mockado"| GW
+  Client -->|"POST /login"| GW
+  Client -->|"REST + JWT"| GW
+  SEED -->|"POST /login, depois REST + JWT"| GW
+  GW -->|REST| AUTH
   GW -->|REST| TS
   GW -->|REST| MA
   GW -->|REST| AU
 
+  AUTH -->|"JDBC (schema auth)"| PG
   TS -->|"JDBC (schema triagem_score)"| PG
   MA -->|"JDBC (schema matching_alocacao)"| PG
   AU -->|"JDBC (schema auditoria)"| PG
@@ -68,7 +72,7 @@ graph TB
   AU -.->|"gRPC + segredo de serviço:<br/>ResolveCpfParaId / ObterCpfMascarado"| TS
 ```
 
-Quatro contêineres de runtime (gateway + 3 serviços de domínio), um job serverless (`seed-adapter`), um banco compartilhado com isolamento lógico por schema e um backbone de mensageria assíncrona — que na verdade são duas filas com papéis distintos: SNS/SQS **FIFO** para eventos de domínio (ordem importa) e SQS **standard** só para o temporizador de Liberação de Recurso (FIFO não suporta delay por mensagem). Cada seta carrega o protocolo explícito — é uma escolha deliberada: onde a comunicação é síncrona (REST, gRPC), a latência é assumida; onde é assíncrona (SNS/SQS), a indisponibilidade momentânea de um consumidor não derruba o produtor.
+Cinco contêineres de runtime (gateway + `auth-service` + 3 serviços de domínio), um job serverless (`seed-adapter`), um banco compartilhado com isolamento lógico por schema e um backbone de mensageria assíncrona — que na verdade são duas filas com papéis distintos: SNS/SQS **FIFO** para eventos de domínio (ordem importa) e SQS **standard** só para o temporizador de Liberação de Recurso (FIFO não suporta delay por mensagem). Cada seta carrega o protocolo explícito — é uma escolha deliberada: onde a comunicação é síncrona (REST, gRPC), a latência é assumida; onde é assíncrona (SNS/SQS), a indisponibilidade momentânea de um consumidor não derruba o produtor.
 
 ## 4. C4 Nível 3 — Componentes (`matching-alocacao-service`)
 
@@ -128,7 +132,7 @@ graph TB
 
 ### AD-1 — Três serviços, não quatro
 
-O addendum listava quatro bounded contexts prováveis, incluindo "Ingestão/Adaptador". Na prática, esse contexto não tem consultas nem estado próprio de longo prazo — é uma carga única disparada no deploy (FR-10). Transformá-lo num serviço sempre ativo custaria uma task ECS rodando 24/7 sem nunca atender uma requisição de negócio. Virou `seed-adapter`, um job Lambda que entra pelo mesmo gateway que qualquer outro cliente, com o mesmo token mockado — sem privilégio especial de acesso direto aos outros serviços.
+O addendum listava quatro bounded contexts prováveis, incluindo "Ingestão/Adaptador". Na prática, esse contexto não tem consultas nem estado próprio de longo prazo — é uma carga única disparada no deploy (FR-10). Transformá-lo num serviço sempre ativo custaria uma task ECS rodando 24/7 sem nunca atender uma requisição de negócio. Virou `seed-adapter`, um job Lambda que se autentica como qualquer outro cliente (login mockado contra `auth-service`, AD-14) e entra pelo mesmo gateway — sem privilégio especial de acesso direto aos outros serviços.
 
 ### AD-2 — CQRS lógico, não físico
 
@@ -162,6 +166,10 @@ O diferencial de auditabilidade só é confiável se o log nunca duplicar nem pe
 
 A decisão mais orientada a custo do documento: uma VPC com subnet pública única, sem NAT Gateway (explicitamente vetado como custo recorrente pelo PRD/addendum), usando security groups para impedir que qualquer coisa além do gateway alcance as portas HTTP dos serviços de domínio. É uma troca consciente: perde-se a defesa em profundidade de uma subnet privada verdadeira, mas o custo de NAT — que seria recorrente durante toda a janela do hackathon, não só durante a demo — cai a zero.
 
+### AD-14 — Autenticação via serviço dedicado, não bearer fixo
+
+Esta decisão reabriu uma escolha que já estava `final`: originalmente, `gateway-service` validava um bearer estático mockado, igual para todo cliente, configurado direto no gateway. A reconsideração veio do próprio autor do projeto durante a quebra de epics — não de uma falha técnica encontrada, mas do reconhecimento de que um valor fixo em config demonstra menos arquitetura do que vale a pena para a avaliação de "Inovação"/"Arquitetura" da banca, sem custar tempo real de implementação (o mecanismo de validação no gateway continua igualmente simples). A escolha foi um meio-termo deliberado entre três opções: manter o bearer fixo, construir um `auth-service` com CRUD completo de usuário, ou um `auth-service` enxuto que só faz login contra usuários sintéticos pré-cadastrados. A segunda opção foi descartada por escopo — CRUD de usuário puxaria novos FRs e Non-Goals que o PRD não cobre e que um hackathon solo não tem tempo de sustentar com qualidade. A terceira venceu: `auth-service` tem uma tabela de usuários fixos, carregada por migration na subida do serviço (não pelo `seed-adapter`, que continua isolado ao domínio de unidades/leitos/especialistas), expõe só `POST /v1/auth/login` e emite um JWT assinado com um segredo compartilhado com o gateway — o mesmo padrão de segredo de serviço já usado no AD-7 para os endpoints de CPF, reaproveitado aqui em vez de inventar um mecanismo novo. `gateway-service` continua sendo o único ponto que valida token (AD-8) — só que agora verifica uma assinatura JWT em vez de comparar uma string fixa, sem criar um segundo lugar de enforcement. O claim de papel (`role`) viaja no token só para dar rastreabilidade e abrir caminho para um RBAC futuro; nenhum serviço o interpreta como controle de acesso hoje, preservando o Non-Goal do PRD.
+
 ## 6. Fluxo ponta a ponta
 
 ```mermaid
@@ -169,14 +177,20 @@ sequenceDiagram
   actor PT as Profissional de Triagem
   actor RG as Regulador
   participant GW as gateway-service
+  participant AUTH as auth-service
   participant TS as triagem-score-service
   participant MSG as SNS/SQS FIFO (eventos)
   participant DELQ as SQS standard (delay)
   participant MA as matching-alocacao-service
   participant AU as auditoria-service
 
+  PT->>GW: POST /auth/login (usuário/senha mockados)
+  GW->>AUTH: encaminha (rota pública, AD-14)
+  AUTH-->>GW: 200 (JWT assinado)
+  GW-->>PT: 200 (JWT assinado)
+
   PT->>GW: POST /triagens (CPF, sinais vitais)
-  GW->>TS: encaminha (token validado)
+  GW->>TS: encaminha (JWT validado, AD-8/AD-14)
   TS->>TS: resolve/cria Paciente (CPF→pacienteId)
   TS->>TS: calcula Score (síncrono)
   TS-->>GW: 201 (Score + fatores)
@@ -225,7 +239,7 @@ O ciclo Triagem → Score → Sugestão → Confirmação → Alocação → uso
 | FR-8 Registro de decisão | `auditoria-service` → `application/command` (consumida via `sqs-consumer`) | AD-3, AD-10 |
 | FR-9 Consulta de auditoria | `auditoria-service` → `infrastructure/grpc-client` | AD-7, AD-10 |
 | FR-10 Carga de dados sintéticos | `seed-adapter` (job Lambda) | AD-1, AD-8 |
-| FR-11 Autenticação por token mockado | `gateway-service` | AD-8, AD-12 |
+| FR-11 Autenticação por token mockado | `auth-service` (emissão) + `gateway-service` (validação) | AD-8, AD-12, AD-14 |
 | FR-12 Confirmação/recusa da sugestão | `matching-alocacao-service` → `application/command` | AD-1, AD-6 |
 | FR-13 Liberação de Recurso | `matching-alocacao-service` → `application/command` (`LiberarRecurso`, interno) | AD-6 |
 
