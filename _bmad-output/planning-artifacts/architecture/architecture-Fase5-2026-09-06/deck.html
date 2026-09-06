@@ -1,0 +1,623 @@
+<title>FilaJusta — Arquitetura</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#0b1416;
+    --panel:#101f23;
+    --panel-2:#152a2f;
+    --line: rgba(0,217,163,.16);
+    --line-strong: rgba(0,217,163,.35);
+    --ink:#e8f4f1;
+    --ink-dim:#a9c9c3;
+    --muted:#5f8a82;
+    --accent:#00d9a3;
+    --accent-soft: rgba(0,217,163,.10);
+    --warn:#ff8a3d;
+    --warn-soft: rgba(255,138,61,.12);
+    --crit:#ff5470;
+    --crit-soft: rgba(255,84,112,.10);
+    --mono-d: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    --mono-l: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--accent-soft); color:var(--accent);}
+
+  .scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:
+      repeating-linear-gradient(to bottom, rgba(255,255,255,.012) 0px, rgba(255,255,255,.012) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode:overlay;
+  }
+  .vignette{
+    position:fixed; inset:0; pointer-events:none; z-index:4;
+    background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%);
+  }
+
+  .deck{ position:relative; width:100vw; height:100vh; }
+
+  .slide{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; justify-content:center;
+    padding: 5.5vh 7vw 9vh 7vw;
+    opacity:0; transform:translateY(14px);
+    pointer-events:none;
+    transition: opacity .45s ease, transform .45s ease;
+  }
+  .slide.active{ opacity:1; transform:translateY(0); pointer-events:auto; }
+  @media (prefers-reduced-motion: reduce){
+    .slide{ transition:none; }
+  }
+
+  .kicker{
+    font-family:var(--mono-l); font-size:.72rem; font-weight:500;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--accent);
+    margin:0 0 1.1rem 0;
+  }
+  h1.display, h2.display{
+    font-family:var(--mono-d); font-weight:800; color:var(--ink);
+    line-height:1.08; letter-spacing:-.01em; text-wrap:balance;
+    margin:0 0 1.1rem 0;
+  }
+  h1.display{ font-size:clamp(2rem, 4.6vw, 3.6rem); max-width:16ch; }
+  h2.display{ font-size:clamp(1.5rem, 3.1vw, 2.35rem); max-width:22ch; }
+
+  p.lede{
+    font-size:clamp(1rem, 1.35vw, 1.2rem); line-height:1.6; color:var(--ink-dim);
+    max-width:62ch; margin:0 0 1.4rem 0;
+  }
+  .stat-callout{
+    display:inline-block; border-left:3px solid var(--warn);
+    background:var(--warn-soft); padding:.85rem 1.2rem; margin-top:.4rem;
+    font-family:var(--sans); font-size:.95rem; color:var(--ink-dim); max-width:58ch;
+    border-radius:0 4px 4px 0;
+  }
+  .stat-callout b{ color:var(--ink); font-weight:600; }
+
+  .footer-note{
+    position:absolute; left:7vw; bottom:5vh;
+    font-family:var(--mono-l); font-size:.72rem; color:var(--muted);
+    letter-spacing:.04em;
+  }
+
+  .content-row{ display:flex; align-items:center; gap:4vw; flex-wrap:wrap; }
+  .content-col{ flex:1 1 420px; min-width:0; }
+
+  figure.diagram{ margin:0; }
+  figure.diagram svg{ width:100%; height:auto; display:block; overflow:visible; }
+  figure.diagram figcaption{
+    margin-top:.9rem; font-size:.86rem; color:var(--muted); max-width:70ch;
+    font-family:var(--sans);
+  }
+  figure.diagram figcaption b{ color:var(--ink-dim); font-weight:600; }
+
+  .readout{
+    display:inline-block; font-family:var(--mono-d); font-size:clamp(.95rem,1.6vw,1.25rem);
+    background:var(--accent-soft); border:1px solid var(--line-strong); color:var(--accent);
+    padding:.7rem 1.15rem; border-radius:5px; letter-spacing:.01em; margin-bottom:1.1rem;
+  }
+  .stat-row{ display:flex; gap:1.6rem; flex-wrap:wrap; margin-bottom:1.4rem; }
+  .stat-tile{ min-width:140px; }
+  .stat-tile .num{ font-family:var(--mono-d); font-weight:700; font-size:1.5rem; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .stat-tile .lbl{ font-family:var(--mono-l); font-size:.68rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-top:.15rem; }
+
+  ul.tiebreaks{ list-style:none; margin:1rem 0 0 0; padding:0; display:flex; flex-direction:column; gap:.6rem; }
+  ul.tiebreaks li{
+    font-size:.92rem; color:var(--ink-dim); padding-left:1.1rem; position:relative; max-width:52ch; line-height:1.5;
+  }
+  ul.tiebreaks li::before{ content:"›"; position:absolute; left:0; color:var(--accent); font-family:var(--mono-d); }
+
+  .check-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:1.1rem; margin-top:.5rem; }
+  .check-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    padding:1.2rem 1.3rem; display:flex; flex-direction:column; gap:.6rem;
+  }
+  .check-card .id{ font-family:var(--mono-l); font-size:.72rem; color:var(--accent); letter-spacing:.08em; }
+  .check-card p{ margin:0; font-size:.88rem; line-height:1.5; color:var(--ink-dim); }
+  .check-card .mark{ font-family:var(--mono-d); color:var(--accent); font-size:1.1rem; }
+
+  .closing-line{
+    margin-top:1.6rem; font-family:var(--mono-d); font-weight:700; font-size:1.15rem; color:var(--ink);
+  }
+
+  /* chrome */
+  .chan{
+    position:absolute; top:5vh; left:7vw; z-index:2;
+    font-family:var(--mono-l); font-size:.72rem; color:var(--muted); letter-spacing:.1em;
+  }
+  .chan b{ color:var(--accent); }
+  .progress{
+    position:absolute; top:0; left:0; height:2px; background:var(--accent);
+    transition:width .35s ease; z-index:3;
+  }
+  .counter{
+    position:absolute; right:7vw; bottom:5vh; z-index:2;
+    font-family:var(--mono-l); font-size:.78rem; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+  }
+  .counter b{ color:var(--accent); }
+  .dots{
+    position:absolute; left:50%; bottom:4.6vh; transform:translateX(-50%); z-index:2;
+    display:flex; gap:.4rem;
+  }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--line-strong); transition:background .25s, transform .25s; }
+  .dot.active{ background:var(--accent); transform:scale(1.4); }
+  .hint{
+    position:absolute; right:7vw; top:5vh; z-index:2;
+    font-family:var(--mono-l); font-size:.68rem; color:var(--muted); letter-spacing:.04em;
+    opacity:1; transition:opacity .6s ease;
+  }
+  .hint.hidden{ opacity:0; }
+
+  .nav-zone{ position:absolute; top:0; bottom:0; width:14%; z-index:1; cursor:pointer; }
+  .nav-zone.left{ left:0; }
+  .nav-zone.right{ right:0; }
+
+  svg text{ font-family:var(--mono-l); fill:var(--ink-dim); }
+  svg text.lbl-strong{ fill:var(--ink); font-weight:600; }
+  svg text.lbl-accent{ fill:var(--accent); }
+  svg text.lbl-muted{ fill:var(--muted); font-size:10px; }
+</style>
+
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<div class="progress" id="progress" style="width:10%"></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 -->
+  <section class="slide active" data-chan="RECEPÇÃO">
+    <p class="kicker">FilaJusta · Arquitetura</p>
+    <h1 class="display">A fila não deveria depender de quem chegou primeiro.</h1>
+    <p class="lede">No SUS, um leito ou uma vaga livre costuma ir para quem está na frente — não para quem está mais grave.</p>
+    <div class="stat-callout">Caso documentado no SUS-BH: falhas de prontuário eletrônico geraram filas de <b>mais de 40 pessoas disputando 15 vagas</b> de atendimento por dia.</div>
+    <p class="footer-note">Hackathon FIAP Pós-Tech · Fase 5 · Arquitetura e Desenvolvimento Java</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide" data-chan="A IDEIA">
+    <p class="kicker">A ideia central</p>
+    <h2 class="display">Prioridade objetiva + emparelhamento em tempo real + decisão explicável</h2>
+    <p class="lede">Como uma bolsa de valores casa ordens de compra e venda. Como um app de mobilidade casa passageiro e motorista. O FilaJusta casa o Paciente mais prioritário com o Recurso certo — e nunca decide no escuro.</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 900 150" role="img" aria-label="Três estágios: Score de Prioridade Clínica, Sugestão de Matching, Log Auditável, ligados em sequência">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/>
+          </marker>
+        </defs>
+        <g font-family="var(--mono-l)">
+          <rect x="20" y="35" width="250" height="70" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+          <text x="145" y="65" text-anchor="middle" class="lbl-strong" font-size="14">Score de Prioridade</text>
+          <text x="145" y="84" text-anchor="middle" class="lbl-muted">FR-3 · triagem-score</text>
+
+          <line x1="270" y1="70" x2="325" y2="70" stroke="var(--accent)" stroke-width="2" marker-end="url(#a2)"/>
+
+          <rect x="325" y="35" width="250" height="70" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+          <text x="450" y="65" text-anchor="middle" class="lbl-strong" font-size="14">Sugestão de Matching</text>
+          <text x="450" y="84" text-anchor="middle" class="lbl-muted">FR-5 · matching-alocacao</text>
+
+          <line x1="575" y1="70" x2="630" y2="70" stroke="var(--accent)" stroke-width="2" marker-end="url(#a2)"/>
+
+          <rect x="630" y="35" width="250" height="70" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+          <text x="755" y="65" text-anchor="middle" class="lbl-strong" font-size="14">Log Auditável</text>
+          <text x="755" y="84" text-anchor="middle" class="lbl-muted">FR-8/FR-9 · auditoria</text>
+        </g>
+      </svg>
+      <figcaption>O diferencial não é o matching em si — é <b>explicar</b> cada decisão: por que esse Paciente, e não outro.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide" data-chan="CONTEXTOS">
+    <p class="kicker">Arquitetura · AD-1</p>
+    <h2 class="display">Três serviços de domínio. Um único ponto de entrada.</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 980 360" role="img" aria-label="Cliente e job de seed entram pelo gateway, que roteia para triagem-score-service, matching-alocacao-service e auditoria-service; auditoria consulta triagem via gRPC para resolver CPF">
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/>
+          </marker>
+        </defs>
+        <rect x="20" y="30" width="170" height="56" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="105" y="63" text-anchor="middle" class="lbl-strong" font-size="13">Cliente / Swagger</text>
+
+        <rect x="20" y="284" width="170" height="56" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="105" y="308" text-anchor="middle" class="lbl-strong" font-size="13">seed-adapter</text>
+        <text x="105" y="325" text-anchor="middle" class="lbl-muted">Lambda · Quarkus · FR-10</text>
+
+        <rect x="340" y="146" width="210" height="60" rx="6" style="fill:var(--accent-soft);stroke:var(--accent)" stroke-width="1.5"/>
+        <text x="445" y="180" text-anchor="middle" class="lbl-accent" font-size="14" font-weight="700">gateway-service</text>
+
+        <rect x="660" y="20" width="300" height="60" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="810" y="45" text-anchor="middle" class="lbl-strong" font-size="13">triagem-score-service</text>
+        <text x="810" y="63" text-anchor="middle" class="lbl-muted">Paciente · Triagem · Score</text>
+
+        <rect x="660" y="146" width="300" height="60" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="810" y="171" text-anchor="middle" class="lbl-strong" font-size="13">matching-alocacao-service</text>
+        <text x="810" y="189" text-anchor="middle" class="lbl-muted">Recurso · Sugestão · Alocação</text>
+
+        <rect x="660" y="272" width="300" height="60" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="810" y="297" text-anchor="middle" class="lbl-strong" font-size="13">auditoria-service</text>
+        <text x="810" y="315" text-anchor="middle" class="lbl-muted">Log Auditável (append-only)</text>
+
+        <line x1="190" y1="58" x2="335" y2="164" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#a3)"/>
+        <line x1="190" y1="312" x2="335" y2="190" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#a3)"/>
+        <text x="255" y="100" class="lbl-muted">REST + token</text>
+
+        <line x1="550" y1="176" x2="655" y2="55" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#a3)"/>
+        <line x1="550" y1="176" x2="655" y2="176" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#a3)"/>
+        <line x1="550" y1="176" x2="655" y2="297" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#a3)"/>
+
+        <path d="M960,302 C 1000,220 1000,120 960,55" fill="none" style="stroke:var(--warn)" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#a3)"/>
+        <text x="1005" y="180" class="lbl-muted" style="fill:var(--warn)" transform="rotate(90 1005 180)">gRPC: ResolveCpfParaId / ObterCpfMascarado</text>
+      </svg>
+      <figcaption><b>gateway-service</b> · <b>triagem-score-service</b> · <b>matching-alocacao-service</b> · <b>auditoria-service</b> — seed-adapter é só mais um cliente autenticado, nunca um bypass.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide" data-chan="FLUXO E2E">
+    <p class="kicker">Fluxo ponta a ponta · FR-1 a FR-13</p>
+    <h2 class="display">Do sintoma ao registro, sem etapa manual</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 980 260" role="img" aria-label="Sete estágios em sequência: Triagem, Score, Sugestão, Confirmação, Alocação, Liberação, Log">
+        <polyline points="60,160 200,110 340,160 480,90 620,160 760,130 900,160" fill="none" style="stroke:var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>
+        <g>
+          <circle cx="60" cy="160" r="5" style="fill:var(--accent)"/>
+          <circle cx="200" cy="110" r="5" style="fill:var(--accent)"/>
+          <circle cx="340" cy="160" r="5" style="fill:var(--accent)"/>
+          <circle cx="480" cy="90" r="5" style="fill:var(--warn)"/>
+          <circle cx="620" cy="160" r="5" style="fill:var(--accent)"/>
+          <circle cx="760" cy="130" r="5" style="fill:var(--accent)"/>
+          <circle cx="900" cy="160" r="5" style="fill:var(--accent)"/>
+        </g>
+        <g stroke="var(--line)" stroke-width="1">
+          <line x1="60" y1="160" x2="60" y2="200"/>
+          <line x1="200" y1="110" x2="200" y2="200"/>
+          <line x1="340" y1="160" x2="340" y2="200"/>
+          <line x1="480" y1="90" x2="480" y2="200"/>
+          <line x1="620" y1="160" x2="620" y2="200"/>
+          <line x1="760" y1="130" x2="760" y2="200"/>
+          <line x1="900" y1="160" x2="900" y2="200"/>
+        </g>
+        <g text-anchor="middle" font-size="12.5">
+          <text x="60" y="218" class="lbl-strong">Triagem</text><text x="60" y="234" class="lbl-muted">FR-1</text>
+          <text x="200" y="218" class="lbl-strong">Score</text><text x="200" y="234" class="lbl-muted">FR-3</text>
+          <text x="340" y="218" class="lbl-strong">Sugestão</text><text x="340" y="234" class="lbl-muted">FR-5</text>
+          <text x="480" y="218" class="lbl-strong" style="fill:var(--warn)">Confirmação</text><text x="480" y="234" class="lbl-muted">FR-12</text>
+          <text x="620" y="218" class="lbl-strong">Alocação</text><text x="620" y="234" class="lbl-muted">FR-12</text>
+          <text x="760" y="218" class="lbl-strong">Liberação</text><text x="760" y="234" class="lbl-muted">FR-13</text>
+          <text x="900" y="218" class="lbl-strong">Log</text><text x="900" y="234" class="lbl-muted">FR-8/9</text>
+        </g>
+      </svg>
+      <figcaption>Um único caminho, sem bifurcação manual — <b>Confirmação</b> é o único ponto onde um humano decide (FR-12).</figcaption>
+    </figure>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide" data-chan="SCORE & AGING">
+    <p class="kicker">Score & Urgência Acumulada · AD-4</p>
+    <h2 class="display">A espera pesa — mas nunca decide sozinha</h2>
+    <div class="content-row">
+      <div class="content-col">
+        <div class="readout">prioridade_efetiva = score + min(k·horas_espera, teto)</div>
+        <p class="lede" style="font-size:.86rem;margin-top:.35rem;"><b style="color:var(--ink)">k</b> é a taxa de acúmulo de urgência: quantos pontos a espera soma por hora até bater no teto — não um peso arbitrário, é o coeficiente calibrado para que o teto (20 pts) seja atingido em 18h.</p>
+        <div class="stat-row">
+          <div class="stat-tile"><div class="num">≈1,111</div><div class="lbl">k = pts ganhos / hora de espera</div></div>
+          <div class="stat-tile"><div class="num">20 pts</div><div class="lbl">teto (20% da escala)</div></div>
+          <div class="stat-tile"><div class="num">18h</div><div class="lbl">teto atingido em</div></div>
+        </div>
+        <p class="lede" style="font-size:.92rem;">Um Score maior por gravidade clínica real nunca é ultrapassado só por tempo de espera (contra-métrica SM-C1).</p>
+      </div>
+      <div class="content-col">
+        <figure class="diagram">
+          <svg viewBox="0 0 620 300" role="img" aria-label="Gráfico: urgência acumulada cresce linearmente de 0 a 20 pontos entre 0 e 18 horas de espera, depois estabiliza em 20 pontos até 24 horas">
+            <line x1="60" y1="240" x2="600" y2="240" stroke="var(--line-strong)" stroke-width="1"/>
+            <line x1="60" y1="40" x2="60" y2="240" stroke="var(--line-strong)" stroke-width="1"/>
+            <g class="lbl-muted" text-anchor="middle" font-size="11">
+              <text x="60" y="258">0h</text>
+              <text x="185" y="258">6h</text>
+              <text x="310" y="258">12h</text>
+              <text x="435" y="258">18h</text>
+              <text x="560" y="258">24h</text>
+            </g>
+            <g class="lbl-muted" text-anchor="end" font-size="11">
+              <text x="50" y="244">0</text>
+              <text x="50" y="144">10</text>
+              <text x="50" y="44">20</text>
+            </g>
+            <line x1="60" y1="40" x2="600" y2="40" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 5"/>
+            <path d="M60,240 L185,173.3 L310,106.7 L435,40 L560,40" fill="none" style="stroke:var(--accent)" stroke-width="2.5"/>
+            <text x="200" y="185" font-size="11.5" style="fill:var(--accent)">inclinação = k (≈1,111 pt/h)</text>
+            <circle cx="435" cy="40" r="5" style="fill:var(--warn)"/>
+            <text x="440" y="28" font-size="11.5" style="fill:var(--warn)">teto: 20 pts em 18h</text>
+            <text x="330" y="280" text-anchor="middle" class="lbl-muted">horas de espera desde a Triagem</text>
+          </svg>
+          <figcaption>Curva de aging: linear até o teto, depois constante — nunca inverte uma diferença de gravidade real.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide" data-chan="MATCHING">
+    <p class="kicker">Matching · AD-5</p>
+    <h2 class="display">O recurso mais raro fica guardado para quem precisa dele</h2>
+    <div class="content-row">
+      <div class="content-col">
+        <figure class="diagram">
+          <svg viewBox="0 0 620 300" role="img" aria-label="Quatro categorias de Recurso em ordem crescente de especificidade: leito comum, leito UTI, leito UTI especializado, especialista">
+            <defs>
+              <marker id="a6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/>
+              </marker>
+            </defs>
+            <line x1="40" y1="90" x2="560" y2="90" stroke="var(--muted)" stroke-width="1.2" marker-start="url(#a6)"/>
+            <text x="300" y="76" text-anchor="middle" class="lbl-muted">sugestão prefere sempre o menor rank suficiente</text>
+
+            <rect x="40" y="200" width="110" height="60" rx="4" style="fill:var(--panel);stroke:var(--line)"/>
+            <rect x="180" y="180" width="110" height="80" rx="4" style="fill:var(--panel);stroke:var(--line)"/>
+            <rect x="320" y="160" width="110" height="100" rx="4" style="fill:var(--panel);stroke:var(--line-strong)"/>
+            <rect x="460" y="140" width="110" height="120" rx="4" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+
+            <text x="95" y="234" text-anchor="middle" class="lbl-strong" font-size="20" font-weight="700">1</text>
+            <text x="235" y="224" text-anchor="middle" class="lbl-strong" font-size="20" font-weight="700">2</text>
+            <text x="375" y="214" text-anchor="middle" class="lbl-strong" font-size="20" font-weight="700">3</text>
+            <text x="515" y="204" text-anchor="middle" class="lbl-accent" font-size="20" font-weight="700">4</text>
+
+            <g text-anchor="middle" font-size="11.5" class="lbl-muted">
+              <text x="95" y="278">leito comum</text>
+              <text x="235" y="278">leito UTI</text>
+              <text x="375" y="278">UTI especializado</text>
+              <text x="515" y="278" style="fill:var(--accent)">especialista</text>
+            </g>
+          </svg>
+          <figcaption>especificidadeRank atribuído no seed — um Recurso raro só é sugerido quando um genérico não resolve o caso.</figcaption>
+        </figure>
+      </div>
+      <div class="content-col">
+        <p class="lede" style="font-size:.95rem;">Desempates aplicados em cascata, sempre determinísticos:</p>
+        <ul class="tiebreaks">
+          <li>Recursos empatados em rank → prefere o <b style="color:var(--ink)">ocioso há mais tempo</b></li>
+          <li>Pacientes empatados em Prioridade Efetiva → vence a <b style="color:var(--ink)">Triagem mais antiga</b> (price-time priority)</li>
+          <li>Empate residual de timestamp → desempate final por <b style="color:var(--ink)">ID do Paciente</b></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide" data-chan="RESILIÊNCIA">
+    <p class="kicker">Propagação assíncrona · AD-3</p>
+    <h2 class="display">A triagem nunca espera o resto do sistema responder</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 1090 300" role="img" aria-label="Outbox na mesma transação publica em tópico SNS FIFO, que alimenta duas filas SQS FIFO com DLQ, consumidas por matching e auditoria">
+        <defs>
+          <marker id="a7" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/>
+          </marker>
+        </defs>
+        <rect x="20" y="110" width="190" height="60" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="115" y="136" text-anchor="middle" class="lbl-strong" font-size="12.5">triagem-score</text>
+        <text x="115" y="154" text-anchor="middle" class="lbl-muted">produtor (comando)</text>
+
+        <rect x="250" y="110" width="150" height="60" rx="6" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+        <text x="325" y="136" text-anchor="middle" class="lbl-accent" font-size="12.5">outbox</text>
+        <text x="325" y="154" text-anchor="middle" class="lbl-muted">mesma tx · eventId</text>
+
+        <rect x="460" y="110" width="170" height="60" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="545" y="136" text-anchor="middle" class="lbl-strong" font-size="12.5">SNS FIFO</text>
+        <text x="545" y="154" text-anchor="middle" class="lbl-muted">tópico eventos-triagem</text>
+
+        <rect x="690" y="30" width="150" height="50" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="765" y="60" text-anchor="middle" class="lbl-strong" font-size="12">SQS FIFO · MA</text>
+
+        <rect x="690" y="210" width="150" height="50" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="765" y="240" text-anchor="middle" class="lbl-strong" font-size="12">SQS FIFO · AU</text>
+
+        <rect x="890" y="30" width="90" height="50" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="935" y="60" text-anchor="middle" class="lbl-strong" font-size="12">MA</text>
+
+        <rect x="890" y="210" width="90" height="50" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="935" y="240" text-anchor="middle" class="lbl-strong" font-size="12">AU</text>
+
+        <rect x="690" y="120" width="150" height="50" rx="6" style="fill:none;stroke:var(--crit)" stroke-dasharray="4 4"/>
+        <text x="765" y="150" text-anchor="middle" font-size="11.5" style="fill:var(--crit)">DLQ · maxReceive 5×</text>
+
+        <line x1="210" y1="140" x2="245" y2="140" stroke="var(--accent)" stroke-width="2" marker-end="url(#a7)"/>
+        <line x1="400" y1="140" x2="455" y2="140" stroke="var(--accent)" stroke-width="2" marker-end="url(#a7)"/>
+        <line x1="630" y1="130" x2="685" y2="60" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#a7)"/>
+        <line x1="630" y1="150" x2="685" y2="235" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#a7)"/>
+        <line x1="840" y1="55" x2="885" y2="55" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#a7)"/>
+        <line x1="840" y1="235" x2="885" y2="235" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#a7)"/>
+        <line x1="765" y1="80" x2="765" y2="118" stroke="var(--crit)" stroke-width="1.2" stroke-dasharray="3 3"/>
+        <line x1="765" y1="208" x2="765" y2="172" stroke="var(--crit)" stroke-width="1.2" stroke-dasharray="3 3"/>
+      </svg>
+      <figcaption>Se <b>matching-alocacao-service</b> ou <b>auditoria-service</b> caírem, a mensagem espera na fila — nada se perde, nada bloqueia a resposta da Triagem.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide" data-chan="LGPD BY DESIGN">
+    <p class="kicker">Fronteira do CPF · AD-7</p>
+    <h2 class="display">O CPF não sai da porta de entrada</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 340" role="img" aria-label="CPF em texto claro fica confinado dentro de triagem-score-service; apenas pacienteId e CPF mascarado saem via chamadas gRPC específicas">
+        <defs>
+          <marker id="a8" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill:var(--crit)"/>
+          </marker>
+        </defs>
+        <rect x="40" y="60" width="360" height="260" rx="8" fill="none" style="stroke:var(--crit)" stroke-width="1.6" stroke-dasharray="6 5"/>
+        <text x="60" y="46" font-size="12" style="fill:var(--crit)">triagem-score-service — fronteira de ingestão</text>
+
+        <rect x="90" y="140" width="260" height="70" rx="6" style="fill:var(--crit-soft);stroke:var(--crit)"/>
+        <text x="220" y="170" text-anchor="middle" class="lbl-strong" font-size="13">CPF em texto claro</text>
+        <text x="220" y="188" text-anchor="middle" class="lbl-muted">+ pacienteId (interno)</text>
+
+        <rect x="560" y="90" width="200" height="60" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="660" y="115" text-anchor="middle" class="lbl-strong" font-size="12.5">seed-adapter</text>
+        <text x="660" y="133" text-anchor="middle" class="lbl-muted">recebe: pacienteId</text>
+
+        <rect x="560" y="230" width="200" height="60" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="660" y="255" text-anchor="middle" class="lbl-strong" font-size="12.5">auditoria-service</text>
+        <text x="660" y="273" text-anchor="middle" class="lbl-muted">recebe: CPF mascarado</text>
+
+        <line x1="400" y1="120" x2="555" y2="120" stroke="var(--crit)" stroke-width="1.6" marker-end="url(#a8)"/>
+        <text x="405" y="108" font-size="11" style="fill:var(--crit)">gRPC ResolveCpfParaId</text>
+
+        <line x1="400" y1="260" x2="555" y2="260" stroke="var(--crit)" stroke-width="1.6" marker-end="url(#a8)"/>
+        <text x="405" y="248" font-size="11" style="fill:var(--crit)">gRPC ObterCpfMascarado</text>
+      </svg>
+      <figcaption>Depois da Triagem, todo o resto do sistema conhece o Paciente só pelo <b>ID interno</b>. Princípio de minimização por design — não é uma alegação de compliance legal plena.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide" data-chan="INFRA & CUSTO">
+    <p class="kicker">Infraestrutura e custo · AD-9 / AD-12</p>
+    <h2 class="display">Desliga fora da janela da demo, sem virar brinquedo</h2>
+    <figure class="diagram">
+      <svg viewBox="0 0 1000 380" role="img" aria-label="VPC de subnet pública única com quatro tasks ECS Fargate isoladas por security group, um cluster Postgres compartilhado, mensageria SNS/SQS e um Lambda de seed; NAT Gateway explicitamente evitado">
+        <defs>
+          <marker id="a9" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" style="fill:var(--accent)"/>
+          </marker>
+        </defs>
+        <rect x="30" y="30" width="560" height="280" rx="8" fill="none" style="stroke:var(--line-strong)" stroke-width="1.4" stroke-dasharray="6 5"/>
+        <text x="50" y="20" font-size="12" class="lbl-muted">VPC — subnet pública única (2 AZs), sem NAT Gateway</text>
+
+        <rect x="250" y="55" width="150" height="55" rx="6" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+        <text x="325" y="88" text-anchor="middle" class="lbl-accent" font-size="12.5">gateway-service</text>
+
+        <rect x="70" y="170" width="150" height="55" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="145" y="203" text-anchor="middle" class="lbl-strong" font-size="12">triagem-score</text>
+        <rect x="250" y="170" width="150" height="55" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="325" y="203" text-anchor="middle" class="lbl-strong" font-size="12">matching-alocacao</text>
+        <rect x="430" y="170" width="150" height="55" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="505" y="203" text-anchor="middle" class="lbl-strong" font-size="12">auditoria</text>
+
+        <line x1="300" y1="110" x2="160" y2="168" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#a9)"/>
+        <line x1="325" y1="110" x2="325" y2="168" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#a9)"/>
+        <line x1="350" y1="110" x2="490" y2="168" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#a9)"/>
+        <text x="205" y="145" font-size="10" class="lbl-muted">apenas SG do gateway alcança</text>
+
+        <rect x="650" y="55" width="150" height="55" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="725" y="88" text-anchor="middle" class="lbl-strong" font-size="12">SNS/SQS FIFO</text>
+
+        <rect x="650" y="170" width="150" height="55" rx="6" style="fill:var(--panel);stroke:var(--line-strong)"/>
+        <text x="725" y="196" text-anchor="middle" class="lbl-strong" font-size="12">Postgres 18</text>
+        <text x="725" y="213" text-anchor="middle" class="lbl-muted">1 cluster · schema/serviço</text>
+
+        <rect x="850" y="115" width="130" height="55" rx="6" style="fill:var(--panel);stroke:var(--line)"/>
+        <text x="915" y="140" text-anchor="middle" class="lbl-strong" font-size="12">Lambda</text>
+        <text x="915" y="157" text-anchor="middle" class="lbl-muted">seed-adapter</text>
+
+        <line x1="145" y1="225" x2="700" y2="225" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/>
+        <line x1="700" y1="225" x2="700" y2="228" stroke="var(--line)" stroke-width="1"/>
+        <line x1="325" y1="225" x2="700" y2="205" stroke="var(--accent)" stroke-width="1.2" marker-end="url(#a9)"/>
+        <line x1="505" y1="225" x2="700" y2="80" stroke="var(--accent)" stroke-width="1.2" marker-end="url(#a9)"/>
+        <line x1="850" y1="140" x2="590" y2="90" stroke="var(--accent)" stroke-width="1.4" marker-end="url(#a9)"/>
+        <text x="810" y="135" font-size="10" class="lbl-muted">REST autenticado</text>
+
+        <rect x="30" y="330" width="230" height="36" rx="4" fill="none" style="stroke:var(--muted)" stroke-dasharray="3 3"/>
+        <line x1="30" y1="330" x2="260" y2="366" style="stroke:var(--muted)" stroke-width="1"/>
+        <text x="45" y="352" font-size="11" class="lbl-muted">NAT Gateway — evitado (custo)</text>
+      </svg>
+      <figcaption>ECS Fargate escalável a 0 fora da demo · 1 cluster Postgres com isolamento por schema · sem NAT Gateway, sem MSK, sem RDS multi-AZ permanente.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide" data-chan="FECHAMENTO">
+    <p class="kicker">Fechamento</p>
+    <h2 class="display">O que este MVP prova</h2>
+    <div class="check-grid">
+      <div class="check-card">
+        <span class="id">SM-1</span>
+        <span class="mark">✓</span>
+        <p>A fila recalcula sozinha ao entrar um Paciente urgente ou liberar um Recurso — sem reprocessamento manual.</p>
+      </div>
+      <div class="check-card">
+        <span class="id">SM-2</span>
+        <span class="mark">✓</span>
+        <p>100% das decisões do dataset de demonstração são explicáveis no Log Auditável.</p>
+      </div>
+      <div class="check-card">
+        <span class="id">SM-3</span>
+        <span class="mark">✓</span>
+        <p>Nenhum Paciente de prioridade moderada fica esquecido — a urgência acumulada garante progressão visível.</p>
+      </div>
+    </div>
+    <p class="closing-line">Fura-fila zero. Decisão sempre defensável.</p>
+  </section>
+
+</div>
+
+<div class="chan" id="chan">CH.01 · <b>RECEPÇÃO</b></div>
+<div class="hint" id="hint">← → PARA NAVEGAR</div>
+<div class="counter" id="counter"><b>01</b> / 10</div>
+<div class="dots" id="dots"></div>
+<div class="nav-zone left" id="navLeft"></div>
+<div class="nav-zone right" id="navRight"></div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var idx = 0;
+  var dotsEl = document.getElementById('dots');
+  var counterEl = document.getElementById('counter');
+  var progressEl = document.getElementById('progress');
+  var chanEl = document.getElementById('chan');
+  var hintEl = document.getElementById('hint');
+  var interacted = false;
+
+  for (var i = 0; i < total; i++) {
+    var d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    dotsEl.appendChild(d);
+  }
+  var dots = Array.prototype.slice.call(dotsEl.children);
+
+  function render(){
+    slides.forEach(function(s, i){ s.classList.toggle('active', i === idx); });
+    dots.forEach(function(d, i){ d.classList.toggle('active', i === idx); });
+    counterEl.innerHTML = '<b>' + String(idx+1).padStart(2,'0') + '</b> / ' + total;
+    progressEl.style.width = ((idx+1)/total*100) + '%';
+    chanEl.innerHTML = 'CH.' + String(idx+1).padStart(2,'0') + ' · <b>' + slides[idx].dataset.chan + '</b>';
+    try { sessionStorage.setItem('filajusta-deck-idx', String(idx)); } catch(e){}
+  }
+
+  function go(n){
+    idx = Math.max(0, Math.min(total-1, n));
+    if (!interacted) { interacted = true; hintEl.classList.add('hidden'); }
+    render();
+  }
+
+  document.getElementById('navRight').addEventListener('click', function(){ go(idx+1); });
+  document.getElementById('navLeft').addEventListener('click', function(){ go(idx-1); });
+
+  window.addEventListener('keydown', function(e){
+    if (['ArrowRight','ArrowDown','PageDown',' '].indexOf(e.key) !== -1) { e.preventDefault(); go(idx+1); }
+    else if (['ArrowLeft','ArrowUp','PageUp'].indexOf(e.key) !== -1) { e.preventDefault(); go(idx-1); }
+  });
+
+  try {
+    var saved = sessionStorage.getItem('filajusta-deck-idx');
+    if (saved !== null) { idx = Math.max(0, Math.min(total-1, parseInt(saved,10))); }
+  } catch(e){}
+  render();
+})();
+</script>
