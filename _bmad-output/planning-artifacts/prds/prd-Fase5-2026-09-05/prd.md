@@ -255,15 +255,16 @@ O sistema carrega, via seed reproduzível, dados sintéticos de unidades de saú
 
 **Functional Requirements:**
 
-#### FR-11: Autenticação por Token Mockado
+#### FR-11: Autenticação via Serviço Dedicado (Login Mockado)
 
-A API exige um token de autenticação (mockado, não um provedor de identidade real) para acessar qualquer endpoint que não seja público/de health-check.
+Um usuário sintético pré-cadastrado (representando Regulador, Profissional de Triagem ou Auditor) autentica-se via `POST /login` com usuário e senha mockados contra um serviço de autenticação dedicado, recebendo um token assinado; a API exige esse token para acessar qualquer endpoint que não seja público/de health-check/de login.
 
 **Consequences (testable):**
-- Requisições sem token válido para endpoints protegidos retornam `401`.
-- Não há distinção de papéis (Regulador vs. Profissional de Triagem vs. Auditor) exigida nesta fase — qualquer token válido acessa qualquer endpoint. `[ASSUMPTION]` As referências a "Regulador", "Profissional de Triagem" e "Auditor" ao longo deste documento (§4) descrevem o ator pretendido de cada ação, não uma restrição de autorização tecnicamente aplicada.
+- Login com credenciais inválidas retorna `401`.
+- Requisições sem token válido (ausente, expirado ou com assinatura inválida) para endpoints protegidos retornam `401`.
+- Não há distinção de papéis (Regulador vs. Profissional de Triagem vs. Auditor) exigida nesta fase — qualquer token válido acessa qualquer endpoint, independentemente do papel do usuário autenticado. `[ASSUMPTION]` As referências a "Regulador", "Profissional de Triagem" e "Auditor" ao longo deste documento (§4) descrevem o ator pretendido de cada ação, não uma restrição de autorização tecnicamente aplicada.
 
-**Out of Scope:** OAuth/SSO real, RBAC por papel, expiração/rotação de token — autenticação e autorização completas de nível produção ficam para depois do MVP (ver Non-Goals).
+**Out of Scope:** Auto-registro de usuário, CRUD de usuário via API, OAuth/SSO real, RBAC por papel aplicado, expiração/rotação de token de nível produção — autenticação e autorização completas de nível produção ficam para depois do MVP (ver Non-Goals).
 
 ## 5. Non-Goals (Explicit)
 
@@ -271,7 +272,7 @@ A API exige um token de autenticação (mockado, não um provedor de identidade 
 - Frontend / interface de usuário de qualquer tipo — a entrega é backend-only, demonstrável via Swagger/Postman.
 - Agendamento inteligente e redução de no-show (parqueado para v2, conforme brief).
 - Score de risco de deterioração clínica pós-priorização (parqueado para v2, conforme brief).
-- Autenticação e autorização completas de nível produção (RBAC, SSO, OAuth) — token mockado é suficiente nesta fase.
+- Autenticação e autorização completas de nível produção (RBAC aplicado, SSO, OAuth real, CRUD de usuário via API) — login mockado contra usuários sintéticos pré-cadastrados, com token assinado emitido por um serviço dedicado, é suficiente nesta fase.
 - Validação clínica formal do algoritmo de Score — é uma demonstração de mecanismo, não um dispositivo médico.
 - Seleção manual livre de qual Paciente alocar a um Recurso, ignorando a ordem de prioridade objetiva do sistema (o Regulador só confirma a sugestão ou a recusa — ver FR-12).
 - Liberação manual antecipada de um Recurso pelo Regulador — a Liberação é sempre automática, baseada em tempo de atendimento simulado (ver FR-13).
@@ -357,5 +358,5 @@ Nenhuma pendência bloqueante para esta fase. Várias decisões técnicas foram 
 - §4.3 FR-5 — Ordenação concreta de "especificidade" entre tipos de Recurso não definida.
 - §4.3 FR-13 — Duração exata do tempo de atendimento simulado (por tipo de Recurso) não definida.
 - §4.5 FR-8 — Mecanismo de entrega garantida (at-least-once + reconciliação) do registro de auditoria sob falha parcial não definido.
-- §4.7 FR-11 — Nenhuma distinção de papéis (RBAC) exigida no MVP; qualquer token válido acessa qualquer endpoint — postura consciente, mas revisitável se a banca exigir isolamento por papel.
+- §4.7 FR-11 — Nenhuma distinção de papéis (RBAC) exigida no MVP; qualquer token válido acessa qualquer endpoint — postura consciente, mas revisitável se a banca exigir isolamento por papel. Mecanismo de emissão do token (serviço de autenticação dedicado, login mockado contra usuários pré-cadastrados) definido em `bmad-architecture` (AD-14), reabrindo e substituindo a decisão original de bearer estático.
 - §8 Constraints — Formato exato da máscara de CPF e existência de um lookup privilegiado para CPF completo não definidos.
