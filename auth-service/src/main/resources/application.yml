@@ -1,0 +1,30 @@
+server:
+  port: 8081
+
+# Porta de management separada da porta de aplicacao: permite que o security
+# group de health-check libere so essa porta (estreito, por servico) sem
+# reabrir a porta de aplicacao, que so o security group do gateway-service
+# pode alcancar (AD-8/AD-12).
+management:
+  server:
+    port: 8090
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+spring:
+  application:
+    name: auth-service
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"auth-service","logger":"%c","message":"%m"}%n'

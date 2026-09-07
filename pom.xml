@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.filajusta</groupId>
+  <artifactId>fila-justa-parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>FilaJusta — Parent</name>
+  <description>
+    Projeto Maven multi-modulo raiz do FilaJusta (adjt-fase5-fila-justa).
+    Modulos desta story (1.1): gateway-service, auth-service, infra-cdk.
+    Modulos deferidos (ver _bmad-output/implementation-artifacts/deferred-work.md),
+    a adicionar como preparacao da primeira story de cada epic que os toca:
+    triagem-score-service (Epic 2), matching-alocacao-service (Epic 3),
+    auditoria-service (Epic 4). seed-adapter (Quarkus/Lambda, AD-13) nao entra
+    neste reactor Spring Boot -- tem build/runtime proprio.
+  </description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <java.version>25</java.version>
+    <maven.compiler.release>25</maven.compiler.release>
+
+    <!-- AD-13 / Stack (ARCHITECTURE-SPINE.md): verificado 2026-09-06, reconfirmar antes do build real -->
+    <spring-boot.version>4.1.1</spring-boot.version>
+    <spring-cloud.version>2025.1.2</spring-cloud.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-maven-plugin</artifactId>
+          <version>${spring-boot.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <release>${maven.compiler.release}</release>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+  <modules>
+    <module>gateway-service</module>
+    <module>auth-service</module>
+    <module>infra-cdk</module>
+    <!--
+      Modulos deferidos (deferred-work.md): adicionar aqui quando a story
+      correspondente iniciar, sem outra refatoracao deste pom pai.
+      <module>triagem-score-service</module>
+      <module>matching-alocacao-service</module>
+      <module>auditoria-service</module>
+    -->
+  </modules>
+
+</project>
