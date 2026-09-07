@@ -24,6 +24,27 @@ management:
 spring:
   application:
     name: auth-service
+  # Credenciais (spring.datasource.username/password) vem so de variavel de
+  # ambiente (SPRING_DATASOURCE_USERNAME/PASSWORD, relaxed binding) --
+  # reusa o secret admin do Postgres da Story 1.1 (PostgresSecret), injetado
+  # pelo infra-cdk via ECS Secret (nunca no repositorio, NFR-6).
+  datasource:
+    url: jdbc:postgresql://postgres.filajusta.local:5432/filajusta
+  flyway:
+    schemas: auth
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway (nao Hibernate) e o dono do schema -- so valida o mapeamento.
+      ddl-auto: validate
+
+# Segredo compartilhado com o gateway-service (mesmo padrao usado para os
+# endpoints gRPC de CPF em outro epic) -- so variavel de ambiente/Secrets
+# Manager, nunca no repositorio (NFR-6). HS256 exige >= 32 bytes de segredo.
+filajusta:
+  jwt:
+    secret: ${FILAJUSTA_JWT_SECRET}
+    expiration-seconds: 3600
 
 logging:
   pattern:

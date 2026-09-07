@@ -47,7 +47,7 @@ import java.util.Map;
 
 /**
  * Stack unica do FilaJusta -- Story 1.1 (Subida do Ambiente com Health-Check
- * Publico).
+ * Publico) + Story 1.2 (Autenticacao de Usuario via auth-service).
  *
  * <p>Provisiona: VPC de subnet publica unica, sem NAT Gateway (AD-12);
  * cluster ECS Fargate; Postgres 18 como container Fargate com volume EFS
@@ -55,7 +55,10 @@ import java.util.Map;
  * {@code gateway-service} e {@code auth-service}, com {@code assignPublicIp
  * = ENABLED} (AD-12); security groups que garantem que so o gateway alcanca
  * a porta de aplicacao do auth-service, com excecao estreita e nomeada para
- * health-check (AD-8/AD-12).
+ * health-check (AD-8/AD-12). Story 1.2 acrescenta: Service Connect do
+ * auth-service (DNS interno {@code auth-service.filajusta.local:8081}),
+ * secret {@code JwtSecret} (HS256, AD-14) e as credenciais do Postgres
+ * (reusando {@code PostgresSecret}) injetadas como env vars no auth-service.
  *
  * <p>Os 3 servicos de dominio deferidos (ver deferred-work.md) nao entram
  * aqui -- seguirao o mesmo padrao (task/service + par de security groups
@@ -158,12 +161,18 @@ public class FilaJustaStack extends Stack {
         FargateService gatewayService = buildGatewayService(cluster, vpc, sgGatewayApp);
 
         // --- auth-service (task/service) ------------------------------------
-        FargateService authService = buildAuthService(cluster, vpc, sgAuthApp, sgAuthHealth);
+        Secret jwtSecret = buildJwtSecret();
+        FargateService authService = buildAuthService(cluster, vpc, sgAuthApp, sgAuthHealth, dbSecret, jwtSecret);
 
-        // authService so precisa existir depois do postgresService por
-        // legibilidade do stack (nao ha dependencia funcional nesta story --
-        // auth-service ainda nao conecta ao banco, isso e Story 1.2).
+        // auth-service conecta ao Postgres via JDBC (Story 1.2) -- precisa
+        // existir depois do postgresService. Mesma corrida do namespace
+        // Cloud Map do Service Connect que o Postgres ja tinha (L147-150):
+        // sem DependsOn explicito, o ECS::Service pode se registrar antes do
+        // namespace propagar ("Failed to retrieve namespace").
         authService.getNode().addDependency(postgresService);
+        if (cloudMapNamespace != null) {
+            authService.getNode().addDependency(cloudMapNamespace);
+        }
 
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
@@ -206,6 +215,21 @@ public class FilaJustaStack extends Stack {
                         .generateStringKey("password")
                         .excludePunctuation(true)
                         .passwordLength(32)
+                        .build())
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+    }
+
+    private Secret buildJwtSecret() {
+        // Segredo HS256 compartilhado entre auth-service (emite) e
+        // gateway-service (valida, deferido) -- nunca no repositorio (NFR-6).
+        // String simples (nao JSON): >= 32 bytes exigidos pelo jjwt para HS256
+        // (passwordLength 64 sobra de margem).
+        return Secret.Builder.create(this, "JwtSecret")
+                .description("Segredo HS256 compartilhado entre auth-service e gateway-service (AD-14, NFR-6)")
+                .generateSecretString(SecretStringGenerator.builder()
+                        .excludePunctuation(true)
+                        .passwordLength(64)
                         .build())
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
@@ -358,7 +382,8 @@ public class FilaJustaStack extends Stack {
     }
 
     private FargateService buildAuthService(final Cluster cluster, final IVpc vpc,
-                                             final SecurityGroup sgAuthApp, final SecurityGroup sgAuthHealth) {
+                                             final SecurityGroup sgAuthApp, final SecurityGroup sgAuthHealth,
+                                             final Secret dbSecret, final Secret jwtSecret) {
         LogGroup logGroup = LogGroup.Builder.create(this, "AuthLogGroup")
                 .logGroupName("/filajusta/auth-service")
                 .retention(RetentionDays.THREE_DAYS)
@@ -381,8 +406,20 @@ public class FilaJustaStack extends Stack {
                         .logGroup(logGroup)
                         .build()))
                 .portMappings(List.of(
-                        PortMapping.builder().containerPort(8081).build(),
+                        // Nome exigido pelo Service Connect (portMappingName abaixo);
+                        // a porta de health-check (8090) nao precisa de DNS interno.
+                        PortMapping.builder().name("auth-service").containerPort(8081).build(),
                         PortMapping.builder().containerPort(8090).build()))
+                // Credenciais do Postgres reusam o secret admin da Story 1.1
+                // (mesmo padrao de buildPostgresService); segredo JWT e proprio
+                // deste servico -- nenhum dos dois no repositorio (NFR-6).
+                .secrets(Map.of(
+                        "SPRING_DATASOURCE_USERNAME",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "username"),
+                        "SPRING_DATASOURCE_PASSWORD",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "password"),
+                        "FILAJUSTA_JWT_SECRET",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(jwtSecret)))
                 .build());
 
         return FargateService.Builder.create(this, "AuthService")
@@ -396,6 +433,17 @@ public class FilaJustaStack extends Stack {
                 .circuitBreaker(DeploymentCircuitBreaker.builder().rollback(true).build())
                 .minHealthyPercent(50)
                 .maxHealthyPercent(200)
+                // DNS interno auth-service.filajusta.local:8081 -- e como o
+                // gateway-service alcanca o login (application.yml da rota
+                // publica), mesmo padrao de buildPostgresService (L308-315).
+                .serviceConnectConfiguration(ServiceConnectProps.builder()
+                        .namespace(NAMESPACE)
+                        .services(List.of(ServiceConnectService.builder()
+                                .portMappingName("auth-service")
+                                .dnsName("auth-service")
+                                .port(8081)
+                                .build()))
+                        .build())
                 .build();
     }
 }
