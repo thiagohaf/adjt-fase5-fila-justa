@@ -38,5 +38,14 @@ replay_pid*
 .idea/
 .vscode/
 
+# Maven build output
+target/
+
+# AWS CDK
+infra-cdk/cdk.out/
+infra-cdk/cdk-outputs.json
+infra-cdk/.cdk.staging/
+infra-cdk/cdk.context.json
+
 # Claude Code local-only settings
 .claude/settings.local.json

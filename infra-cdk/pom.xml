@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.filajusta</groupId>
+    <artifactId>fila-justa-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>infra-cdk</artifactId>
+  <packaging>jar</packaging>
+
+  <name>infra-cdk</name>
+  <description>
+    App AWS CDK (Java) que provisiona VPC, cluster ECS Fargate, Postgres 18
+    containerizado e as tasks/services de gateway-service e auth-service
+    (AD-8, AD-9, AD-12, AD-13). Chamado por deploy.sh/destroy.sh via
+    `cdk deploy`/`cdk destroy`; pause.sh usa a AWS CLI direto, sem CDK.
+  </description>
+
+  <properties>
+    <aws-cdk-lib.version>2.268.0</aws-cdk-lib.version>
+    <constructs.version>10.8.1</constructs.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>software.amazon.awscdk</groupId>
+      <artifactId>aws-cdk-lib</artifactId>
+      <version>${aws-cdk-lib.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>software.constructs</groupId>
+      <artifactId>constructs</artifactId>
+      <version>${constructs.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>infra-cdk</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.6.1</version>
+        <configuration>
+          <mainClass>com.filajusta.infra.InfraApp</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
