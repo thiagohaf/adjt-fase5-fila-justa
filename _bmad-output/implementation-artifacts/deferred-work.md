@@ -121,3 +121,17 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
   summary: Nenhum módulo do repositório (incluindo `triagem-score-service`) configura JaCoCo (cobertura ≥90% na camada de domínio) nem PIT (teste de mutação), apesar de `epic-2-context.md` listar isso como requisito do épico.
   evidence: Achado na classificação desta revisão (não por um dos 3 layers). Gap pré-existente em todo o repositório, não introduzido por esta story — `gateway-service`/`auth-service` (Epic 1, já `done`) também não têm. Vale como chore de tooling próprio antes do fechamento do Epic 2, não bloqueante para esta story individual.
+
+## Deferred from: code review of spec-2-2-consulta-triagem-score-fatores-contribuintes (2026-09-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-consulta-triagem-score-fatores-contribuintes.md`
+  summary: `ConsultaTriagemRepositorioAdapter.paraDominio` reconstrói `SinaisVitais`/`GravidadePercebida`/`Score` a partir do dado persistido usando os construtores validadores do domínio (mesmos usados no `POST`). Se os limites de AD-11 (`LimitesSinaisVitais`) mudarem depois do registro, o enum `GravidadePercebida` evoluir (renomear/remover valor), ou um `score_valor` persistido sair de 0..100, a leitura lança as mesmas exceções de validação do `POST` (`SinalVitalInvalidoException`, `GravidadeInvalidaException`, `IllegalArgumentException`), e o `@RestControllerAdvice` compartilhado mapeia isso para `400` — rotulando um problema de integridade de dado/config como erro do cliente numa consulta `GET`.
+  evidence: Achado pelo review adversarial (blind-hunter + edge-case-hunter). O Design Notes da spec 2.2 já documenta a suposição ("os dados já são válidos... entao esta reconstrucao nunca deveria lancar as excecoes de validacao do dominio"), mas nada no código se defende caso a suposição deixe de valer. Só reproduzível com drift de config/enum/dado — não bloqueia nenhum AC desta story; revisitar se/quando limites ou o enum de gravidade puderem mudar em produção.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-consulta-triagem-score-fatores-contribuintes.md`
+  summary: `ConsultaTriagemRepositorioAdapter.ler(...)` desserializa `sintomas`/`score_fatores` (JSONB) sem tratar JSON nulo/malformado nem elemento nulo dentro do array (`List.of(...)` lança `NullPointerException` para elemento nulo).
+  evidence: Achado pelo review adversarial (blind-hunter + edge-case-hunter). Hoje cai no handler genérico `Exception -> 500` já existente (que já responde RFC 7807), só falta contexto de diagnóstico específico — baixo risco enquanto o dado persistido continuar vindo só do próprio `POST /v1/triagens` (que já valida antes de gravar).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-consulta-triagem-score-fatores-contribuintes.md`
+  summary: Cobertura de teste de `GET /v1/triagens/{id}` não inclui casos de borda do mapeamento JSON do adapter (lista `sintomas` vazia, unicode em `fator`) nem ids negativos/zero/decimais no path — além dos 3 cenários exigidos pela I/O & Edge-Case Matrix da spec 2.2, que já estão cobertos.
+  evidence: Achado pelo review adversarial (blind-hunter). Não bloqueia os 3 ACs da story (todos cobertos pela `ConsultarTriagemIntegrationTest`); vale robustecer a suíte quando houver tempo, mesma categoria de hardening incremental já registrada para outras stories.

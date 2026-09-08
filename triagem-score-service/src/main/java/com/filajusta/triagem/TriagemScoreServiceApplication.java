@@ -5,6 +5,8 @@ import com.filajusta.triagem.application.command.PacienteRepositorio;
 import com.filajusta.triagem.application.command.RegistrarTriagem;
 import com.filajusta.triagem.application.command.ResolverOuCriarPaciente;
 import com.filajusta.triagem.application.command.TriagemRepositorio;
+import com.filajusta.triagem.application.query.ConsultaTriagemRepositorio;
+import com.filajusta.triagem.application.query.ConsultarTriagem;
 import com.filajusta.triagem.domain.CalculadorDeScore;
 import com.filajusta.triagem.domain.FaixaVital;
 import com.filajusta.triagem.domain.LimitesSinaisVitais;
@@ -18,10 +20,11 @@ import java.time.Clock;
 /**
  * Ponto de entrada do triagem-score-service (Story 2.1, primeiro servico de
  * dominio do FilaJusta -- FR-1, FR-3). Raiz de composicao que conecta as
- * portas de {@code application.command} (framework-agnosticas por design)
- * aos adapters de {@code infrastructure} -- {@link RegistrarTriagem} e
- * {@link ResolverOuCriarPaciente} nao carregam nenhuma anotacao Spring de
- * dominio (so {@code @Transactional} em {@link RegistrarTriagem}, ver seu
+ * portas de {@code application.command} e {@code application.query}
+ * (framework-agnosticas por design) aos adapters de {@code infrastructure}
+ * -- {@link RegistrarTriagem}, {@link ResolverOuCriarPaciente} e
+ * {@link ConsultarTriagem} (Story 2.2) nao carregam nenhuma anotacao Spring
+ * de dominio (so {@code @Transactional} em {@link RegistrarTriagem}, ver seu
  * javadoc).
  *
  * <p>{@link LimitesSinaisVitais} (AD-11) e montada aqui a partir de
@@ -83,5 +86,10 @@ public class TriagemScoreServiceApplication {
                                        Clock clock) {
         return new RegistrarTriagem(resolverOuCriarPaciente, triagemRepositorio, eventoOutboxRepositorio,
                 calculadorDeScore, limitesSinaisVitais, clock);
+    }
+
+    @Bean
+    ConsultarTriagem consultarTriagem(ConsultaTriagemRepositorio consultaTriagemRepositorio) {
+        return new ConsultarTriagem(consultaTriagemRepositorio);
     }
 }
