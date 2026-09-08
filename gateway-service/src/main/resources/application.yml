@@ -13,8 +13,14 @@ spring:
             # nao exige token (ninguem tem token antes de logar). Sem
             # filtro de validacao de JWT -- o filtro global que protege
             # qualquer outra rota fica deferido (deferred-work.md, AC-3/AC-4).
+            #
+            # Host "auth-service" (SEM sufixo ".filajusta.local"): o dnsName
+            # do Service Connect e resolvido pelo Envoy pela string exata
+            # configurada (FilaJustaStack.buildAuthService), nao pelo nome
+            # qualificado com o namespace -- mesmo bug de DNS encontrado e
+            # corrigido no datasource do auth-service (ver application.yml).
             - id: auth-login
-              uri: http://auth-service.filajusta.local:8081
+              uri: http://auth-service:8081
               predicates:
                 - Path=/v1/auth/login
                 - Method=POST

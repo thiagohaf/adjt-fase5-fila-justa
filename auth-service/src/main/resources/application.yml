@@ -28,8 +28,15 @@ spring:
   # ambiente (SPRING_DATASOURCE_USERNAME/PASSWORD, relaxed binding) --
   # reusa o secret admin do Postgres da Story 1.1 (PostgresSecret), injetado
   # pelo infra-cdk via ECS Secret (nunca no repositorio, NFR-6).
+  #
+  # Host "postgres" (SEM sufixo ".filajusta.local"): o dnsName do Service
+  # Connect (FilaJustaStack.buildPostgresService) e resolvido pelo proxy
+  # Envoy pela string exata configurada -- nao precisa (nem deve) ser
+  # qualificado com o namespace. Bug real encontrado na verificacao ao vivo
+  # da Story 1.2: "postgres.filajusta.local" dava UnknownHostException (o
+  # Envoy so intercepta a string curta "postgres").
   datasource:
-    url: jdbc:postgresql://postgres.filajusta.local:5432/filajusta
+    url: jdbc:postgresql://postgres:5432/filajusta
   flyway:
     schemas: auth
   jpa:

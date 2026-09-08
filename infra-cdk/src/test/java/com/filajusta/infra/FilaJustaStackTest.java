@@ -139,9 +139,11 @@ class FilaJustaStackTest {
 
     @Test
     void authServiceHasServiceConnectDnsName() {
-        // Gateway alcanca o login via DNS interno auth-service.filajusta.local:8081
-        // (application.yml da rota publica) -- sem isso o AC de login nao e
-        // demonstravel fora de um curl direto ao IP publico da task. O CDK
+        // Gateway alcanca o login via DNS interno auth-service:8081 (sem
+        // sufixo de namespace -- o Envoy resolve pela string exata do
+        // dnsName) (application.yml da rota publica) -- sem isso o AC de
+        // login nao e demonstravel fora de um curl direto ao IP publico da
+        // task. O CDK
         // aninha DnsName/Port dentro de ClientAliases, nao direto em Services[].
         Map<String, Object> clientAlias = Map.of("DnsName", "auth-service", "Port", 8081);
         Map<String, Object> serviceEntry = Map.of("ClientAliases", Match.arrayWith(java.util.List.of(
@@ -150,6 +152,28 @@ class FilaJustaStackTest {
                 "Services", Match.arrayWith(java.util.List.of(Match.objectLike(serviceEntry))));
         template.hasResourceProperties("AWS::ECS::Service", Match.objectLike(Map.of(
                 "ServiceConnectConfiguration", Match.objectLike(serviceConnectConfig))));
+    }
+
+    @Test
+    void gatewayServiceIsServiceConnectClient() {
+        // gateway-service precisa do sidecar Envoy do Service Connect pra
+        // resolver "auth-service"/"postgres" -- so cliente, nao publica
+        // nada (sem "Services" na config). Bug real encontrado na
+        // verificacao ao vivo da Story 1.2: sem isso, POST /v1/auth/login
+        // retornava 500 (UnknownHostException: Failed to resolve
+        // 'auth-service', NXDOMAIN) mesmo com o hostname certo.
+        Map<String, Map<String, Object>> serviceConnectServices = template.findResources("AWS::ECS::Service",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "ServiceConnectConfiguration", Match.objectLike(
+                                Map.of("Enabled", true, "Namespace", "filajusta.local")))))));
+        long clientOnlyCount = serviceConnectServices.values().stream()
+                .filter(resource -> {
+                    Object properties = resource.get("Properties");
+                    Object serviceConnectConfig = ((Map<?, ?>) properties).get("ServiceConnectConfiguration");
+                    return !((Map<?, ?>) serviceConnectConfig).containsKey("Services");
+                })
+                .count();
+        assertThat(clientOnlyCount).isEqualTo(1);
     }
 
     @Test

@@ -30,8 +30,11 @@ if [[ -z "${TASK_ARN}" || "${TASK_ARN}" == "None" ]]; then
   exit 0
 fi
 
+# Filtra por type==ElasticNetworkInterface em vez de assumir attachments[0]:
+# desde a Story 1.2, gateway-service tambem e cliente Service Connect e
+# ganha um attachment "ServiceConnect" ANTES do ENI no array.
 ENI_ID=$(aws ecs describe-tasks --cluster "${CLUSTER_NAME}" --tasks "${TASK_ARN}" \
-  --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value' --output text)
+  --query 'tasks[0].attachments[?type==`ElasticNetworkInterface`][].details[] | [?name==`networkInterfaceId`].value | [0]' --output text)
 
 if [[ -z "${ENI_ID}" || "${ENI_ID}" == "None" ]]; then
   echo "AVISO: task RUNNING mas a interface de rede ainda nao esta anexada. Aguarde e rode:"

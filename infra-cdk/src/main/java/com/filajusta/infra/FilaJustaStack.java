@@ -56,8 +56,9 @@ import java.util.Map;
  * = ENABLED} (AD-12); security groups que garantem que so o gateway alcanca
  * a porta de aplicacao do auth-service, com excecao estreita e nomeada para
  * health-check (AD-8/AD-12). Story 1.2 acrescenta: Service Connect do
- * auth-service (DNS interno {@code auth-service.filajusta.local:8081}),
- * secret {@code JwtSecret} (HS256, AD-14) e as credenciais do Postgres
+ * auth-service (DNS interno {@code auth-service:8081} -- dnsName resolvido
+ * pelo Envoy como string exata, sem sufixo de namespace), secret
+ * {@code JwtSecret} (HS256, AD-14) e as credenciais do Postgres
  * (reusando {@code PostgresSecret}) injetadas como env vars no auth-service.
  *
  * <p>Os 3 servicos de dominio deferidos (ver deferred-work.md) nao entram
@@ -159,6 +160,12 @@ public class FilaJustaStack extends Stack {
 
         // --- gateway-service (task/service) -------------------------------
         FargateService gatewayService = buildGatewayService(cluster, vpc, sgGatewayApp);
+        // gateway-service agora e cliente Service Connect (Story 1.2, resolve
+        // "auth-service"/"postgres") -- mesma corrida do namespace Cloud Map
+        // documentada para postgresService/authService (L168-172).
+        if (cloudMapNamespace != null) {
+            gatewayService.getNode().addDependency(cloudMapNamespace);
+        }
 
         // --- auth-service (task/service) ------------------------------------
         Secret jwtSecret = buildJwtSecret();
@@ -378,6 +385,15 @@ public class FilaJustaStack extends Stack {
                 .circuitBreaker(DeploymentCircuitBreaker.builder().rollback(true).build())
                 .minHealthyPercent(50)
                 .maxHealthyPercent(200)
+                // So cliente (nao publica nada) -- sem isso o gateway nao tem o
+                // sidecar Envoy do Service Connect e nao resolve NENHUM dnsName
+                // (nem "postgres" nem "auth-service"). Bug real encontrado na
+                // verificacao ao vivo: POST /v1/auth/login retornava 500 --
+                // UnknownHostException "Failed to resolve 'auth-service'"
+                // (NXDOMAIN) na rota do gateway para o auth-service.
+                .serviceConnectConfiguration(ServiceConnectProps.builder()
+                        .namespace(NAMESPACE)
+                        .build())
                 .build();
     }
 
@@ -433,9 +449,11 @@ public class FilaJustaStack extends Stack {
                 .circuitBreaker(DeploymentCircuitBreaker.builder().rollback(true).build())
                 .minHealthyPercent(50)
                 .maxHealthyPercent(200)
-                // DNS interno auth-service.filajusta.local:8081 -- e como o
-                // gateway-service alcanca o login (application.yml da rota
-                // publica), mesmo padrao de buildPostgresService (L308-315).
+                // DNS interno "auth-service:8081" (SEM sufixo de namespace --
+                // o Envoy do Service Connect resolve pela string exata do
+                // dnsName) -- e como o gateway-service alcanca o login
+                // (application.yml da rota publica), mesmo padrao de
+                // buildPostgresService (L308-315).
                 .serviceConnectConfiguration(ServiceConnectProps.builder()
                         .namespace(NAMESPACE)
                         .services(List.of(ServiceConnectService.builder()

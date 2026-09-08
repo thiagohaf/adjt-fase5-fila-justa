@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * Cobre a unica rota publica de dominio da spec 1.2 (application.yml:
  * {@code auth-login}, {@code Path=/v1/auth/login} + {@code Method=POST} ->
- * {@code http://auth-service.filajusta.local:8081}, sem filtro). Sem este
+ * {@code http://auth-service:8081}, sem filtro). Sem este
  * teste, um typo no path/metodo/porta/esquema da URI 404aria ou desviaria a
  * requisicao em producao com a suite inteira ainda verde -- e o unico
  * caminho externamente alcancavel ate o login.
