@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-08-2026 17:05
+last_updated: 09-08-2026 21:15
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -45,7 +45,8 @@ development_status:
   2-2-consulta-de-triagem-com-score-e-fatores-contribuintes: done
   epic-2-retrospective: done
 
-  epic-3: backlog
+  epic-3: in-progress
+  3-0-relay-sns-score-calculado: review
   3-1-consulta-da-fila-priorizada-com-urgência-acumulada: backlog
   3-2-sugestão-de-matching-para-um-recurso-com-desempates: backlog
   3-3-confirmação-ou-recusa-da-sugestão-de-matching: backlog

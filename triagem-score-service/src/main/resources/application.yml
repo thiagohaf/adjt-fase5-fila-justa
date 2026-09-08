@@ -63,6 +63,23 @@ filajusta:
       temperatura:
         min: 30
         max: 42
+    # Relay real do evento ScoreCalculado para SNS FIFO (Story 3.0, AD-3) --
+    # RelaySnsPublisherJob (infrastructure/relay). topic-arn/endpoint-override
+    # ficam vazios em producao real (endpoint-override so e setado nos testes
+    # de integracao, apontando para o LocalStack); credenciais nunca aqui,
+    # so via variavel de ambiente/role da task (Boundaries da spec 3.0).
+    relay:
+      # Kill switch operacional -- tambem usado por
+      # RegistrarTriagemIntegrationTest/ConsultarTriagemIntegrationTest
+      # (filajusta.triagem.relay.enabled=false) para nao criar o SnsClient
+      # nem agendar o poller em testes que nao exercitam o relay, evitando
+      # qualquer tentativa de chamada de rede real fora do escopo deles.
+      enabled: true
+      topic-arn: ${FILAJUSTA_TRIAGEM_RELAY_TOPIC_ARN:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${FILAJUSTA_TRIAGEM_RELAY_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 50
 
 logging:
   pattern:

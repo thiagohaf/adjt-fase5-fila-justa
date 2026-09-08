@@ -35,11 +35,14 @@ import software.amazon.awscdk.services.efs.AccessPoint;
 import software.amazon.awscdk.services.efs.Acl;
 import software.amazon.awscdk.services.efs.FileSystem;
 import software.amazon.awscdk.services.efs.PosixUser;
+import software.amazon.awscdk.services.iam.Role;
+import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.amazon.awscdk.services.secretsmanager.SecretStringGenerator;
 import software.amazon.awscdk.services.servicediscovery.INamespace;
+import software.amazon.awscdk.services.sns.Topic;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -67,7 +70,14 @@ import java.util.Map;
  *
  * <p>Os 3 servicos de dominio deferidos (ver deferred-work.md) nao entram
  * aqui -- seguirao o mesmo padrao (task/service + par de security groups
- * app/health) quando suas stories comecarem.
+ * app/health) quando suas stories comecarem. Story 3.0 (relay real do
+ * evento {@code ScoreCalculado}) e a primeira excecao parcial: declara o
+ * topico SNS FIFO {@code score-calculado.fifo} (AD-3) e a IAM role de
+ * publish de {@code triagem-score-service} antes do proprio deploy ECS
+ * daquele servico continuar deferido -- quando a
+ * {@code FargateTaskDefinition} real for criada, ela deve reusar
+ * {@code TriagemScoreServiceTaskRole} (nao criar outra), para que esta
+ * policy de publish ja valha para a task.
  */
 public class FilaJustaStack extends Stack {
 
@@ -188,11 +198,43 @@ public class FilaJustaStack extends Stack {
             authService.getNode().addDependency(cloudMapNamespace);
         }
 
+        // --- Relay do evento ScoreCalculado (Story 3.0, AD-3) --------------
+        // So o topico + a role de publish -- deploy do triagem-score-service
+        // no ECS continua deferido (deferred-work.md, ver javadoc da classe).
+        Topic scoreCalculadoTopic = buildScoreCalculadoTopic();
+        buildTriagemScoreServiceTaskRole(scoreCalculadoTopic);
+
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
         CfnOutput.Builder.create(this, "GatewayServiceName").value(gatewayService.getServiceName()).build();
         CfnOutput.Builder.create(this, "AuthServiceName").value(authService.getServiceName()).build();
         CfnOutput.Builder.create(this, "PostgresServiceName").value(postgresService.getServiceName()).build();
+        CfnOutput.Builder.create(this, "ScoreCalculadoTopicArn").value(scoreCalculadoTopic.getTopicArn()).build();
+    }
+
+    private Topic buildScoreCalculadoTopic() {
+        // FIFO (nao standard) -- ordem determinística por paciente via
+        // MessageGroupId = pacienteId (AD-3, ARCHITECTURE-SPINE.md).
+        // contentBasedDeduplication=false: RelaySnsPublisherJob sempre manda
+        // um MessageDeduplicationId explicito (o eventId do outbox), nunca
+        // depende de deduplicacao por conteudo.
+        return Topic.Builder.create(this, "ScoreCalculadoTopic")
+                .topicName("score-calculado.fifo")
+                .fifo(true)
+                .contentBasedDeduplication(false)
+                .build();
+    }
+
+    private Role buildTriagemScoreServiceTaskRole(final Topic scoreCalculadoTopic) {
+        Role role = Role.Builder.create(this, "TriagemScoreServiceTaskRole")
+                .assumedBy(new ServicePrincipal("ecs-tasks.amazonaws.com"))
+                .description("Task role de triagem-score-service (Story 3.0, RelaySnsPublisherJob) -- criada "
+                        + "antes do deploy ECS daquele servico (deferred-work.md) so para a policy de publish "
+                        + "no topico SNS FIFO ja existir; reusar esta role (nao criar outra) quando a "
+                        + "FargateTaskDefinition for adicionada.")
+                .build();
+        scoreCalculadoTopic.grantPublish(role);
+        return role;
     }
 
     private IVpc buildVpc() {

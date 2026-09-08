@@ -1,6 +1,7 @@
 package com.filajusta.triagem.infrastructure.web;
 
 import com.filajusta.triagem.application.query.TriagemNaoEncontradaException;
+import com.filajusta.triagem.domain.CorrelationIdInvalidoException;
 import com.filajusta.triagem.domain.CpfInvalidoException;
 import com.filajusta.triagem.domain.GravidadeInvalidaException;
 import com.filajusta.triagem.domain.SinalVitalInvalidoException;
@@ -25,6 +26,11 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  *
  * <p>{@link SinalVitalInvalidoException} -> {@code 400}, propriedade
  * {@code campo} dinamica (o sinal vital ofensivo).
+ *
+ * <p>{@link CorrelationIdInvalidoException} -> {@code 400}, propriedade
+ * {@code campo} fixa ({@code correlationId}): header {@code X-Correlation-Id}
+ * maior que o limite persistivel em {@code eventos_outbox.correlation_id}
+ * (achado do code review da Story 3.0).
  *
  * <p>{@link HttpMessageNotReadableException} -> {@code 400}: corpo ausente
  * ou JSON malformado tambem e requisicao invalida, nao deve escapar como o
@@ -56,6 +62,14 @@ class TriagemExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("Sinal vital invalido");
         problem.setProperty("campo", ex.getCampo());
+        return problem;
+    }
+
+    @ExceptionHandler(CorrelationIdInvalidoException.class)
+    ProblemDetail handleCorrelationIdInvalido(CorrelationIdInvalidoException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Correlation ID invalido");
+        problem.setProperty("campo", "correlationId");
         return problem;
     }
 

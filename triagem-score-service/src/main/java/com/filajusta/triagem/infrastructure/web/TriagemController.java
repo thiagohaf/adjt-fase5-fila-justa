@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,6 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
  * consulta viram RFC 7807 via {@link TriagemExceptionHandler}, que trata as
  * excecoes unicas lancadas pelo dominio dentro de {@link RegistrarTriagem} e
  * {@link ConsultarTriagem}.
+ *
+ * <p>{@code POST /v1/triagens} le o header {@code X-Correlation-Id} (Story
+ * 3.0, mesmo header propagado por
+ * {@code gateway-service}'s {@code CorrelationIdFilter}) e repassa ao
+ * outbox via {@link RegistrarTriagem} -- a geracao de um UUID quando o
+ * header esta ausente (chamada direta, sem passar pelo gateway) e
+ * responsabilidade de {@link RegistrarTriagem}, nao deste controller.
  */
 @RestController
 public class TriagemController {
@@ -34,7 +42,9 @@ public class TriagemController {
 
     @PostMapping("/v1/triagens")
     @ResponseStatus(HttpStatus.CREATED)
-    public RegistrarTriagemResponse registrar(@RequestBody RegistrarTriagemRequest request) {
+    public RegistrarTriagemResponse registrar(
+            @RequestBody RegistrarTriagemRequest request,
+            @RequestHeader(value = "X-Correlation-Id", required = false) String correlationId) {
         RegistrarTriagemRequest.SinaisVitaisRequest sinaisVitais = request.sinaisVitais();
 
         Triagem triagem = registrarTriagem.registrar(
@@ -46,7 +56,8 @@ public class TriagemController {
                 sinaisVitais == null ? null : sinaisVitais.frequenciaRespiratoria(),
                 sinaisVitais == null ? null : sinaisVitais.temperatura(),
                 request.gravidadePercebida(),
-                request.sintomas());
+                request.sintomas(),
+                correlationId);
 
         return RegistrarTriagemResponse.de(triagem);
     }
