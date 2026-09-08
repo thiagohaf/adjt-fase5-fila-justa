@@ -133,7 +133,70 @@ class FilaJustaStackTest {
 
     @Test
     void dbSecretIsNotAPlainParameter() {
-        template.resourceCountIs("AWS::SecretsManager::Secret", 1);
+        // PostgresSecret (Story 1.1) + JwtSecret (Story 1.2, AD-14).
+        template.resourceCountIs("AWS::SecretsManager::Secret", 2);
+    }
+
+    @Test
+    void authServiceHasServiceConnectDnsName() {
+        // Gateway alcanca o login via DNS interno auth-service:8081 (sem
+        // sufixo de namespace -- o Envoy resolve pela string exata do
+        // dnsName) (application.yml da rota publica) -- sem isso o AC de
+        // login nao e demonstravel fora de um curl direto ao IP publico da
+        // task. O CDK
+        // aninha DnsName/Port dentro de ClientAliases, nao direto em Services[].
+        Map<String, Object> clientAlias = Map.of("DnsName", "auth-service", "Port", 8081);
+        Map<String, Object> serviceEntry = Map.of("ClientAliases", Match.arrayWith(java.util.List.of(
+                Match.objectLike(clientAlias))));
+        Map<String, Object> serviceConnectConfig = Map.of(
+                "Services", Match.arrayWith(java.util.List.of(Match.objectLike(serviceEntry))));
+        template.hasResourceProperties("AWS::ECS::Service", Match.objectLike(Map.of(
+                "ServiceConnectConfiguration", Match.objectLike(serviceConnectConfig))));
+    }
+
+    @Test
+    void gatewayServiceIsServiceConnectClient() {
+        // gateway-service precisa do sidecar Envoy do Service Connect pra
+        // resolver "auth-service"/"postgres" -- so cliente, nao publica
+        // nada (sem "Services" na config). Bug real encontrado na
+        // verificacao ao vivo da Story 1.2: sem isso, POST /v1/auth/login
+        // retornava 500 (UnknownHostException: Failed to resolve
+        // 'auth-service', NXDOMAIN) mesmo com o hostname certo.
+        Map<String, Map<String, Object>> serviceConnectServices = template.findResources("AWS::ECS::Service",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "ServiceConnectConfiguration", Match.objectLike(
+                                Map.of("Enabled", true, "Namespace", "filajusta.local")))))));
+        long clientOnlyCount = serviceConnectServices.values().stream()
+                .filter(resource -> {
+                    Object properties = resource.get("Properties");
+                    Object serviceConnectConfig = ((Map<?, ?>) properties).get("ServiceConnectConfiguration");
+                    return !((Map<?, ?>) serviceConnectConfig).containsKey("Services");
+                })
+                .count();
+        assertThat(clientOnlyCount).isEqualTo(1);
+    }
+
+    @Test
+    void authServiceReceivesJwtSecretAndDbCredentialsAsEcsSecrets() {
+        // Nem o segredo JWT nem a senha do Postgres vao no repositorio (NFR-6) --
+        // ambos chegam ao container so via ECS Secret (Secrets Manager), nunca
+        // como "Environment" em texto puro. Cada nome e verificado
+        // isoladamente (Match.arrayWith com 1 padrao) -- a ordem dos 3
+        // secrets no array sintetizado nao e um invariante desta spec.
+        assertAuthContainerHasSecret("FILAJUSTA_JWT_SECRET");
+        assertAuthContainerHasSecret("SPRING_DATASOURCE_USERNAME");
+        assertAuthContainerHasSecret("SPRING_DATASOURCE_PASSWORD");
+    }
+
+    private static void assertAuthContainerHasSecret(final String secretEnvName) {
+        Object secretsMatch = Match.arrayWith(java.util.List.of(
+                Match.objectLike(Map.of("Name", secretEnvName))));
+        Map<String, Object> authContainer = Map.of(
+                "Name", "auth-service",
+                "Secrets", secretsMatch);
+        Object containerDefinitions = Match.arrayWith(java.util.List.of(Match.objectLike(authContainer)));
+        template.hasResourceProperties("AWS::ECS::TaskDefinition", Match.objectLike(Map.of(
+                "ContainerDefinitions", containerDefinitions)));
     }
 
     @Test
