@@ -60,6 +60,10 @@ import java.util.Map;
  * pelo Envoy como string exata, sem sufixo de namespace), secret
  * {@code JwtSecret} (HS256, AD-14) e as credenciais do Postgres
  * (reusando {@code PostgresSecret}) injetadas como env vars no auth-service.
+ * A spec de validacao de JWT no gateway acrescenta o mesmo
+ * {@code JwtSecret} tambem como env var {@code FILAJUSTA_JWT_SECRET} do
+ * {@code gateway-service} -- consumido pelo {@code JwtAuthenticationFilter}
+ * (unico ponto de validacao de assinatura/expiracao, AD-8).
  *
  * <p>Os 3 servicos de dominio deferidos (ver deferred-work.md) nao entram
  * aqui -- seguirao o mesmo padrao (task/service + par de security groups
@@ -159,7 +163,11 @@ public class FilaJustaStack extends Stack {
         postgresService.getNode().addDependency(postgresEfs.getMountTargetsAvailable());
 
         // --- gateway-service (task/service) -------------------------------
-        FargateService gatewayService = buildGatewayService(cluster, vpc, sgGatewayApp);
+        // JwtSecret criado antes do gateway-service: Story 1.2 acrescenta o
+        // GlobalFilter que valida o JWT (AD-8) -- gateway-service tambem
+        // precisa do segredo compartilhado, igual ao auth-service (AD-14).
+        Secret jwtSecret = buildJwtSecret();
+        FargateService gatewayService = buildGatewayService(cluster, vpc, sgGatewayApp, jwtSecret);
         // gateway-service agora e cliente Service Connect (Story 1.2, resolve
         // "auth-service"/"postgres") -- mesma corrida do namespace Cloud Map
         // documentada para postgresService/authService (L168-172).
@@ -168,7 +176,6 @@ public class FilaJustaStack extends Stack {
         }
 
         // --- auth-service (task/service) ------------------------------------
-        Secret jwtSecret = buildJwtSecret();
         FargateService authService = buildAuthService(cluster, vpc, sgAuthApp, sgAuthHealth, dbSecret, jwtSecret);
 
         // auth-service conecta ao Postgres via JDBC (Story 1.2) -- precisa
@@ -229,9 +236,9 @@ public class FilaJustaStack extends Stack {
 
     private Secret buildJwtSecret() {
         // Segredo HS256 compartilhado entre auth-service (emite) e
-        // gateway-service (valida, deferido) -- nunca no repositorio (NFR-6).
-        // String simples (nao JSON): >= 32 bytes exigidos pelo jjwt para HS256
-        // (passwordLength 64 sobra de margem).
+        // gateway-service (valida, JwtAuthenticationFilter) -- nunca no
+        // repositorio (NFR-6). String simples (nao JSON): >= 32 bytes
+        // exigidos pelo jjwt para HS256 (passwordLength 64 sobra de margem).
         return Secret.Builder.create(this, "JwtSecret")
                 .description("Segredo HS256 compartilhado entre auth-service e gateway-service (AD-14, NFR-6)")
                 .generateSecretString(SecretStringGenerator.builder()
@@ -347,7 +354,8 @@ public class FilaJustaStack extends Stack {
                 .build();
     }
 
-    private FargateService buildGatewayService(final Cluster cluster, final IVpc vpc, final SecurityGroup sgGatewayApp) {
+    private FargateService buildGatewayService(final Cluster cluster, final IVpc vpc,
+                                                final SecurityGroup sgGatewayApp, final Secret jwtSecret) {
         LogGroup logGroup = LogGroup.Builder.create(this, "GatewayLogGroup")
                 .logGroupName("/filajusta/gateway-service")
                 .retention(RetentionDays.THREE_DAYS)
@@ -373,6 +381,13 @@ public class FilaJustaStack extends Stack {
                 .portMappings(List.of(PortMapping.builder()
                         .containerPort(8080)
                         .build()))
+                // Segredo HS256 compartilhado com o auth-service (AD-14) --
+                // consumido pelo JwtAuthenticationFilter (Story 1.2) para
+                // validar assinatura/expiracao de qualquer rota fora da
+                // allowlist publica. Nunca no repositorio (NFR-6).
+                .secrets(Map.of(
+                        "FILAJUSTA_JWT_SECRET",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(jwtSecret)))
                 .build());
 
         return FargateService.Builder.create(this, "GatewayService")

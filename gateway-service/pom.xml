@@ -16,10 +16,16 @@
 
   <name>gateway-service</name>
   <description>
-    Spring Cloud Gateway -- unico ponto de validacao de token (AD-8). Nesta
-    story (1.1) expoe apenas GET /actuator/health, publico, sem token. Rotas
-    e validacao de JWT entram na Story 1.2 (AD-8/AD-14).
+    Spring Cloud Gateway -- unico ponto de validacao de token (AD-8). Story
+    1.1 expos apenas GET /actuator/health, publico, sem token. Story 1.2
+    acrescenta o GlobalFilter que valida assinatura/expiracao do JWT HS256
+    (jjwt) em toda rota fora da allowlist publica (AD-8/AD-14).
   </description>
+
+  <properties>
+    <!-- Mesma versao de auth-service/pom.xml. jjwt nao e gerenciado pelo BOM Spring Boot/Spring Cloud. -->
+    <jjwt.version>0.13.0</jjwt.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -29,6 +35,26 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- Validacao de JWT HS256 (AD-8/AD-14), mesma versao do auth-service
+         que emite o token. -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>

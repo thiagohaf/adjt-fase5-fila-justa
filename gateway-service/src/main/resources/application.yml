@@ -25,6 +25,14 @@ spring:
                 - Path=/v1/auth/login
                 - Method=POST
 
+# Segredo compartilhado com o auth-service (mesmo par HS256, AD-14) -- so
+# variavel de ambiente/Secrets Manager, nunca no repositorio (NFR-6).
+# Consumido pelo JwtAuthenticationFilter (infrastructure/security) que
+# valida assinatura/expiracao de qualquer rota fora da allowlist publica.
+filajusta:
+  jwt:
+    secret: ${FILAJUSTA_JWT_SECRET}
+
 management:
   endpoints:
     web:
