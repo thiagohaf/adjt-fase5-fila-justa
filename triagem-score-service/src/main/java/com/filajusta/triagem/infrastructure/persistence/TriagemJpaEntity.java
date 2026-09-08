@@ -102,4 +102,56 @@ public class TriagemJpaEntity {
     public Long getId() {
         return id;
     }
+
+    public Long getPacienteId() {
+        return pacienteId;
+    }
+
+    public Double getFrequenciaCardiaca() {
+        return frequenciaCardiaca;
+    }
+
+    public Double getPressaoArterialSistolica() {
+        return pressaoArterialSistolica;
+    }
+
+    public Double getPressaoArterialDiastolica() {
+        return pressaoArterialDiastolica;
+    }
+
+    public Double getSaturacaoOxigenio() {
+        return saturacaoOxigenio;
+    }
+
+    public Double getFrequenciaRespiratoria() {
+        return frequenciaRespiratoria;
+    }
+
+    public Double getTemperatura() {
+        return temperatura;
+    }
+
+    public String getGravidadePercebida() {
+        return gravidadePercebida;
+    }
+
+    public String getSintomas() {
+        return sintomas;
+    }
+
+    public Integer getScoreValor() {
+        return scoreValor;
+    }
+
+    public String getScoreAlgoritmoVersao() {
+        return scoreAlgoritmoVersao;
+    }
+
+    public String getScoreFatores() {
+        return scoreFatores;
+    }
+
+    public Instant getCriadoEm() {
+        return criadoEm;
+    }
 }
