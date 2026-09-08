@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-08-2026 01:42
+last_updated: 09-08-2026 08:53
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -81,5 +81,5 @@ action_items:
     action: "Triar os 15 itens acumulados em deferred-work.md em stories/chores formais
       antes do início do Epic 2, ou adiar cada um explicitamente"
     owner: "ThiagoFerreira"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
