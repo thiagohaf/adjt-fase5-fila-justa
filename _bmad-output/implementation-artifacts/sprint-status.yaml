@@ -29,16 +29,16 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-07-2026 16:45
+last_updated: 09-08-2026 08:53
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
-  1-1-subida-do-ambiente-com-health-check-público: review
-  1-2-autenticação-de-usuário-via-auth-service: review
-  epic-1-retrospective: optional
+  1-1-subida-do-ambiente-com-health-check-público: done
+  1-2-autenticação-de-usuário-via-auth-service: done
+  epic-1-retrospective: done
 
   epic-2: backlog
   2-1-registro-de-triagem-com-score-de-prioridade-calculado: backlog
@@ -60,3 +60,26 @@ development_status:
   epic-5: backlog
   5-1-carga-de-dados-sintéticos-via-camada-adaptadora: backlog
   epic-5-retrospective: optional
+action_items:
+  - id: "epic-1-retro-item-1-atualizar-package-info-java-desatualizad"
+    epic: 1
+    action: "Atualizar package-info.java desatualizado (gateway-service/application
+      e domain) que ainda descreve validação de JWT entrando em application/domain
+      — foi implementada em infrastructure/security"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-2-rodar-verificação-ao-vivo-aws-real-de-ac"
+    epic: 1
+    action: "Rodar verificação ao vivo (AWS real) de AC-3/AC-4 — validação de JWT
+      no gateway — hoje só coberta por mvn test/cdk synth, diferente do resto do epic"
+    owner: "ThiagoFerreira"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-3-triar-os-15-itens-acumulados-em-deferred"
+    epic: 1
+    action: "Triar os 15 itens acumulados em deferred-work.md em stories/chores formais
+      antes do início do Epic 2, ou adiar cada um explicitamente"
+    owner: "ThiagoFerreira"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
