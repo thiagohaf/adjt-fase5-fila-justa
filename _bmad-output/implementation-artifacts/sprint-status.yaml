@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-08-2026 14:45
+last_updated: 09-08-2026 17:05
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -95,35 +95,47 @@ action_items:
       o evento ScoreCalculado (hoje só grava na tabela outbox) — Epic 3/4 dependem
       deste relay estar publicando corretamente."
     owner: "ThiagoFerreira"
-    status: open
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/deferred-work.md#deferred-from-retrospectiva-do-epic-2-2026-09-08-epic-2-retro-2026-09-08md"
   - id: "epic-2-retro-item-5-decidir-e-registrar-o-destino-dos-endpoi"
     epic: 2
     action: "Decidir e registrar o destino dos endpoints gRPC internos (ResolveCpfParaId,
       ObterCpfMascarado) declarados no Technical Decisions do epic-2-context.md —
-      hoje sem implementação nem registro de adiamento."
+      hoje sem implementação nem registro de adiamento. DECISÃO 2026-09-08: manter
+      a declaração no epic-2-context.md e adiar a implementação até o primeiro
+      consumidor real precisar (Epic 3/4) — registrado em deferred-work.md."
     owner: "ThiagoFerreira"
-    status: open
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/deferred-work.md#deferred-from-retrospectiva-do-epic-2-2026-09-08-epic-2-retro-2026-09-08md"
   - id: "epic-2-retro-item-6-corrigir-epic-2-context-md-technical-dec"
     epic: 2
     action: "Corrigir epic-2-context.md (Technical Decisions) para anotar que ListarScoresAtuais
       foi explicitamente adiado para o Epic 3 pela spec 2.2 (Boundaries)."
     owner: "ThiagoFerreira"
-    status: open
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-2-context.md"
   - id: "epic-2-retro-item-7-configurar-jacoco-90-domínio-pit-no-tria"
     epic: 2
     action: "Configurar JaCoCo (≥90% domínio) + PIT no triagem-score-service — já
       apontado como \"antes do fechamento do Epic 2\" na revisão da Story 2.1 e ainda
-      não feito."
+      não feito. RESOLVIDO 2026-09-08: jacoco-maven-plugin 0.8.13 (rule BUNDLE
+      restrita a com.filajusta.triagem.domain.*, mínimo 90% LINE) vinculado a
+      test/verify — `mvn verify` confirmado passando (96,6% de cobertura de linha
+      no domínio). pitest-maven 1.30.0 + pitest-junit5-plugin 1.2.2 configurados
+      (targetClasses/targetTests = domain), não vinculados ao lifecycle por custo
+      — rodar sob demanda via
+      `mvn -pl triagem-score-service -am org.pitest:pitest-maven:mutationCoverage`
+      (confirmado rodando: 74% mutation score na 1ª execução, sem threshold
+      mínimo imposto)."
     owner: "ThiagoFerreira"
-    status: open
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+    status: done
+    ref: "triagem-score-service/pom.xml"
   - id: "epic-2-retro-item-8-fechar-cada-story-com-commit-e-pr-quando"
     epic: 2
     action: "Fechar cada story com commit (e PR, quando o fluxo pedir) na mesma sessão
-      em que o code review termina — a Story 2.2 ficou sem commit até a retro do epic."
+      em que o code review termina — a Story 2.2 ficou sem commit até a retro do epic.
+      RESOLVIDO 2026-09-08: lição adotada como preferência de processo permanente
+      (memória de sessão), a aplicar a partir da Story 3.1."
     owner: "ThiagoFerreira"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"

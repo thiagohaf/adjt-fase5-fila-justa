@@ -135,3 +135,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-consulta-triagem-score-fatores-contribuintes.md`
   summary: Cobertura de teste de `GET /v1/triagens/{id}` não inclui casos de borda do mapeamento JSON do adapter (lista `sintomas` vazia, unicode em `fator`) nem ids negativos/zero/decimais no path — além dos 3 cenários exigidos pela I/O & Edge-Case Matrix da spec 2.2, que já estão cobertos.
   evidence: Achado pelo review adversarial (blind-hunter). Não bloqueia os 3 ACs da story (todos cobertos pela `ConsultarTriagemIntegrationTest`); vale robustecer a suíte quando houver tempo, mesma categoria de hardening incremental já registrada para outras stories.
+
+## Deferred from: retrospectiva do Epic 2 (2026-09-08, `epic-2-retro-2026-09-08.md`)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: Implementar o relay/publisher real do evento `ScoreCalculado` em tópico SNS FIFO (`MessageGroupId = pacienteId`, DLQ com `maxReceiveCount = 5`, conforme Technical Decisions do epic-2-context.md). Hoje a Story 2.1 só grava o evento na tabela outbox — nenhum publisher/relay existe.
+  evidence: Achado pela retrospectiva do Epic 2 (action item 1). Epic 3 (Matching/Alocação) e Epic 4 (Auditoria) dependem deste relay estar publicando corretamente para consumirem `ScoreCalculado` — sem ele, nenhum dos dois epics tem dado real para reagir, mesmo depois de implementados. Bloqueante de fato para o início de qualquer story de Epic 3/4 que dependa do evento (não bloqueou o fechamento do Epic 2 em si).
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
+  summary: Implementar os dois endpoints gRPC internos declarados no Technical Decisions do epic-2-context.md — `ResolveCpfParaId(cpf) -> pacienteId` e `ObterCpfMascarado(pacienteId) -> cpfMascarado`, protegidos por segredo compartilhado + isolamento de rede.
+  evidence: Achado pela retrospectiva do Epic 2 (action item 2). Defensável por YAGNI — nenhum consumidor externo existe ainda, nenhuma story do `triagem-score-service` precisou resolver CPF↔ID por fora do próprio serviço. Decisão registrada na retro (2026-09-08): manter a declaração no epic-2-context.md e adiar a implementação até o primeiro consumidor real precisar (Epic 3 ou 4).
