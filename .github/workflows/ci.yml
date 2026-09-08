@@ -1,0 +1,38 @@
+name: CI
+
+# Build/test do reactor Maven (gateway-service, auth-service, infra-cdk) e
+# validação da stack CDK (cdk synth) em todo push/PR. Não toca a conta AWS —
+# distinto do deploy/pause/destroy real, que segue manual
+# (deferred-work.md: automação de deploy via GitHub Actions/OIDC).
+on:
+  push:
+    branches: [develop, master, main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: mvn test (gateway-service, auth-service, infra-cdk)
+        run: mvn -B -pl gateway-service,auth-service,infra-cdk -am test
+
+      - name: Set up Node.js (CDK CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install AWS CDK CLI
+        run: npm install -g aws-cdk
+
+      - name: cdk synth (valida a stack sem deployar)
+        working-directory: infra-cdk
+        run: cdk synth
