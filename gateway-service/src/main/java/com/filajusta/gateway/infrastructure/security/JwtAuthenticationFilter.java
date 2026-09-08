@@ -139,9 +139,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         // Alta precedencia, mas com folga acima de HIGHEST_PRECEDENCE
-        // (Integer.MIN_VALUE) -- um futuro filtro de correlationId
-        // (deferred-work.md) precisa rodar ANTES deste, o que exige um
-        // valor menor ainda disponivel.
+        // (Integer.MIN_VALUE) -- o
+        // com.filajusta.gateway.infrastructure.web.CorrelationIdFilter roda
+        // ANTES deste (getOrder() = Ordered.HIGHEST_PRECEDENCE), para que
+        // toda resposta, inclusive o 401 deste filtro, carregue o header
+        // X-Correlation-Id.
         return Ordered.HIGHEST_PRECEDENCE + 100;
     }
 
