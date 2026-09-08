@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.filajusta</groupId>
+    <artifactId>fila-justa-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>triagem-score-service</artifactId>
+  <packaging>jar</packaging>
+
+  <name>triagem-score-service</name>
+  <description>
+    Primeiro servico de dominio do FilaJusta (Epic 2). Story 2.1 expoe
+    POST /v1/triagens (FR-1, FR-3): valida CPF e sinais vitais (AD-11),
+    resolve/cria o Paciente por CPF de forma idempotente, calcula um Score
+    deterministico versionado (algoritmo v1) e grava um evento
+    ScoreCalculado em tabela outbox -- sem publicar de fato (relay real
+    fica para quando houver consumidor, Epic 3+). Schema Postgres proprio
+    triagem_score (AD-9).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- Bean Validation nao e usada nos DTOs desta story (a validacao vive
+         no dominio: Cpf/SinaisVitais/GravidadePercebida), mas o starter e
+         mantido para espelhar auth-service/pom.xml. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <!-- Boot 4.1 modularizou a autoconfiguracao (spring-boot-flyway),
+         separada do starter de JPA. Sem isso o Flyway nunca roda: a
+         migration so existe no classpath, mas o bean flywayInitializer
+         nunca e criado, e o Hibernate valida um schema vazio (mesmo
+         achado da Story 1.2, ver auth-service/pom.xml). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+    <!-- payload/fatores contribuintes do Score em JSONB (eventos_outbox,
+         triagens): serializado via Jackson (ja transitivo via
+         spring-boot-starter-web), sem driver JSONB dedicado. -->
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>triagem-score-service</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

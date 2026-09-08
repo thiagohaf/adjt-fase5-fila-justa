@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-08-2026 08:53
+last_updated: 09-08-2026 11:20
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -40,8 +40,8 @@ development_status:
   1-2-autenticação-de-usuário-via-auth-service: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-registro-de-triagem-com-score-de-prioridade-calculado: backlog
+  epic-2: in-progress
+  2-1-registro-de-triagem-com-score-de-prioridade-calculado: review
   2-2-consulta-de-triagem-com-score-e-fatores-contribuintes: backlog
   epic-2-retrospective: optional
 
@@ -72,7 +72,14 @@ action_items:
   - id: "epic-1-retro-item-2-rodar-verificação-ao-vivo-aws-real-de-ac"
     epic: 1
     action: "Rodar verificação ao vivo (AWS real) de AC-3/AC-4 — validação de JWT
-      no gateway — hoje só coberta por mvn test/cdk synth, diferente do resto do epic"
+      no gateway — hoje só coberta por mvn test/cdk synth, diferente do resto do epic.
+      DECISÃO 2026-09-08: hoje não existe nenhuma rota protegida real no
+      RouteLocator do gateway (só /v1/auth/login, pública) — GlobalFilters do
+      Spring Cloud Gateway só rodam para paths que casam com uma rota existente,
+      então o JwtAuthenticationFilter não é exercitável ao vivo sem uma rota-stub.
+      ThiagoFerreira optou por não criar rota-stub agora; adiado para verificação
+      orgânica quando a 1ª rota protegida real (Epic 2, triagem-score-service)
+      existir."
     owner: "ThiagoFerreira"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"

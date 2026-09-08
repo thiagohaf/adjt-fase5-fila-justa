@@ -1,0 +1,69 @@
+server:
+  port: 8082
+
+# Porta de management separada da porta de aplicacao: mesmo raciocinio do
+# auth-service (AD-8/AD-12) -- o security group de health-check libera so
+# essa porta, sem reabrir a porta de aplicacao (so o gateway-service alcanca).
+management:
+  server:
+    port: 8091
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+spring:
+  application:
+    name: triagem-score-service
+  # Credenciais (spring.datasource.username/password) vem so de variavel de
+  # ambiente (SPRING_DATASOURCE_USERNAME/PASSWORD, relaxed binding) -- reusa
+  # o secret admin do Postgres compartilhado (mesmo padrao do auth-service).
+  # Host "postgres" (sem sufixo ".filajusta.local", ver auth-service/application.yml).
+  datasource:
+    url: jdbc:postgresql://postgres:5432/filajusta
+  flyway:
+    schemas: triagem_score
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway (nao Hibernate) e o dono do schema -- so valida o mapeamento.
+      ddl-auto: validate
+
+# Faixas fisiologicas plausiveis da Triagem (AD-11, [ASSUMPTION]) -- fonte
+# unica de verdade, montada em LimitesSinaisVitais na raiz de composicao
+# (TriagemScoreServiceApplication) e usada tanto para validar (400 no
+# primeiro campo fora da faixa) quanto para calcular a subnota do Score v1
+# (Design Notes da spec 2.1).
+filajusta:
+  triagem:
+    limites:
+      frequencia-cardiaca:
+        min: 40
+        max: 200
+      pressao-arterial-sistolica:
+        min: 60
+        max: 260
+      pressao-arterial-diastolica:
+        min: 30
+        max: 150
+      saturacao-oxigenio:
+        min: 50
+        max: 100
+      frequencia-respiratoria:
+        min: 5
+        max: 60
+      temperatura:
+        min: 30
+        max: 42
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"triagem-score-service","logger":"%c","message":"%m"}%n'
