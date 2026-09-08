@@ -6,7 +6,7 @@ Sistema de fila justa de priorização/matching de recursos, com autenticação 
 
 ## Arquitetura (visão rápida)
 
-- **`gateway-service`** (Spring Cloud Gateway) — único ponto de entrada público; valida JWT em toda rota fora da allowlist pública (`/actuator/health`, `/v1/auth/login`).
+- **`gateway-service`** (Spring Cloud Gateway) — único ponto de entrada público; valida JWT em toda rota fora da allowlist pública (`/actuator/health`, `/v1/auth/login`); gera e propaga um `X-Correlation-Id` (UUID) em toda requisição — se ausente ou inválido, gera um novo — tanto na requisição encaminhada ao serviço downstream quanto na resposta ao cliente, inclusive em erros `401`.
 - **`auth-service`** — emite JWT HS256 via `POST /v1/auth/login`, contra usuários sintéticos pré-cadastrados (schema `auth` próprio no Postgres).
 - **`infra-cdk`** (AWS CDK Java) — provisiona VPC, cluster ECS Fargate, Postgres 18 containerizado e os serviços acima.
 - Demais serviços de domínio (`triagem-score-service`, `matching-alocacao-service`, `auditoria-service`) entram nos próximos epics — ver `_bmad-output/implementation-artifacts/deferred-work.md`.
