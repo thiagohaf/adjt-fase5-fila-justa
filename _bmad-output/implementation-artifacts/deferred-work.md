@@ -89,3 +89,35 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-correlationid-gateway.md`
   summary: `CorrelationIdFilter` seta o header `X-Correlation-Id` na resposta ANTES de `chain.filter(...)`; se um serviço downstream futuro também devolver seu próprio header `X-Correlation-Id` na resposta, o `NettyRoutingFilter` do Spring Cloud Gateway pode copiar esse header do downstream por cima/ao lado do já setado (comportamento aditivo de `HttpHeaders`), gerando valores duplicados/conflitantes na resposta ao cliente.
   evidence: Achado pelo review adversarial (edge-case-hunter). Não testável nem reproduzível hoje — nenhum serviço de domínio existe ainda (Epic 2+) e o stub de teste usado (`CorrelationIdFilterTest`) só ecoa o header recebido no corpo JSON, nunca como header de resposta próprio. Revisitar quando o primeiro serviço downstream real responder com seus próprios headers.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: Deploy do `triagem-score-service` — rota `POST /v1/triagens` no `gateway-service` (`application.yml`, ao lado da rota de login) e `buildTriagemScoreService(...)` em `infra-cdk/.../FilaJustaStack.java` (mirror de `buildAuthService(...)`, Service Connect + secrets do DB).
+  evidence: Spec original (domínio + persistência + endpoint + deploy) excedeu 1600 tokens (~2669, cl100k). Escopo reduzido ao que os ACs da Story 2.1 de fato exigem e o `mvn test` consegue verificar sozinho (sem precisar de ambiente AWS no ar); deploy fica como chore próprio pós-merge — é também a rota que, uma vez existindo, torna testável ao vivo o action item 2 da retrospectiva do Epic 1 (AC-3/AC-4 do gateway).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: `triagem-score-service` não propaga/loga `X-Correlation-Id` (nenhum filtro, nenhum campo no `logging.pattern.console`) — logs desta chamada não são correlacionáveis com o resto da requisição.
+  evidence: Achado pelo review adversarial (blind-hunter). Mesma categoria já deferida para `gateway-service`/`auth-service` no Epic 1 ("Adotar o correlationId no logging estruturado") — extensão natural do mesmo gap pré-existente, não introduzida por esta story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: `TriagemExceptionHandler.handleErroInesperado` (fallback `500`) não loga a exceção capturada — um erro real de produção não deixa rastro para depuração.
+  evidence: Achado pelo review adversarial (blind-hunter). Mesmo padrão já existe em `AuthExceptionHandler.handleErroInesperado` (Epic 1) — gap pré-existente replicado ao espelhar o padrão, não introduzido por esta story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: Lista `sintomas` do `POST /v1/triagens` não tem limite de tamanho (nº de itens) nem de comprimento por item antes de ir para a coluna JSONB.
+  evidence: Achado pelo review adversarial (blind-hunter). Nenhuma NFR ou spec define um limite — fica como hardening a revisitar se o volume/abuso justificar, mesma categoria de itens de hardening sem prazo já registrados para `auth-service`/`gateway-service`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: `triagem_score.pacientes.cpf` fica em texto claro no banco, sem hashing/criptografia em repouso nem colunas de auditoria (created/updated).
+  evidence: Achado pelo review adversarial (blind-hunter). Consistente com o Non-Goal explícito do PRD §8 ("conformidade legal plena... fica fora do escopo deste MVP") — vale registrar para quando/se dado real de paciente for considerado.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: Nenhum contrato OpenAPI/springdoc é exposto para `POST /v1/triagens`.
+  evidence: Achado pelo review adversarial (blind-hunter). Nenhuma spec/NFR exige isso; `auth-service` também não expõe (mesmo padrão pré-existente do Epic 1).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: `TriagemExceptionHandler`'s catch-all `@ExceptionHandler(Exception.class)` intercepta exceções do próprio framework (ex.: `HttpRequestMethodNotSupportedException` para método HTTP não suportado), sobrescrevendo o `405`/`415` default do Spring com `500` genérico.
+  evidence: Achado pelo review adversarial (edge-case-hunter). Mesmo padrão já existe em `AuthExceptionHandler` (Epic 1, catch-all idêntico) — gap pré-existente replicado ao espelhar o padrão, não introduzido por esta story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
+  summary: Nenhum módulo do repositório (incluindo `triagem-score-service`) configura JaCoCo (cobertura ≥90% na camada de domínio) nem PIT (teste de mutação), apesar de `epic-2-context.md` listar isso como requisito do épico.
+  evidence: Achado na classificação desta revisão (não por um dos 3 layers). Gap pré-existente em todo o repositório, não introduzido por esta story — `gateway-service`/`auth-service` (Epic 1, já `done`) também não têm. Vale como chore de tooling próprio antes do fechamento do Epic 2, não bloqueante para esta story individual.
