@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-08-2026 14:28
+last_updated: 09-08-2026 14:45
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -43,7 +43,7 @@ development_status:
   epic-2: in-progress
   2-1-registro-de-triagem-com-score-de-prioridade-calculado: done
   2-2-consulta-de-triagem-com-score-e-fatores-contribuintes: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1-consulta-da-fila-priorizada-com-urgência-acumulada: backlog
@@ -73,13 +73,12 @@ action_items:
     epic: 1
     action: "Rodar verificação ao vivo (AWS real) de AC-3/AC-4 — validação de JWT
       no gateway — hoje só coberta por mvn test/cdk synth, diferente do resto do epic.
-      DECISÃO 2026-09-08: hoje não existe nenhuma rota protegida real no
-      RouteLocator do gateway (só /v1/auth/login, pública) — GlobalFilters do
-      Spring Cloud Gateway só rodam para paths que casam com uma rota existente,
-      então o JwtAuthenticationFilter não é exercitável ao vivo sem uma rota-stub.
-      ThiagoFerreira optou por não criar rota-stub agora; adiado para verificação
-      orgânica quando a 1ª rota protegida real (Epic 2, triagem-score-service)
-      existir."
+      DECISÃO 2026-09-08: hoje não existe nenhuma rota protegida real no RouteLocator
+      do gateway (só /v1/auth/login, pública) — GlobalFilters do Spring Cloud Gateway
+      só rodam para paths que casam com uma rota existente, então o JwtAuthenticationFilter
+      não é exercitável ao vivo sem uma rota-stub. ThiagoFerreira optou por não criar
+      rota-stub agora; adiado para verificação orgânica quando a 1ª rota protegida
+      real (Epic 2, triagem-score-service) existir."
     owner: "ThiagoFerreira"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
@@ -90,3 +89,41 @@ action_items:
     owner: "ThiagoFerreira"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-2-retro-item-4-registrar-em-deferred-work-md-o-gap-do-r"
+    epic: 2
+    action: "Registrar em deferred-work.md o gap do relay/publisher SNS FIFO para
+      o evento ScoreCalculado (hoje só grava na tabela outbox) — Epic 3/4 dependem
+      deste relay estar publicando corretamente."
+    owner: "ThiagoFerreira"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+  - id: "epic-2-retro-item-5-decidir-e-registrar-o-destino-dos-endpoi"
+    epic: 2
+    action: "Decidir e registrar o destino dos endpoints gRPC internos (ResolveCpfParaId,
+      ObterCpfMascarado) declarados no Technical Decisions do epic-2-context.md —
+      hoje sem implementação nem registro de adiamento."
+    owner: "ThiagoFerreira"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+  - id: "epic-2-retro-item-6-corrigir-epic-2-context-md-technical-dec"
+    epic: 2
+    action: "Corrigir epic-2-context.md (Technical Decisions) para anotar que ListarScoresAtuais
+      foi explicitamente adiado para o Epic 3 pela spec 2.2 (Boundaries)."
+    owner: "ThiagoFerreira"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+  - id: "epic-2-retro-item-7-configurar-jacoco-90-domínio-pit-no-tria"
+    epic: 2
+    action: "Configurar JaCoCo (≥90% domínio) + PIT no triagem-score-service — já
+      apontado como \"antes do fechamento do Epic 2\" na revisão da Story 2.1 e ainda
+      não feito."
+    owner: "ThiagoFerreira"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+  - id: "epic-2-retro-item-8-fechar-cada-story-com-commit-e-pr-quando"
+    epic: 2
+    action: "Fechar cada story com commit (e PR, quando o fluxo pedir) na mesma sessão
+      em que o code review termina — a Story 2.2 ficou sem commit até a retro do epic."
+    owner: "ThiagoFerreira"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
