@@ -1,6 +1,8 @@
 package com.filajusta.gateway;
 
 import com.sun.net.httpserver.HttpServer;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -10,10 +12,13 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
 
 /**
  * Cobre a unica rota publica de dominio da spec 1.2 (application.yml:
@@ -29,6 +34,8 @@ import java.nio.charset.StandardCharsets;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class AuthLoginRouteTest {
+
+    private static final String JWT_TEST_SECRET = "auth-login-route-test-secret-com-32-bytes-ou-mais";
 
     private static HttpServer stubAuthService;
     private static int stubPort;
@@ -55,6 +62,12 @@ class AuthLoginRouteTest {
 
     @DynamicPropertySource
     static void routeToStub(DynamicPropertyRegistry registry) {
+        // filajusta.jwt.secret nao tem default (NFR-6, so env var/Secrets
+        // Manager) -- o bean JwtAuthenticationFilter e criado eagerly no
+        // boot. A rota de login em si fica na allowlist publica do filtro
+        // (nao exige token), mas o bean precisa existir para o contexto subir.
+        registry.add("filajusta.jwt.secret", () -> JWT_TEST_SECRET);
+
         // Redefine todos os campos do indice 0 (nao so "uri") para nao
         // depender de como o Binder mescla uma fonte de propriedade dinamica
         // com a lista ja carregada do application.yml.
@@ -95,9 +108,28 @@ class AuthLoginRouteTest {
 
     @Test
     void pathNaoCorrespondenteNaoEhRoteado() {
+        // Path sem rota correspondente (routes so tem a rota de login, alem
+        // do health-check em outra porta): o lookup de rota do
+        // RouteLocator falha ANTES de qualquer GlobalFilter rodar (o
+        // JwtAuthenticationFilter da Story 1.2 so e invocado para paths que
+        // ja deram match numa rota), entao o Bearer token abaixo nao
+        // influencia o 404 -- mantido so por robustez/future-proofing.
         client().post()
                 .uri("/v1/algum/outro/caminho")
+                .header("Authorization", "Bearer " + jwtValido())
                 .exchange()
                 .expectStatus().isNotFound();
+    }
+
+    private String jwtValido() {
+        SecretKey signingKey = Keys.hmacShaKeyFor(JWT_TEST_SECRET.getBytes(StandardCharsets.UTF_8));
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject("regulador")
+                .claim("role", "REGULADOR")
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(3600)))
+                .signWith(signingKey, Jwts.SIG.HS256)
+                .compact();
     }
 }

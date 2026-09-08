@@ -189,12 +189,25 @@ class FilaJustaStackTest {
     }
 
     private static void assertAuthContainerHasSecret(final String secretEnvName) {
+        assertContainerHasSecret("auth-service", secretEnvName);
+    }
+
+    @Test
+    void gatewayServiceReceivesJwtSecretAsEcsSecret() {
+        // Spec de validacao de JWT no gateway (AD-8/AD-14): o
+        // JwtAuthenticationFilter precisa do mesmo segredo HS256 do
+        // auth-service, injetado so via ECS Secret (Secrets Manager),
+        // nunca como "Environment" em texto puro (NFR-6).
+        assertContainerHasSecret("gateway-service", "FILAJUSTA_JWT_SECRET");
+    }
+
+    private static void assertContainerHasSecret(final String containerName, final String secretEnvName) {
         Object secretsMatch = Match.arrayWith(java.util.List.of(
                 Match.objectLike(Map.of("Name", secretEnvName))));
-        Map<String, Object> authContainer = Map.of(
-                "Name", "auth-service",
+        Map<String, Object> container = Map.of(
+                "Name", containerName,
                 "Secrets", secretsMatch);
-        Object containerDefinitions = Match.arrayWith(java.util.List.of(Match.objectLike(authContainer)));
+        Object containerDefinitions = Match.arrayWith(java.util.List.of(Match.objectLike(container)));
         template.hasResourceProperties("AWS::ECS::TaskDefinition", Match.objectLike(Map.of(
                 "ContainerDefinitions", containerDefinitions)));
     }
