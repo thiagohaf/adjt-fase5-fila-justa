@@ -20,12 +20,40 @@
     POST /v1/triagens (FR-1, FR-3): valida CPF e sinais vitais (AD-11),
     resolve/cria o Paciente por CPF de forma idempotente, calcula um Score
     deterministico versionado (algoritmo v1) e grava um evento
-    ScoreCalculado em tabela outbox -- sem publicar de fato (relay real
-    fica para quando houver consumidor, Epic 3+). Schema Postgres proprio
-    triagem_score (AD-9).
+    ScoreCalculado em tabela outbox. Story 3.0 acrescenta o relay real:
+    RelaySnsPublisherJob (infrastructure/relay) publica as linhas
+    pendentes do outbox no topico SNS FIFO score-calculado.fifo
+    (MessageGroupId = pacienteId, AD-3).
   </description>
 
+  <properties>
+    <!-- Primeiro precedente de AWS SDK v2 runtime no reator (spec 3.0),
+         verificado 2026-09-08 via Maven Central (nenhum outro modulo fixa
+         essa versao ainda). -->
+    <aws-sdk.version>2.54.14</aws-sdk.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
+    <!-- Relay real do evento ScoreCalculado (Story 3.0, AD-3), publica no
+         topico SNS FIFO. Credenciais/regiao resolvidas so via variavel de
+         ambiente/role da task (DefaultCredentialsProvider), nunca
+         hardcoded (Boundaries da spec 3.0). -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sns</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
@@ -87,6 +115,22 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Primeiro precedente de LocalStack no projeto (Ask First da spec
+         3.0, decidido com o usuario em 2026-09-08): sobe SNS FIFO + fila
+         SQS FIFO assinante + DLQ so para o teste de integracao do relay
+         confirmar o envelope ponta a ponta, nunca toca a conta AWS real. -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-localstack</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- SqsClient so no teste de integracao do relay (le a fila assinante
+         de volta); producao so publica no SNS, nunca fala com SQS. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sqs</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -137,6 +181,26 @@
                   <element>BUNDLE</element>
                   <includes>
                     <include>com.filajusta.triagem.domain.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <!-- Boundaries da spec 3.0: cobertura >=90% de linha na
+                     camada de "dominio/aplicacao do relay". RelaySnsPublisherJob
+                     e a config do SnsClient vivem em infrastructure/relay
+                     (Code Map da spec 3.0), nao em application/, entao o
+                     bundle desta regra e esse pacote em vez de estender o
+                     de cima. RelaySnsPublisherJobTest cobre via mock do
+                     SnsClient (sem Testcontainers). -->
+                <rule>
+                  <element>BUNDLE</element>
+                  <includes>
+                    <include>com.filajusta.triagem.infrastructure.relay.*</include>
                   </includes>
                   <limits>
                     <limit>

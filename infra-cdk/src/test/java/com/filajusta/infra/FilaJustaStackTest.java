@@ -216,4 +216,56 @@ class FilaJustaStackTest {
     void templateIsNotNull() {
         assertThat(template).isNotNull();
     }
+
+    @Test
+    void scoreCalculadoTopicIsFifo() {
+        // Story 3.0 (AD-3): topico SNS FIFO que RelaySnsPublisherJob
+        // (triagem-score-service) publica -- ordem determinística por
+        // paciente via MessageGroupId, nao um topico standard.
+        template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
+                "TopicName", "score-calculado.fifo",
+                "FifoTopic", true)));
+    }
+
+    @Test
+    void triagemScoreServiceTaskRoleCanPublishToScoreCalculadoTopic() {
+        // Deploy do triagem-score-service no ECS continua deferido -- mas a
+        // policy de publish ja precisa existir (Code Map da spec 3.0) para a
+        // futura FargateTaskDefinition so reusar a role, sem reabrir escopo.
+        //
+        // Achado do code review: uma asserção que só confirma que ALGUMA
+        // policy do stack tem "sns:Publish"/"Allow" passaria mesmo se o
+        // grant estivesse ligado à role ou ao recurso errado (ex.: outra
+        // role publicando em outro tópico) -- resolve os logical IDs reais
+        // do ScoreCalculadoTopic e da TriagemScoreServiceTaskRole e confirma
+        // que É esta policy, presa a ESTA role, que aponta para ESTE tópico.
+        Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "TopicName", "score-calculado.fifo")))));
+        assertThat(topicos).hasSize(1);
+        String topicoLogicalId = topicos.keySet().iterator().next();
+
+        Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "Description", Match.stringLikeRegexp(".*triagem-score-service.*"))))));
+        assertThat(roles).hasSize(1);
+        String roleLogicalId = roles.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
+                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
+                "PolicyDocument", Match.objectLike(Map.of(
+                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                "Action", "sns:Publish",
+                                "Effect", "Allow",
+                                "Resource", Match.objectLike(Map.of("Ref", topicoLogicalId)))))))))));
+    }
+
+    @Test
+    void triagemScoreServiceStillHasNoFargateServiceDeployed() {
+        // Boundaries da spec 3.0 -- "Never: deploy do triagem-score-service
+        // no ECS/CDK": a stack ganha o topico SNS + a role de publish, mas
+        // nao um 4o ECS::Service. Regressao evitada: continua so postgres +
+        // gateway-service + auth-service.
+        template.resourceCountIs("AWS::ECS::Service", 3);
+    }
 }

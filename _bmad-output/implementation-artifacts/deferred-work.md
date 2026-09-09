@@ -141,7 +141,38 @@
 - source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
   summary: Implementar o relay/publisher real do evento `ScoreCalculado` em tópico SNS FIFO (`MessageGroupId = pacienteId`, DLQ com `maxReceiveCount = 5`, conforme Technical Decisions do epic-2-context.md). Hoje a Story 2.1 só grava o evento na tabela outbox — nenhum publisher/relay existe.
   evidence: Achado pela retrospectiva do Epic 2 (action item 1). Epic 3 (Matching/Alocação) e Epic 4 (Auditoria) dependem deste relay estar publicando corretamente para consumirem `ScoreCalculado` — sem ele, nenhum dos dois epics tem dado real para reagir, mesmo depois de implementados. Bloqueante de fato para o início de qualquer story de Epic 3/4 que dependa do evento (não bloqueou o fechamento do Epic 2 em si).
+  status: "PROMOVIDO A STORY FORMAL em 2026-09-08 — decisão do usuário: implementar o relay antes de iniciar a Story 3.1, em vez de acoplar 3.1 diretamente ao `triagem-score-service`. Rastreado agora como Story 3.0 (`sprint-status.yaml`, `spec-3-0-relay-sns-score-calculado.md`); este item deixa de ser trabalho solto."
 
 - source_spec: `_bmad-output/implementation-artifacts/epic-2-context.md`
   summary: Implementar os dois endpoints gRPC internos declarados no Technical Decisions do epic-2-context.md — `ResolveCpfParaId(cpf) -> pacienteId` e `ObterCpfMascarado(pacienteId) -> cpfMascarado`, protegidos por segredo compartilhado + isolamento de rede.
   evidence: Achado pela retrospectiva do Epic 2 (action item 2). Defensável por YAGNI — nenhum consumidor externo existe ainda, nenhuma story do `triagem-score-service` precisou resolver CPF↔ID por fora do próprio serviço. Decisão registrada na retro (2026-09-08): manter a declaração no epic-2-context.md e adiar a implementação até o primeiro consumidor real precisar (Epic 3 ou 4).
+
+## Deferred from: code review da Story 3.0 (2026-09-08, `spec-3-0-relay-sns-score-calculado.md`)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
+  summary: `RelaySnsPublisherJob` não tem handling de "poison message" nem limite de tentativas — uma linha do outbox que nunca consegue ser publicada (ex.: payload que sempre falha ao serializar) fica pendente para sempre, sem quarentena nem sinal para o operador além do log repetido.
+  evidence: Achado pelo blind-hunter review da Story 3.0. Combinado com o comportamento atual de "parar o lote inteiro no primeiro erro" (já corrigido para parar só o paciente afetado), uma linha realmente permanente ainda trava indefinidamente sem alarme. Implementar quarentena/retry-cap é escopo maior que esta story (single-goal); vale uma story/chore própria antes de operar em produção.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
+  summary: Tópico SNS FIFO `score-calculado.fifo` (`FilaJustaStack.java`) criado sem chave KMS — dados clínicos/identificação de paciente (`pacienteId`, score, sintomas) trafegam sem criptografia at-rest gerenciada por chave própria (SNS já criptografa em trânsito e com a chave gerenciada pela AWS por padrão, mas não há CMK dedicada).
+  evidence: Achado pelo blind-hunter review da Story 3.0. Decisão de segurança/compliance que provavelmente afeta todos os tópicos/filas futuros de Epic 3/4 igualmente — melhor decidir uma vez, como padrão de infra, do que por tópico.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
+  summary: Nenhuma métrica/alarme (backlog do outbox, taxa de falha de publicação, "job travado") existe para o relay — um relay travado (ex.: pelo item de poison message acima) pode passar despercebido em produção só com log.
+  evidence: Achado pelo blind-hunter review da Story 3.0. Observabilidade operacional não fazia parte do escopo fechado da spec 3.0 (single-goal: publicar o evento); cabe numa story de observabilidade mais ampla que cubra outros serviços também, não só o relay.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
+  summary: Nomes de recursos novos no CDK (`score-calculado.fifo`, `TriagemScoreServiceTaskRole`) são fixos, sem qualificador de ambiente — colidiriam se o mesmo stack for implantado mais de uma vez na mesma conta/região (ex.: staging + prod).
+  evidence: Achado pelo blind-hunter review da Story 3.0. Mesmo padrão já usado pelos recursos existentes do Epic 1 em `FilaJustaStack.java` (nenhum tem qualificador de ambiente hoje) — não é uma regressão introduzida por esta story, é um gap sistêmico da stack toda; melhor resolver uma vez para todos os recursos do que só para os novos.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
+  summary: `EventoOutboxRepositorioAdapter` (métodos `buscarNaoPublicados`/`marcarComoPublicado`/`paraDominio`) não tem teste unitário dedicado — só é exercitado indiretamente via os testes de integração do job e do controller.
+  evidence: Achado pelo blind-hunter review da Story 3.0. Comportamento já coberto na prática (90 testes verdes, incluindo o caminho feliz e a corrida entre instâncias), mas um teste focado no adapter tornaria regressões futuras mais fáceis de localizar.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
+  summary: O novo `CfnOutput` `ScoreCalculadoTopicArn` (`FilaJustaStack.java`) não tem asserção de teste dedicada, diferente do padrão já usado para os outputs existentes do stack.
+  evidence: Achado pelo blind-hunter review da Story 3.0. Baixo risco (CDK falha o synth se o output referenciar algo inválido), mas fica como lacuna de cobertura de teste.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
+  summary: Configuração `filajusta.triagem.relay.*` é lida via `@Value` bruto em duas classes (`RelaySnsClientConfig`, `RelaySnsPublisherJob`) com valores-padrão duplicados contra os já definidos em `application.yml`, em vez de um único `@ConfigurationProperties`.
+  evidence: Achado pelo blind-hunter review da Story 3.0. Puramente manutenibilidade — fácil de divergir conforme mais configs forem adicionadas ao relay, mas não é um bug hoje.

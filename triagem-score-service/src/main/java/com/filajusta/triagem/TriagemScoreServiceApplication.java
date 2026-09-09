@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.Clock;
 
@@ -31,8 +32,13 @@ import java.time.Clock;
  * {@code filajusta.triagem.limites.*} (application.yml) -- fonte unica de
  * verdade, nao literais espalhados pelo dominio (Deferred da
  * ARCHITECTURE-SPINE.md).
+ *
+ * <p>{@code @EnableScheduling} (Story 3.0): habilita o {@code @Scheduled} de
+ * {@code RelaySnsPublisherJob} (infrastructure/relay) -- sem isso o poller
+ * do relay nunca roda, mesmo com o bean registrado.
  */
 @SpringBootApplication
+@EnableScheduling
 public class TriagemScoreServiceApplication {
 
     public static void main(String[] args) {

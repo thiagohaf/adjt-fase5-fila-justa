@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -41,6 +42,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// Relay (Story 3.0) desligado aqui -- este teste so cobre a spec 2.1
+// (gravacao no outbox), nao a publicacao real; sem isso o RelaySnsPublisherJob
+// tentaria falar com SNS de verdade (sem LocalStack neste teste).
+@TestPropertySource(properties = "filajusta.triagem.relay.enabled=false")
 class RegistrarTriagemIntegrationTest {
 
     @Container
@@ -214,6 +219,97 @@ class RegistrarTriagemIntegrationTest {
         assertThat(payload.get("algoritmoVersao").asText()).isEqualTo("v1");
         assertThat(payload.get("fatores")).hasSize(7);
         assertThat(payload.get("fatores")).isEqualTo(responseJson.get("score").get("fatores"));
+    }
+
+    @Test
+    void correlationIdAusenteGeraUmValorNaoNuloGravadoNoOutbox() throws Exception {
+        HttpResponse<String> response = registrarTriagem(
+                "529.982.247-25", sinaisVitaisValidos(), "LEVE", List.of());
+
+        assertThat(response.statusCode()).isEqualTo(201);
+
+        String correlationId = jdbcTemplate.queryForObject(
+                "SELECT correlation_id FROM triagem_score.eventos_outbox ORDER BY id DESC LIMIT 1", String.class);
+        assertThat(correlationId).isNotBlank();
+    }
+
+    @Test
+    void correlationIdDoHeaderXCorrelationIdEPropagadoParaOOutbox() throws Exception {
+        String correlationIdEnviado = "corr-" + java.util.UUID.randomUUID();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("cpf", "529.982.247-25");
+        body.put("sinaisVitais", sinaisVitaisValidos());
+        body.put("gravidadePercebida", "LEVE");
+        body.put("sintomas", List.of());
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/v1/triagens"))
+                .header("Content-Type", "application/json")
+                .header("X-Correlation-Id", correlationIdEnviado)
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(201);
+
+        String correlationIdGravado = jdbcTemplate.queryForObject(
+                "SELECT correlation_id FROM triagem_score.eventos_outbox ORDER BY id DESC LIMIT 1", String.class);
+        assertThat(correlationIdGravado).isEqualTo(correlationIdEnviado);
+    }
+
+    @Test
+    void correlationIdMaiorQueOLimitePersistivelRetorna400EmVezDe500() throws Exception {
+        // Achado do code review: eventos_outbox.correlation_id e
+        // VARCHAR(128) (migration V2) -- sem validacao, um header maior
+        // quebrava no INSERT como 500 nao controlado, em vez de 400
+        // nomeando o campo, mesma convencao do resto do servico.
+        String correlationIdMuitoLongo = "c".repeat(129);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("cpf", "529.982.247-25");
+        body.put("sinaisVitais", sinaisVitaisValidos());
+        body.put("gravidadePercebida", "LEVE");
+        body.put("sintomas", List.of());
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/v1/triagens"))
+                .header("Content-Type", "application/json")
+                .header("X-Correlation-Id", correlationIdMuitoLongo)
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+
+        JsonNode json = objectMapper.readTree(response.body());
+        assertThat(json.get("campo").asText()).isEqualTo("correlationId");
+    }
+
+    @Test
+    void versionDoEnvelopeGravadaNoOutboxComeca1() throws Exception {
+        HttpResponse<String> response = registrarTriagem(
+                "529.982.247-25", sinaisVitaisValidos(), "LEVE", List.of());
+
+        assertThat(response.statusCode()).isEqualTo(201);
+
+        Integer version = jdbcTemplate.queryForObject(
+                "SELECT version FROM triagem_score.eventos_outbox ORDER BY id DESC LIMIT 1", Integer.class);
+        assertThat(version).isEqualTo(1);
+    }
+
+    @Test
+    void linhaDoOutboxNascePendenteDePublicacao() throws Exception {
+        HttpResponse<String> response = registrarTriagem(
+                "529.982.247-25", sinaisVitaisValidos(), "LEVE", List.of());
+
+        assertThat(response.statusCode()).isEqualTo(201);
+
+        Integer pendentes = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM triagem_score.eventos_outbox WHERE publicado_em IS NULL", Integer.class);
+        assertThat(pendentes).isGreaterThanOrEqualTo(1);
     }
 
     @ParameterizedTest

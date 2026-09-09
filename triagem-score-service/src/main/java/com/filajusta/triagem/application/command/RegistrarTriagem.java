@@ -1,6 +1,7 @@
 package com.filajusta.triagem.application.command;
 
 import com.filajusta.triagem.domain.CalculadorDeScore;
+import com.filajusta.triagem.domain.CorrelationIdInvalidoException;
 import com.filajusta.triagem.domain.Cpf;
 import com.filajusta.triagem.domain.EventoOutbox;
 import com.filajusta.triagem.domain.GravidadePercebida;
@@ -30,8 +31,28 @@ import java.util.UUID;
  * <p>{@code @Transactional} vive aqui (nao em {@code domain/}, que
  * permanece framework-agnostico por AD-2) porque este e o unico ponto que
  * precisa da atomicidade entre as 3 escritas.
+ *
+ * <p>{@code correlationId} (Story 3.0): propagado do header
+ * {@code X-Correlation-Id} (lido por {@code TriagemController}, mesmo padrao
+ * de {@code CorrelationIdFilter} do gateway-service) ou gerado localmente
+ * (UUID v4) quando ausente/em branco -- nunca gravado nulo no outbox
+ * (Boundaries da spec 3.0). {@code version} do envelope comeca em {@code 1}.
+ * Validado ANTES de qualquer outro campo (achado do code review: um header
+ * maior que {@value #CORRELATION_ID_MAX_LENGTH} caracteres quebraria no
+ * {@code INSERT} de {@code eventos_outbox.correlation_id}
+ * ({@code VARCHAR(128)}) como {@code 500} nao controlado -- agora vira
+ * {@code 400} via {@link CorrelationIdInvalidoException}, mesma convencao
+ * do servico de recusar cedo, antes de qualquer trabalho a jusante).
  */
 public class RegistrarTriagem {
+
+    // Versao inicial do envelope de evento fixado no Epic 2 (AD-3):
+    // {eventId, eventType, occurredAt, version, correlationId, payload}.
+    private static final int VERSAO_INICIAL_EVENTO = 1;
+
+    // eventos_outbox.correlation_id e VARCHAR(128) (migration
+    // V2__add_relay_columns_eventos_outbox.sql) -- limite persistivel.
+    private static final int CORRELATION_ID_MAX_LENGTH = 128;
 
     private final ResolverOuCriarPaciente resolverOuCriarPaciente;
     private final TriagemRepositorio triagemRepositorio;
@@ -63,7 +84,15 @@ public class RegistrarTriagem {
                               Double frequenciaRespiratoria,
                               Double temperatura,
                               String gravidadePercebidaTexto,
-                              List<String> sintomas) {
+                              List<String> sintomas,
+                              String correlationId) {
+        // Validado primeiro (achado do code review): e um campo de
+        // transporte (header), independente do corpo, e precisa falhar
+        // antes de qualquer trabalho a jusante (resolucao de Paciente,
+        // calculo de Score, etc.), mesma logica da ordem de validacao do
+        // corpo abaixo.
+        String correlationIdEfetivo = correlationIdEfetivo(correlationId);
+
         // Ordem deterministica de validacao (Boundaries: 400 no primeiro
         // campo invalido, antes de qualquer calculo de Score): CPF, depois
         // sinais vitais (cada um lanca no primeiro campo ofensivo), depois
@@ -83,10 +112,26 @@ public class RegistrarTriagem {
         Triagem triagemSalva = triagemRepositorio.salvar(triagemParaSalvar);
 
         EventoOutbox evento = new EventoOutbox(
-                UUID.randomUUID(), "ScoreCalculado", agora, payloadScoreCalculado(triagemSalva));
+                null, UUID.randomUUID(), "ScoreCalculado", agora, VERSAO_INICIAL_EVENTO,
+                correlationIdEfetivo, payloadScoreCalculado(triagemSalva));
         eventoOutboxRepositorio.salvar(evento);
 
         return triagemSalva;
+    }
+
+    // I/O Matrix da spec 3.0: "POST /v1/triagens sem header X-Correlation-Id"
+    // -> correlationId gerado localmente (UUID v4), nunca gravado nulo.
+    // Achado do code review: um correlationId explicito maior que o limite
+    // persistivel (VARCHAR(128)) precisa virar 400, nao um 500 no INSERT.
+    private static String correlationIdEfetivo(String correlationId) {
+        if (correlationId == null || correlationId.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
+        if (correlationId.length() > CORRELATION_ID_MAX_LENGTH) {
+            throw new CorrelationIdInvalidoException(
+                    "correlationId excede o limite de " + CORRELATION_ID_MAX_LENGTH + " caracteres");
+        }
+        return correlationId;
     }
 
     private static Map<String, Object> payloadScoreCalculado(Triagem triagem) {
