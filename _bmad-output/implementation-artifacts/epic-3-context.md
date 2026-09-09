@@ -8,7 +8,10 @@ Um Regulador consulta a fila de Pacientes priorizada por Prioridade Efetiva (Sco
 
 ## Stories
 
-- Story 3.1: Consulta da Fila Priorizada com Urgência Acumulada
+- Story 3.1: Consulta da Fila Priorizada com Urgência Acumulada -- **dividida em 3 sub-stories em 2026-09-08** (spec único excedia ~2500 tokens por cruzar `triagem-score-service` e `matching-alocacao-service`; decisão do usuário no checkpoint de token count do `bmad-build`, ver `sprint-status.yaml`):
+  - `3-1a` ListarScoresAtuais (endpoint interno em `triagem-score-service`)
+  - `3-1b` réplica local de Score + consumidor SQS FIFO + fila CDK (`matching-alocacao-service`, sem HTTP)
+  - `3-1c` `GET /v1/fila` + bootstrap síncrono a frio (liga 3.1a+3.1b ao AC original da story)
 - Story 3.2: Sugestão de Matching para um Recurso com Desempates
 - Story 3.3: Confirmação ou Recusa da Sugestão de Matching
 - Story 3.4: Liberação Automática de Recurso

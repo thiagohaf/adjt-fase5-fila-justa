@@ -39,4 +39,10 @@ interface EventoOutboxJpaRepository extends JpaRepository<EventoOutboxJpaEntity,
     @Query("UPDATE EventoOutboxJpaEntity e SET e.publicadoEm = :publicadoEm "
             + "WHERE e.id = :id AND e.publicadoEm IS NULL")
     int marcarPublicado(@Param("id") Long id, @Param("publicadoEm") Instant publicadoEm);
+
+    // Story 3.1a (GET /internal/scores, ListarScoresAtuais): query derivada
+    // simples (sem @Query, Code Map da spec pede "leitura simples sem query
+    // nova complexa") -- publicado_em NAO entra no filtro, um Score atual
+    // continua atual mesmo antes do relay publicar no SNS.
+    List<EventoOutboxJpaEntity> findByEventTypeOrderByOccurredAtAsc(String eventType);
 }

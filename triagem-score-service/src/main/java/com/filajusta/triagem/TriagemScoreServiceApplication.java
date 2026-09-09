@@ -7,6 +7,8 @@ import com.filajusta.triagem.application.command.ResolverOuCriarPaciente;
 import com.filajusta.triagem.application.command.TriagemRepositorio;
 import com.filajusta.triagem.application.query.ConsultaTriagemRepositorio;
 import com.filajusta.triagem.application.query.ConsultarTriagem;
+import com.filajusta.triagem.application.query.ListarScoresAtuais;
+import com.filajusta.triagem.application.query.ScoresAtuaisRepositorio;
 import com.filajusta.triagem.domain.CalculadorDeScore;
 import com.filajusta.triagem.domain.FaixaVital;
 import com.filajusta.triagem.domain.LimitesSinaisVitais;
@@ -97,5 +99,10 @@ public class TriagemScoreServiceApplication {
     @Bean
     ConsultarTriagem consultarTriagem(ConsultaTriagemRepositorio consultaTriagemRepositorio) {
         return new ConsultarTriagem(consultaTriagemRepositorio);
+    }
+
+    @Bean
+    ListarScoresAtuais listarScoresAtuais(ScoresAtuaisRepositorio scoresAtuaisRepositorio) {
+        return new ListarScoresAtuais(scoresAtuaisRepositorio);
     }
 }
