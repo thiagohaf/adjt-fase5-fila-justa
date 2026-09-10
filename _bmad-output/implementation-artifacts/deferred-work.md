@@ -177,6 +177,33 @@
   summary: Configuração `filajusta.triagem.relay.*` é lida via `@Value` bruto em duas classes (`RelaySnsClientConfig`, `RelaySnsPublisherJob`) com valores-padrão duplicados contra os já definidos em `application.yml`, em vez de um único `@ConfigurationProperties`.
   evidence: Achado pelo blind-hunter review da Story 3.0. Puramente manutenibilidade — fácil de divergir conforme mais configs forem adicionadas ao relay, mas não é um bug hoje.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
+  summary: Nenhum `CfnOutput` expõe a URL/ARN da nova DLQ (`ScoreCalculadoConsumerDlq`) -- não há jeito descobrível (scripts/CDK outputs) de inspecionar ou redirecionar mensagens presas nela.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Primeira DLQ de produção real do projeto; hoje só a URL da fila principal é exposta.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
+  summary: `maxReceiveCount=5` da nova DLQ foi herdado de um valor usado só em fixture de teste (`RelaySnsPublisherJobIntegrationTest`), sem taxa de falha transitória esperada documentada -- e `epic-3-context.md` não foi atualizado para promover isso de convenção a decisão registrada.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Primeira vez que esse valor é aplicado a uma fila de produção real, não só a um teste.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
+  summary: A subscription SNS→SQS (`scoreCalculadoTopic.addSubscription`) não declara `deadLetterQueue` no nível da subscription -- falhas de entrega do SNS para a fila (ex.: problema de policy) ficam sem nenhuma captura, distinto da DLQ já existente do lado do consumidor.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Primeira subscription real criada no tópico `score-calculado.fifo` (Story 3.0 só publicava, sem assinantes).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
+  summary: Nenhum alarme/monitoramento (ex.: CloudWatch em `ApproximateNumberOfMessagesVisible`) proposto para a nova DLQ -- mensagens podem se acumular silenciosamente sem ninguém ser avisado, já que o deploy ECS segue adiado.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Mesma categoria de gap já registrada para o publisher da Story 3.0 (métricas/alarmes de backlog do outbox).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
+  summary: `ScoreReplica` (value object de domínio) não implementa `equals()`/`hashCode()`/`toString()` -- todo teste compara campo a campo via getters, sem igualdade por valor nem representação útil em log/debug.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Nenhum consumidor real hoje precisa de igualdade por valor; adicionar agora seria antecipar uso não comprovado.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
+  summary: O teste de integração ponta a ponta via LocalStack só exercita o cenário "Consumo normal" da I/O Matrix -- os outros 3 (redelivery, fora de ordem, malformada) só são provados no nível de unidade mockada ou do adapter Postgres isolado, nunca no caminho completo SQS→consumidor→banco.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Cada cenário já tem cobertura real (unidade+integração), então não é um gap de verificação (nenhum cenário está descoberto) -- é um aprofundamento de confiança no caminho ponta a ponta específico.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
+  summary: Nenhum teste de concorrência real prova que o `INSERT ... ON CONFLICT ... WHERE` atômico de fato resolve corrida entre múltiplas instâncias do consumidor -- é justamente a razão declarada (achado do code review da própria story) para escolher SQL nativo em vez de comparação no lado Java.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Teste de concorrência real (múltiplas threads/conexões disputando o mesmo pacienteId) é valioso mas arriscado de escrever de forma não-flaky sob pressão de tempo -- melhor como item próprio, com mais cuidado de design, do que um patch apressado.
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
   summary: Considerar índice em `eventos_outbox.event_type` (ou composto com `occurred_at`) se o volume/latência de `GET /internal/scores` (bootstrap de `matching-alocacao-service`) virar um problema real.
   evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. `ListarScoresAtuais` lê toda a tabela via `findByEventTypeOrderByOccurredAtAsc` sem paginação (decisão deliberada da spec); nenhum NFR de performance existe hoje para justificar otimizar agora.

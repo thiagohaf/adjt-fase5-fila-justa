@@ -51,8 +51,8 @@ development_status:
   # excedia ~2500 tokens (alvo 900-1600) por cruzar 2 serviços; decisão do
   # usuário via bmad-build/step-02 checkpoint (token count check).
   3-1a-listar-scores-atuais: review
-  3-1b-réplica-score-consumidor-sqs-fifo: backlog
-  3-1c-consulta-fila-priorizada-bootstrap: backlog
+  3-1b-réplica-score-consumidor-sqs-fifo: review
+  3-1c-consulta-fila-priorizada-bootstrap: review
   3-2-sugestão-de-matching-para-um-recurso-com-desempates: backlog
   3-3-confirmação-ou-recusa-da-sugestão-de-matching: backlog
   3-4-liberação-automática-de-recurso: backlog

@@ -1,0 +1,65 @@
+server:
+  port: 8083
+
+# Porta de management separada da porta de aplicacao: mesmo raciocinio dos
+# demais servicos (AD-8/AD-12) -- o security group de health-check libera so
+# essa porta, sem reabrir a porta de aplicacao.
+management:
+  server:
+    port: 8092
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+spring:
+  application:
+    name: matching-alocacao-service
+  # Credenciais (spring.datasource.username/password) vem so de variavel de
+  # ambiente (SPRING_DATASOURCE_USERNAME/PASSWORD, relaxed binding) -- reusa
+  # o secret admin do Postgres compartilhado (mesmo padrao dos demais
+  # servicos). Host "postgres" (Service Connect, sem sufixo de namespace).
+  datasource:
+    url: jdbc:postgresql://postgres:5432/filajusta
+  flyway:
+    schemas: matching_alocacao
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway (nao Hibernate) e o dono do schema -- so valida o mapeamento.
+      ddl-auto: validate
+
+# Consumidor real do evento ScoreCalculado (Story 3.1b) -- primeiro
+# consumidor SQS real do projeto. ScoreCalculadoConsumerJob
+# (infrastructure/relay) le a fila SQS FIFO assinante de
+# score-calculado.fifo (declarada em infra-cdk) e mantem a replica local de
+# Score via upsert idempotente. queue-url/endpoint-override ficam vazios em
+# producao real fora do valor injetado pela task ECS (chore de deploy
+# deferido, ver deferred-work.md); credenciais nunca aqui, so via variavel
+# de ambiente/role da task (Boundaries da spec 3.1b).
+filajusta:
+  matching:
+    relay:
+      # Kill switch operacional -- tambem usado pelos testes que nao
+      # exercitam o consumidor, para nao criar o SqsClient nem agendar o
+      # poller (evita qualquer tentativa de chamada de rede real fora do
+      # escopo deles), mesmo padrao de filajusta.triagem.relay.enabled.
+      enabled: true
+      queue-url: ${FILAJUSTA_MATCHING_RELAY_QUEUE_URL:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${FILAJUSTA_MATCHING_RELAY_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 10
+      wait-time-seconds: 1
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"matching-alocacao-service","logger":"%c","message":"%m"}%n'
