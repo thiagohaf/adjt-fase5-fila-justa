@@ -236,3 +236,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
   summary: O fix do Patch 1 (`@Transactional` no método inteiro de `ScoreBootstrapService#bootstrapar()`) mantém a transação de banco aberta durante toda a chamada HTTP síncrona a `GET /internal/scores` -- aceitável hoje (chamada limitada a 10s, só ocorre em boot a frio), mas revisitar se o payload de bootstrap crescer muito ou a frequência de boot a frio aumentar.
   evidence: Levantado pelo próprio subagente de implementação ao aplicar o Patch 1 do code review da Story 3.1c (achado real de bootstrap parcial deixando a réplica permanentemente incompleta).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: Considerar índice em `eventos_outbox.event_type` (ou composto com `occurred_at`) se o volume/latência de `GET /internal/scores` (bootstrap de `matching-alocacao-service`) virar um problema real.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. `ListarScoresAtuais` lê toda a tabela via `findByEventTypeOrderByOccurredAtAsc` sem paginação (decisão deliberada da spec); nenhum NFR de performance existe hoje para justificar otimizar agora.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: `ScoreAtualResponse`/`ScoreResponse`/`FatorContribuinteResponse` duplicam a mesma forma de DTO já presente em `RegistrarTriagemResponse` e `ConsultarTriagemResponse` -- considerar extrair um DTO de resposta compartilhado se um 4º consumidor aparecer.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. Duplicação real mas de baixo risco hoje (3 ocorrências); consolidar agora seria abstração prematura pelo padrão do projeto.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: `ScoresAtuaisRepositorioAdapter` duplica a lógica de desserialização do `payload` do outbox já existente em `EventoOutboxRepositorioAdapter#paraDominio` -- considerar extrair um helper compartilhado de parsing.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. Refactor de reuso, não bloqueia nenhum AC; risco de tocar código já testado da Story 2.1/3.0 sem necessidade imediata.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: Sem logging/observabilidade (contagem de linhas, tempo de execução) em torno da leitura em massa de `GET /internal/scores`, usada como bootstrap síncrono a frio de `matching-alocacao-service`.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. Útil para diagnosticar boot a frio lento/vazio em produção, mas não bloqueia os ACs desta story (ainda sem deploy real).
