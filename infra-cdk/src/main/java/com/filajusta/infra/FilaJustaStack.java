@@ -1,6 +1,7 @@
 package com.filajusta.infra;
 
 import software.amazon.awscdk.CfnOutput;
+import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
@@ -43,6 +44,10 @@ import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.amazon.awscdk.services.secretsmanager.SecretStringGenerator;
 import software.amazon.awscdk.services.servicediscovery.INamespace;
 import software.amazon.awscdk.services.sns.Topic;
+import software.amazon.awscdk.services.sns.subscriptions.SqsSubscription;
+import software.amazon.awscdk.services.sns.subscriptions.SqsSubscriptionProps;
+import software.amazon.awscdk.services.sqs.DeadLetterQueue;
+import software.amazon.awscdk.services.sqs.Queue;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -77,7 +82,12 @@ import java.util.Map;
  * daquele servico continuar deferido -- quando a
  * {@code FargateTaskDefinition} real for criada, ela deve reusar
  * {@code TriagemScoreServiceTaskRole} (nao criar outra), para que esta
- * policy de publish ja valha para a task.
+ * policy de publish ja valha para a task. Story 3.1b acrescenta o mesmo
+ * padrao do lado consumidor: fila SQS FIFO assinante do topico (+ DLQ,
+ * {@code maxReceiveCount=5}) e a IAM role de consumo de
+ * {@code matching-alocacao-service} -- deploy ECS daquele servico tambem
+ * continua deferido; a futura {@code FargateTaskDefinition} deve reusar
+ * {@code MatchingAlocacaoServiceTaskRole}.
  */
 public class FilaJustaStack extends Stack {
 
@@ -204,12 +214,22 @@ public class FilaJustaStack extends Stack {
         Topic scoreCalculadoTopic = buildScoreCalculadoTopic();
         buildTriagemScoreServiceTaskRole(scoreCalculadoTopic);
 
+        // --- Consumidor do evento ScoreCalculado (Story 3.1b) --------------
+        // Fila SQS FIFO assinante do topico acima + DLQ + a role de consumo
+        // -- deploy do matching-alocacao-service no ECS tambem continua
+        // deferido (deferred-work.md, ver javadoc da classe).
+        Queue scoreCalculadoConsumerQueue = buildScoreCalculadoConsumerQueue(scoreCalculadoTopic);
+        buildMatchingAlocacaoServiceTaskRole(scoreCalculadoConsumerQueue);
+
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
         CfnOutput.Builder.create(this, "GatewayServiceName").value(gatewayService.getServiceName()).build();
         CfnOutput.Builder.create(this, "AuthServiceName").value(authService.getServiceName()).build();
         CfnOutput.Builder.create(this, "PostgresServiceName").value(postgresService.getServiceName()).build();
         CfnOutput.Builder.create(this, "ScoreCalculadoTopicArn").value(scoreCalculadoTopic.getTopicArn()).build();
+        CfnOutput.Builder.create(this, "ScoreCalculadoConsumerQueueUrl")
+                .value(scoreCalculadoConsumerQueue.getQueueUrl())
+                .build();
     }
 
     private Topic buildScoreCalculadoTopic() {
@@ -234,6 +254,59 @@ public class FilaJustaStack extends Stack {
                         + "FargateTaskDefinition for adicionada.")
                 .build();
         scoreCalculadoTopic.grantPublish(role);
+        return role;
+    }
+
+    private Queue buildScoreCalculadoConsumerQueue(final Topic scoreCalculadoTopic) {
+        // DLQ com maxReceiveCount=5 (mesma convencao ja usada na fila de
+        // teste da Story 3.0, RelaySnsPublisherJobIntegrationTest -- Design
+        // Notes da spec 3.1b: convencao do projeto, nao fixada no
+        // epic-3-context.md). FIFO (nao standard) -- consistente com o
+        // topico origem, preserva ordem por pacienteId dentro do grupo.
+        Queue dlq = Queue.Builder.create(this, "ScoreCalculadoConsumerDlq")
+                .queueName("score-calculado-matching-dlq.fifo")
+                .fifo(true)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        Queue queue = Queue.Builder.create(this, "ScoreCalculadoConsumerQueue")
+                .queueName("score-calculado-matching.fifo")
+                .fifo(true)
+                .deadLetterQueue(DeadLetterQueue.builder()
+                        .queue(dlq)
+                        .maxReceiveCount(5)
+                        .build())
+                // Achado do code review: default do SQS e 30s. O poller
+                // (ScoreCalculadoConsumerJob) processa ate batch-size (10)
+                // mensagens sequencialmente numa unica execucao @Scheduled --
+                // sob lentidao do banco o tempo cumulativo pode se
+                // aproximar/exceder 30s, causando redelivery prematuro antes
+                // do deleteMessage rodar (idempotencia cobre a correcao, mas
+                // gera reprocessamento/log desnecessario). 60s da margem de
+                // seguranca confortavel para um lote inteiro.
+                .visibilityTimeout(Duration.seconds(60))
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        // RawMessageDelivery=true (mesma escolha da fila de teste da Story
+        // 3.0): o corpo da mensagem SQS e o envelope publicado direto, sem
+        // o wrapper JSON padrao do SNS -- e o que ScoreCalculadoConsumerJob
+        // (matching-alocacao-service) espera ler.
+        scoreCalculadoTopic.addSubscription(new SqsSubscription(queue,
+                SqsSubscriptionProps.builder().rawMessageDelivery(true).build()));
+
+        return queue;
+    }
+
+    private Role buildMatchingAlocacaoServiceTaskRole(final Queue scoreCalculadoConsumerQueue) {
+        Role role = Role.Builder.create(this, "MatchingAlocacaoServiceTaskRole")
+                .assumedBy(new ServicePrincipal("ecs-tasks.amazonaws.com"))
+                .description("Task role de matching-alocacao-service (Story 3.1b, ScoreCalculadoConsumerJob) -- "
+                        + "criada antes do deploy ECS daquele servico (deferred-work.md) so para a policy de "
+                        + "consumo da fila SQS FIFO ja existir; reusar esta role (nao criar outra) quando a "
+                        + "FargateTaskDefinition for adicionada.")
+                .build();
+        scoreCalculadoConsumerQueue.grantConsumeMessages(role);
         return role;
     }
 

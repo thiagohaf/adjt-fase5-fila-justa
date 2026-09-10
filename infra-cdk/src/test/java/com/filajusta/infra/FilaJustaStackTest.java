@@ -268,4 +268,98 @@ class FilaJustaStackTest {
         // gateway-service + auth-service.
         template.resourceCountIs("AWS::ECS::Service", 3);
     }
+
+    @Test
+    void scoreCalculadoConsumerQueueIsFifoWithDeadLetterQueue() {
+        // Story 3.1b (Code Map): fila SQS FIFO consumidora + DLQ com
+        // maxReceiveCount=5 (mesma convencao das demais filas do projeto).
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "score-calculado-matching.fifo",
+                "FifoQueue", true)));
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "score-calculado-matching-dlq.fifo",
+                "FifoQueue", true)));
+
+        Map<String, Map<String, Object>> dlqs = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "score-calculado-matching-dlq.fifo")))));
+        assertThat(dlqs).hasSize(1);
+        String dlqLogicalId = dlqs.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "score-calculado-matching.fifo",
+                "RedrivePolicy", Match.objectLike(Map.of(
+                        "deadLetterTargetArn", Match.objectLike(Map.of(
+                                "Fn::GetAtt", Match.arrayWith(java.util.List.of(dlqLogicalId, "Arn")))),
+                        "maxReceiveCount", 5)))));
+    }
+
+    @Test
+    void scoreCalculadoConsumerQueueIsSubscribedToScoreCalculadoTopicWithRawMessageDelivery() {
+        // Story 3.1b: a fila consumidora assina o topico SNS FIFO da Story
+        // 3.0 com RawMessageDelivery=true -- ScoreCalculadoConsumerJob le o
+        // envelope direto, sem o wrapper JSON padrao do SNS.
+        Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "TopicName", "score-calculado.fifo")))));
+        assertThat(topicos).hasSize(1);
+        String topicoLogicalId = topicos.keySet().iterator().next();
+
+        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "score-calculado-matching.fifo")))));
+        assertThat(filas).hasSize(1);
+        String filaLogicalId = filas.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::SNS::Subscription", Match.objectLike(Map.of(
+                "Protocol", "sqs",
+                "TopicArn", Match.objectLike(Map.of("Ref", topicoLogicalId)),
+                "Endpoint", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(java.util.List.of(
+                        filaLogicalId, "Arn")))),
+                "RawMessageDelivery", true)));
+    }
+
+    @Test
+    void matchingAlocacaoServiceTaskRoleCanConsumeFromScoreCalculadoConsumerQueue() {
+        // Deploy do matching-alocacao-service no ECS continua deferido --
+        // mas a policy de consumo ja precisa existir (Code Map da spec
+        // 3.1b), presa a ESTA role, apontando para ESTA fila (mesmo
+        // raciocinio de triagemScoreServiceTaskRoleCanPublishToScoreCalculadoTopic
+        // acima).
+        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "score-calculado-matching.fifo")))));
+        assertThat(filas).hasSize(1);
+        String filaLogicalId = filas.keySet().iterator().next();
+
+        Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
+        assertThat(roles).hasSize(1);
+        String roleLogicalId = roles.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
+                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
+                "PolicyDocument", Match.objectLike(Map.of(
+                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                // Achado do code review: grantConsumeMessages concede tanto
+                                // ReceiveMessage quanto DeleteMessage (entre outras) -- o
+                                // teste so travava a primeira, deixando DeleteMessage (a
+                                // permissao que o codigo de fato exercita via
+                                // sqsClient.deleteMessage) sem cobertura de regressao.
+                                "Action", Match.arrayWith(java.util.List.of(
+                                        "sqs:ReceiveMessage", "sqs:DeleteMessage")),
+                                "Effect", "Allow",
+                                "Resource", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(
+                                        java.util.List.of(filaLogicalId, "Arn")))))))))))));
+    }
+
+    @Test
+    void matchingAlocacaoServiceStillHasNoFargateServiceDeployed() {
+        // Boundaries da spec 3.1b -- "Never: deploy ECS/CDK do servico": a
+        // stack ganha a fila consumidora + DLQ + a role de consumo, mas nao
+        // um 4o ECS::Service. Regressao evitada: continua so postgres +
+        // gateway-service + auth-service.
+        template.resourceCountIs("AWS::ECS::Service", 3);
+    }
 }

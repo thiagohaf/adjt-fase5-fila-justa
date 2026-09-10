@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.filajusta</groupId>
+    <artifactId>fila-justa-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>matching-alocacao-service</artifactId>
+  <packaging>jar</packaging>
+
+  <name>matching-alocacao-service</name>
+  <description>
+    Servico de dominio do FilaJusta (Epic 3). Story 3.1b entrega o esqueleto
+    Clean Architecture (schema matching_alocacao) com o primeiro consumidor
+    SQS real do projeto: ScoreCalculadoConsumerJob (infrastructure/relay)
+    le a fila SQS FIFO assinante do topico SNS FIFO score-calculado.fifo
+    (Story 3.0, triagem-score-service) e mantem uma replica local
+    somente-leitura de Score via upsert idempotente (last-write-wins por
+    occurredAt, desempate por eventId em ordem lexicografica). Sem calculo
+    de Prioridade Efetiva/Aging e sem endpoint REST ainda -- isso e a
+    Story 3.1c (GET /v1/fila + bootstrap sincrono a frio).
+  </description>
+
+  <properties>
+    <!-- Mesma versao do AWS SDK v2 ja fixada em triagem-score-service
+         (Story 3.0) - reusa o precedente existente, nao introduz um novo. -->
+    <aws-sdk.version>2.54.14</aws-sdk.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!-- Primeiro consumidor SQS real do projeto (Story 3.1b, Design Notes):
+         ScoreCalculadoConsumerJob le a fila SQS FIFO assinante de
+         score-calculado.fifo. Credenciais/regiao resolvidas so via variavel
+         de ambiente/role da task (DefaultCredentialsProvider), nunca
+         hardcoded (mesmo Boundary da spec 3.0/RelaySnsClientConfig). -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sqs</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <!-- Boot 4.1 modularizou a autoconfiguracao do Flyway (mesmo achado da
+         Story 1.2/2.1, ver triagem-score-service/pom.xml) - sem isso a
+         migration so existe no classpath e o Hibernate valida um schema
+         vazio. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Mesmo precedente de LocalStack da Story 3.0 - sobe uma fila SQS
+         FIFO real so para o teste de integracao ponta a ponta do
+         consumidor (envia a mensagem direto na fila, sem precisar
+         reconstruir a assinatura SNS->SQS ja provada pela
+         RelaySnsPublisherJobIntegrationTest do triagem-score-service);
+         nunca toca a conta AWS real. -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-localstack</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>matching-alocacao-service</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Boundaries da spec 3.1b: cobertura >=90% de linha (JaCoCo) no
+           dominio/aplicacao. Dois bundles separados (mesmo padrao de
+           triagem-score-service/pom.xml) - infrastructure NAO entra aqui;
+           ScoreCalculadoConsumerJob e os adapters JPA sao cobertos pelos
+           testes de integracao Testcontainers, nao pelo limiar de linha. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.13</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>check-domain-application-coverage</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <includes>
+                    <include>com.filajusta.matching.domain.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
+                  <element>BUNDLE</element>
+                  <includes>
+                    <include>com.filajusta.matching.application.command.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Teste de mutacao (mesmo requisito do epic, nao vinculado a
+           nenhuma fase do lifecycle - roda sob demanda):
+           mvn -pl matching-alocacao-service -am org.pitest:pitest-maven:mutationCoverage -->
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>1.30.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.2</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <targetClasses>
+            <param>com.filajusta.matching.domain.*</param>
+          </targetClasses>
+          <targetTests>
+            <param>com.filajusta.matching.domain.*</param>
+          </targetTests>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

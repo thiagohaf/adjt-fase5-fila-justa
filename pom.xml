@@ -74,10 +74,10 @@
     <module>auth-service</module>
     <module>infra-cdk</module>
     <module>triagem-score-service</module>
+    <module>matching-alocacao-service</module>
     <!--
       Modulos deferidos (deferred-work.md): adicionar aqui quando a story
       correspondente iniciar, sem outra refatoracao deste pom pai.
-      <module>matching-alocacao-service</module>
       <module>auditoria-service</module>
     -->
   </modules>
