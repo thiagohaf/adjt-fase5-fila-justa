@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-08-2026 21:40
+last_updated: 09-08-2026 22:35
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -47,7 +47,12 @@ development_status:
 
   epic-3: in-progress
   3-0-relay-sns-score-calculado: done
-  3-1-consulta-da-fila-priorizada-com-urgência-acumulada: backlog
+  # Story 3.1 (epics.md) dividida em 3 sub-stories em 2026-09-08 -- spec único
+  # excedia ~2500 tokens (alvo 900-1600) por cruzar 2 serviços; decisão do
+  # usuário via bmad-build/step-02 checkpoint (token count check).
+  3-1a-listar-scores-atuais: review
+  3-1b-réplica-score-consumidor-sqs-fifo: backlog
+  3-1c-consulta-fila-priorizada-bootstrap: backlog
   3-2-sugestão-de-matching-para-um-recurso-com-desempates: backlog
   3-3-confirmação-ou-recusa-da-sugestão-de-matching: backlog
   3-4-liberação-automática-de-recurso: backlog
