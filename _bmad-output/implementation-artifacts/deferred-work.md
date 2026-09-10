@@ -204,3 +204,18 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
   summary: Nenhum teste de concorrência real prova que o `INSERT ... ON CONFLICT ... WHERE` atômico de fato resolve corrida entre múltiplas instâncias do consumidor -- é justamente a razão declarada (achado do code review da própria story) para escolher SQL nativo em vez de comparação no lado Java.
   evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Teste de concorrência real (múltiplas threads/conexões disputando o mesmo pacienteId) é valioso mas arriscado de escrever de forma não-flaky sob pressão de tempo -- melhor como item próprio, com mais cuidado de design, do que um patch apressado.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: Considerar índice em `eventos_outbox.event_type` (ou composto com `occurred_at`) se o volume/latência de `GET /internal/scores` (bootstrap de `matching-alocacao-service`) virar um problema real.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. `ListarScoresAtuais` lê toda a tabela via `findByEventTypeOrderByOccurredAtAsc` sem paginação (decisão deliberada da spec); nenhum NFR de performance existe hoje para justificar otimizar agora.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: `ScoreAtualResponse`/`ScoreResponse`/`FatorContribuinteResponse` duplicam a mesma forma de DTO já presente em `RegistrarTriagemResponse` e `ConsultarTriagemResponse` -- considerar extrair um DTO de resposta compartilhado se um 4º consumidor aparecer.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. Duplicação real mas de baixo risco hoje (3 ocorrências); consolidar agora seria abstração prematura pelo padrão do projeto.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: `ScoresAtuaisRepositorioAdapter` duplica a lógica de desserialização do `payload` do outbox já existente em `EventoOutboxRepositorioAdapter#paraDominio` -- considerar extrair um helper compartilhado de parsing.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. Refactor de reuso, não bloqueia nenhum AC; risco de tocar código já testado da Story 2.1/3.0 sem necessidade imediata.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
+  summary: Sem logging/observabilidade (contagem de linhas, tempo de execução) em torno da leitura em massa de `GET /internal/scores`, usada como bootstrap síncrono a frio de `matching-alocacao-service`.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. Útil para diagnosticar boot a frio lento/vazio em produção, mas não bloqueia os ACs desta story (ainda sem deploy real).
