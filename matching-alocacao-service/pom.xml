@@ -22,9 +22,12 @@
     le a fila SQS FIFO assinante do topico SNS FIFO score-calculado.fifo
     (Story 3.0, triagem-score-service) e mantem uma replica local
     somente-leitura de Score via upsert idempotente (last-write-wins por
-    occurredAt, desempate por eventId em ordem lexicografica). Sem calculo
-    de Prioridade Efetiva/Aging e sem endpoint REST ainda -- isso e a
-    Story 3.1c (GET /v1/fila + bootstrap sincrono a frio).
+    occurredAt, desempate por eventId em ordem lexicografica). Story 3.1c
+    expoe GET /v1/fila: recomputa a Prioridade Efetiva (Score + Aging com
+    teto) sob demanda a partir da replica e ordena decrescente; replica
+    vazia dispara um bootstrap sincrono a GET /internal/scores (Story 3.1a,
+    triagem-score-service) antes de responder, reaproveitando o upsert
+    idempotente da 3.1b.
   </description>
 
   <properties>
@@ -58,6 +61,15 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <!-- Boot 4.1 modularizou a autoconfiguracao de RestClient para fora de
+         spring-boot-starter-web (mesmo achado ja documentado para o Flyway,
+         ver comentario abaixo) - sem isso, RestClient.Builder nao tem
+         nenhum bean autoconfigurado e o TriagemScoreClient (Story 3.1c,
+         infrastructure/bootstrap) falha ao subir o contexto. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-restclient</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -114,6 +126,18 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>testcontainers-localstack</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Primeiro precedente de WireMock no projeto (Story 3.1c, Design
+         Notes): estuba GET /internal/scores (triagem-score-service, Story
+         3.1a) para o teste de integracao do bootstrap a frio - papel
+         analogo ao LocalStack para AWS na Story 3.0. Sem versao gerenciada
+         pelas BOMs importadas (spring-boot-dependencies/spring-cloud-dependencies),
+         por isso fixada explicitamente aqui. -->
+    <dependency>
+      <groupId>org.wiremock</groupId>
+      <artifactId>wiremock-standalone</artifactId>
+      <version>3.10.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -180,6 +204,22 @@
                   <element>BUNDLE</element>
                   <includes>
                     <include>com.filajusta.matching.application.command.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <!-- Story 3.1c: application.query entra no mesmo limiar de
+                     application.command - Verification da spec 3.1c
+                     ("JaCoCo >=90% dominio/aplicacao"). -->
+                <rule>
+                  <element>BUNDLE</element>
+                  <includes>
+                    <include>com.filajusta.matching.application.query.*</include>
                   </includes>
                   <limits>
                     <limit>

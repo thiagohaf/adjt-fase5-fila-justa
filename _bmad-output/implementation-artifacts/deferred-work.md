@@ -204,3 +204,35 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
   summary: Nenhum teste de concorrência real prova que o `INSERT ... ON CONFLICT ... WHERE` atômico de fato resolve corrida entre múltiplas instâncias do consumidor -- é justamente a razão declarada (achado do code review da própria story) para escolher SQL nativo em vez de comparação no lado Java.
   evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1b. Teste de concorrência real (múltiplas threads/conexões disputando o mesmo pacienteId) é valioso mas arriscado de escrever de forma não-flaky sob pressão de tempo -- melhor como item próprio, com mais cuidado de design, do que um patch apressado.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: Nenhum marcador distingue "réplica já bootstrapada com sucesso, mas legitimamente vazia" de "réplica nunca bootstrapada" -- se `triagem-score-service` realmente não tiver nenhum Score ainda, todo `GET /v1/fila` refaz a chamada HTTP síncrona de bootstrap.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c. Chamada é idempotente e barata hoje, mas desnecessária em todo request enquanto a fila estiver genuinamente vazia.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: `TriagemScoreClient` não tem retry/backoff para falha transitória -- uma única tentativa falha já derruba `GET /v1/fila` inteiro como `503`, já que o bootstrap está no caminho quente da primeira consulta.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c. Mesma categoria de gap de resiliência já registrada para o consumidor SQS da Story 3.1b.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: `prioridadeEfetiva` é serializada em `GET /v1/fila` como `double` bruto sem arredondamento nem contrato de precisão documentado para os consumidores da API.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: `filajusta.aging.k`/`teto` são injetados via `@Value` solto num `@Bean` factory method em vez de um `@ConfigurationProperties` record -- inconsistente com o estilo mais estruturado usado na config do relay.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c. Nit de consistência de estilo, sem bug funcional associado.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: A ordenação decrescente por Prioridade Efetiva com múltiplos pacientes nunca é verificada através do endpoint HTTP real (`FilaController`) -- só no nível de caso de uso com dependências mockadas.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c. Mesma categoria de gap de profundidade E2E já registrada na Story 3.1b.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: Nenhum comentário reconhece a varredura completa + ordenação em memória de `GET /v1/fila` (sem paginação, decisão deliberada da spec) como um limite conhecido a revisitar conforme a fila cresce.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: Nenhum teste isola os diferentes modos de falha de `TriagemScoreClient` (timeout, 4xx, JSON malformado, conexão recusada) apesar do javadoc afirmar que todos colapsam uniformemente para `503` -- só o caso de HTTP 500 é coberto.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c. A afirmação do javadoc nunca é provada por teste caso a caso.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
+  summary: O fix do Patch 1 (`@Transactional` no método inteiro de `ScoreBootstrapService#bootstrapar()`) mantém a transação de banco aberta durante toda a chamada HTTP síncrona a `GET /internal/scores` -- aceitável hoje (chamada limitada a 10s, só ocorre em boot a frio), mas revisitar se o payload de bootstrap crescer muito ou a frequência de boot a frio aumentar.
+  evidence: Levantado pelo próprio subagente de implementação ao aplicar o Patch 1 do code review da Story 3.1c (achado real de bootstrap parcial deixando a réplica permanentemente incompleta).

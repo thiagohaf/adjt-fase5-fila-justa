@@ -59,6 +59,24 @@ filajusta:
       poll-interval-ms: 5000
       batch-size: 10
       wait-time-seconds: 1
+    bootstrap:
+      # Base URL de triagem-score-service (GET /internal/scores, Story
+      # 3.1a) usada pelo bootstrap sincrono a frio da replica (Story 3.1c,
+      # TriagemScoreClient). Mesmo padrao de host Service Connect sem
+      # sufixo de namespace do gateway-service (rota auth-login,
+      # "http://auth-service:8081"). Sem override real fora do valor
+      # injetado pela task ECS fica deferido (mesmo chore de deploy de
+      # 2.1/3.0/3.1a/3.1b, deferred-work.md).
+      base-url: ${FILAJUSTA_MATCHING_BOOTSTRAP_BASE_URL:http://triagem-score-service:8082}
+
+  # Prioridade Efetiva = score + min(k * max(0, horas_espera), teto)
+  # (Story 3.1c, epic-3-context.md) -- teto = 20% da amplitude do Score
+  # (0..100), atingido as 18h de espera simulada (ponto medio da faixa
+  # 12-24h): k = teto / 18 ~= 1,111 pontos/hora. Calibravel aqui, fonte
+  # unica -- PrioridadeEfetiva (domain) nunca hardcoda esses valores.
+  aging:
+    k: 1.1111111111111112
+    teto: 20
 
 logging:
   pattern:
