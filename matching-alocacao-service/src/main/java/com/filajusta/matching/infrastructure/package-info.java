@@ -19,5 +19,11 @@
  * {@code infrastructure.web} (Story 3.1c): {@code FilaController} expõe
  * {@code GET /v1/fila}; {@code FilaExceptionHandler} traduz falha do
  * bootstrap para {@code 503} RFC 7807.
+ *
+ * <p>{@code infrastructure.persistence} (Story 3.2b2):
+ * {@code RecursoRepositorioAdapter} implementa o upsert idempotente de
+ * {@code Recurso} por {@code codigoRecurso} (INSERT ... ON CONFLICT nativo,
+ * {@code RecursoJpaRepository}); {@code infrastructure.web}: {@code
+ * RecursosInternalController} expõe {@code POST /internal/recursos}.
  */
 package com.filajusta.matching.infrastructure;

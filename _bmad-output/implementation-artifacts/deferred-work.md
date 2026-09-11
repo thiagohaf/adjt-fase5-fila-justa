@@ -274,6 +274,13 @@
 
 ## Deferred from: bmad-build step-04 code review da Story 3-2b1 (2026-09-11)
 
+## Deferred from: bmad-build step-04 code review da Story 3-2b2 (2026-09-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b2-dominio-persistencia-upsert-recurso.md`
+  summary: Testes de integração com Testcontainers em `matching-alocacao-service` usam a tag flutuante `postgres:18` (sem minor/patch/digest fixado) em vez de uma versão pinada.
+  evidence: Achado do blind-hunter sobre o diff da Story 3.2b2; padrão pré-existente, copiado de `ScoreReplicaRepositorioAdapterIntegrationTest.java` (Story 3.1b/3.2b1) — não introduzido por esta story, apenas replicado. Risco baixo hoje, mas uma atualização upstream da imagem pode alterar comportamento/reprodutibilidade dos testes silenciosamente.
+  status: aberto
+
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
   summary: `ScoreReplica`/migration `V2` não validam que `numeroSequencialTriagem` seja positivo (construtor aceita zero/negativo sem lançar exceção; coluna sem `CHECK`), diferente de `pacienteId`/`score` no mesmo construtor.
   evidence: Achado convergente (blind-hunter + edge-case-hunter) sobre o diff da Story 3.2b1. Risco baixo hoje -- `triagemId` sempre vem de `TriagemJpaEntity.id` (`IDENTITY`, sempre positivo) -- mas nada no código impede um valor inválido de entrar no desempate residual.
