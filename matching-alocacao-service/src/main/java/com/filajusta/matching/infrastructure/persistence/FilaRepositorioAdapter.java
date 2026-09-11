@@ -46,6 +46,6 @@ class FilaRepositorioAdapter implements FilaRepositorio {
 
     private static ScoreReplica paraDominio(ScoreReplicaJpaEntity entidade) {
         return new ScoreReplica(entidade.getPacienteId(), entidade.getScore(), entidade.getOccurredAt(),
-                entidade.getEventId(), entidade.getUpdatedAt());
+                entidade.getEventId(), entidade.getUpdatedAt(), entidade.getNumeroSequencialTriagem());
     }
 }

@@ -128,9 +128,13 @@ class FilaBootstrapIntegrationTest {
         // Bootstrap upsertou de fato via o mecanismo idempotente da 3.1b
         // (nao so um retorno "de mentirinha" do controller).
         var linhas = jdbcTemplate.queryForList(
-                "SELECT score FROM matching_alocacao.score_replica WHERE paciente_id = ?", pacienteId);
+                "SELECT score, numero_sequencial_triagem FROM matching_alocacao.score_replica "
+                        + "WHERE paciente_id = ?", pacienteId);
         assertThat(linhas).hasSize(1);
         assertThat(linhas.get(0).get("score")).isEqualTo(77);
+        // I/O Matrix da spec 3.2b1: resposta sem numeroSequencialTriagem
+        // (compatibilidade defensiva) grava null, bootstrap nao falha.
+        assertThat(linhas.get(0).get("numero_sequencial_triagem")).isNull();
 
         wireMockServer.verify(1, getRequestedFor(urlEqualTo("/internal/scores")));
 
@@ -140,6 +144,40 @@ class FilaBootstrapIntegrationTest {
         HttpResponse<String> segundaResposta = consultarFila();
         assertThat(segundaResposta.statusCode()).isEqualTo(200);
         wireMockServer.verify(1, getRequestedFor(urlEqualTo("/internal/scores")));
+    }
+
+    @Test
+    void respostaComNumeroSequencialTriagemPersisteOValorNaReplica() throws Exception {
+        // AC da spec 3.2b1: resposta de bootstrap com numeroSequencialTriagem
+        // -- ScoreBootstrapService popula a replica a frio com o valor
+        // recebido, igual.
+        long pacienteId = 5544332L;
+        String corpoInternalScores = """
+                [
+                  {
+                    "pacienteId": %d,
+                    "score": {"valor": 65, "algoritmoVersao": "v1", "fatores": []},
+                    "occurredAt": "2026-09-08T12:00:00Z",
+                    "eventId": "33333333-3333-3333-3333-333333333333",
+                    "numeroSequencialTriagem": 456
+                  }
+                ]
+                """.formatted(pacienteId);
+
+        wireMockServer.stubFor(get(urlEqualTo("/internal/scores"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(corpoInternalScores)));
+
+        HttpResponse<String> resposta = consultarFila();
+
+        assertThat(resposta.statusCode()).isEqualTo(200);
+        var linhas = jdbcTemplate.queryForList(
+                "SELECT numero_sequencial_triagem FROM matching_alocacao.score_replica WHERE paciente_id = ?",
+                pacienteId);
+        assertThat(linhas).hasSize(1);
+        assertThat(linhas.get(0).get("numero_sequencial_triagem")).isEqualTo(456L);
     }
 
     @Test

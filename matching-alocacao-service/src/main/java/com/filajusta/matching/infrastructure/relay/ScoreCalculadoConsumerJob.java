@@ -30,12 +30,16 @@ import java.util.UUID;
  *
  * <p>Envelope lido é exatamente {@code {eventId, eventType, occurredAt,
  * version, correlationId, payload}} (contrato fixado no Epic 2, mesmo
- * publicado pelo relay da Story 3.0); só {@code payload.pacienteId},
- * {@code payload.scoreValor}, {@code occurredAt} e {@code eventId} são
- * usados nesta fase -- {@code triagemId}/{@code algoritmoVersao}/
- * {@code fatores}/{@code version}/{@code correlationId} não são persistidos
- * na réplica (Code Map da spec 3.1b: só o que a tabela {@code score_replica}
- * guarda).
+ * publicado pelo relay da Story 3.0); {@code payload.pacienteId},
+ * {@code payload.scoreValor}, {@code payload.triagemId}, {@code occurredAt}
+ * e {@code eventId} são usados -- {@code algoritmoVersao}/{@code fatores}/
+ * {@code version}/{@code correlationId} não são persistidos na réplica
+ * (Code Map da spec 3.1b: só o que a tabela {@code score_replica} guarda).
+ * {@code payload.triagemId} (Story 3.2b1) vira
+ * {@code numeroSequencialTriagem} na réplica -- lido FORA de
+ * {@link #validarEnvelope(JsonNode)}, opcional: ausência ou formato
+ * inválido nunca rejeita o evento inteiro, grava {@code null} e segue
+ * processando normalmente (Boundaries da spec 3.2b1).
  *
  * <p>Mensagem malformada (I/O Matrix): nem o parse do envelope nem uma
  * falha de upsert chamam {@code deleteMessage} -- a mensagem permanece na
@@ -145,11 +149,13 @@ class ScoreCalculadoConsumerJob {
         }
 
         try {
-            long pacienteId = envelope.get("payload").get("pacienteId").asLong();
-            int score = envelope.get("payload").get("scoreValor").asInt();
+            JsonNode payload = envelope.get("payload");
+            long pacienteId = payload.get("pacienteId").asLong();
+            int score = payload.get("scoreValor").asInt();
             Instant occurredAt = Instant.parse(envelope.get("occurredAt").asText());
+            Long numeroSequencialTriagem = extrairNumeroSequencialTriagem(payload);
 
-            atualizarScoreReplica.atualizar(pacienteId, score, occurredAt, eventId);
+            atualizarScoreReplica.atualizar(pacienteId, score, occurredAt, eventId, numeroSequencialTriagem);
         } catch (RuntimeException e) {
             // Distinto de "malformado" (achado do envelope valido, mas o
             // upsert falhou -- ex.: DB indisponivel) -- mesmo tratamento:
@@ -176,6 +182,31 @@ class ScoreCalculadoConsumerJob {
                     + "correlationId={}) -- sera reentregue, reprocessamento e idempotente",
                     mensagem.messageId(), eventId, correlationId, e);
         }
+    }
+
+    /**
+     * {@code payload.triagemId} (Story 3.2b1) -- FORA de
+     * {@link #validarEnvelope(JsonNode)} de propósito: ausência ou formato
+     * inválido (não numérico) nunca rejeita o evento inteiro, só degrada
+     * para {@code null} (Boundaries/I-O Matrix da spec 3.2b1). Diferente de
+     * {@code scoreValor} (Story 3.1b), que É validado em
+     * {@code validarEnvelope} porque um {@code scoreValor} ausente/inválido
+     * corromperia o dado central da réplica (Score) -- aqui o pior caso é
+     * perder só o desempate residual da fila, não o Score em si.
+     *
+     * <p>{@code isIntegralNumber()}/{@code canConvertToLong()} (achado do
+     * code review), não só {@code isNumber()}: um {@code triagemId}
+     * fracionário (ex.: {@code 123.7}) ou fora da faixa de {@code long}
+     * também é formato inválido -- degrada para {@code null} em vez de
+     * truncar silenciosamente via {@code asLong()}.
+     */
+    private static Long extrairNumeroSequencialTriagem(JsonNode payload) {
+        JsonNode triagemIdNode = payload.get("triagemId");
+        if (triagemIdNode == null || triagemIdNode.isNull()
+                || !triagemIdNode.isIntegralNumber() || !triagemIdNode.canConvertToLong()) {
+            return null;
+        }
+        return triagemIdNode.asLong();
     }
 
     private static void validarEnvelope(JsonNode envelope) {

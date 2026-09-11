@@ -33,8 +33,20 @@ public final class ScoreReplica {
     private final Instant occurredAt;
     private final UUID eventId;
     private final Instant updatedAt;
+    private final Long numeroSequencialTriagem;
 
-    public ScoreReplica(long pacienteId, int score, Instant occurredAt, UUID eventId, Instant updatedAt) {
+    /**
+     * {@code numeroSequencialTriagem} (Story 3.2b1) -- numero sequencial da
+     * Triagem que originou o Score, espelhado de {@code GET
+     * /internal/scores} (bootstrap) ou {@code payload.triagemId} (evento
+     * SQS {@code ScoreCalculado}). Nullable: campo de CARGA, nunca entra em
+     * {@link #maisRecenteQue(ScoreReplica)} (que continua comparando só
+     * {@code occurredAt}/{@code eventId}, Boundaries da spec 3.2b1) -- sua
+     * ausência (origem sem o dado, defensivo) nunca falha o construtor nem o
+     * upsert.
+     */
+    public ScoreReplica(long pacienteId, int score, Instant occurredAt, UUID eventId, Instant updatedAt,
+                         Long numeroSequencialTriagem) {
         if (pacienteId <= 0) {
             throw new IllegalArgumentException("pacienteId deve ser positivo: " + pacienteId);
         }
@@ -49,6 +61,7 @@ public final class ScoreReplica {
         this.occurredAt = Objects.requireNonNull(occurredAt, "occurredAt");
         this.eventId = Objects.requireNonNull(eventId, "eventId");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
+        this.numeroSequencialTriagem = numeroSequencialTriagem;
     }
 
     /**
@@ -101,5 +114,9 @@ public final class ScoreReplica {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Long getNumeroSequencialTriagem() {
+        return numeroSequencialTriagem;
     }
 }
