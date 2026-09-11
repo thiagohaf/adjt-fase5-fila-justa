@@ -68,6 +68,27 @@ filajusta:
       # injetado pela task ECS fica deferido (mesmo chore de deploy de
       # 2.1/3.0/3.1a/3.1b, deferred-work.md).
       base-url: ${FILAJUSTA_MATCHING_BOOTSTRAP_BASE_URL:http://triagem-score-service:8082}
+    # Infraestrutura outbox propria deste servico (Story 3-3a, AD-3) --
+    # RelaySnsPublisherJob (infrastructure/relay). Namespace
+    # "outbox-relay" (nao "relay" acima, ja usado pelo consumidor SQS de
+    # ScoreCalculado) para nao colidir os dois pollers independentes.
+    #
+    # enabled=true (mesmo padrao real de filajusta.triagem.relay.enabled) --
+    # topico SNS FIFO proprio (matching-alocacao-eventos.fifo) ja
+    # provisionado em infra-cdk (FilaJustaStack). topic-arn fica vazio por
+    # padrao (injetado so no deploy real via
+    # FILAJUSTA_MATCHING_OUTBOX_RELAY_TOPIC_ARN) -- deploy ECS deste servico
+    # ainda pendente (gap pre-existente, deferred-work.md, nao desta story).
+    # Testes @SpringBootTest pre-existentes que nao exercitam este relay
+    # setam outbox-relay.enabled=false explicitamente (mesmo padrao de
+    # RegistrarTriagemIntegrationTest/ConsultarTriagemIntegrationTest).
+    outbox-relay:
+      enabled: true
+      topic-arn: ${FILAJUSTA_MATCHING_OUTBOX_RELAY_TOPIC_ARN:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${FILAJUSTA_MATCHING_OUTBOX_RELAY_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 50
 
   # Prioridade Efetiva = score + min(k * max(0, horas_espera), teto)
   # (Story 3.1c, epic-3-context.md) -- teto = 20% da amplitude do Score

@@ -58,6 +58,15 @@
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>sqs</artifactId>
     </dependency>
+    <!-- Story 3-3a: infraestrutura outbox propria deste servico
+         (RelaySnsPublisherJob), mesmo precedente ja usado em
+         triagem-score-service/pom.xml (Story 3.0), mesma versao do BOM AWS
+         SDK v2 ja fixada acima para o "sqs" do consumidor de
+         ScoreCalculado. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sns</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>

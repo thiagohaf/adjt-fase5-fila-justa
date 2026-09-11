@@ -42,7 +42,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Testcontainers
 @SpringBootTest
-@TestPropertySource(properties = "filajusta.matching.relay.enabled=false")
+// Relay SQS (Story 3.1b) e relay outbox (Story 3-3a) desligados -- este
+// teste so cobre persistencia, sem depender de LocalStack/SQS/SNS.
+@TestPropertySource(properties = {
+        "filajusta.matching.relay.enabled=false",
+        "filajusta.matching.outbox-relay.enabled=false"
+})
 class RecursoConsultaRepositorioAdapterIntegrationTest {
 
     @Container
