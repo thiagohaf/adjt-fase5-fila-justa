@@ -13,6 +13,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * last-write-wins com desempate lexicográfico por {@code eventId}
  * (Boundaries da spec 3.1b). Cobre a I/O &amp; Edge-Case Matrix inteira sem
  * banco (Tasks da spec: "Teste unitário do upsert -- cobre a I/O Matrix").
+ *
+ * <p>{@code numeroSequencialTriagem} (Story 3.2b1) é campo de carga -- nunca
+ * entra em {@code maisRecenteQue}, por isso os testes de desempate abaixo
+ * usam {@code null} para ele e só {@link #gettersExpoemOsCamposConstruidos()}
+ * e {@link #numeroSequencialTriagemAceitaNull()} exercitam o valor em si.
  */
 class ScoreReplicaTest {
 
@@ -21,33 +26,43 @@ class ScoreReplicaTest {
     private static final Instant T2 = Instant.parse("2026-09-08T13:00:00Z");
 
     private static ScoreReplica replica(int score, Instant occurredAt, UUID eventId) {
-        return new ScoreReplica(PACIENTE_ID, score, occurredAt, eventId, Instant.now());
+        return new ScoreReplica(PACIENTE_ID, score, occurredAt, eventId, Instant.now(), null);
     }
 
     @Test
     void construtorValidaPacienteIdPositivo() {
-        assertThatThrownBy(() -> new ScoreReplica(0, 50, T1, UUID.randomUUID(), Instant.now()))
+        assertThatThrownBy(() -> new ScoreReplica(0, 50, T1, UUID.randomUUID(), Instant.now(), null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ScoreReplica(-1, 50, T1, UUID.randomUUID(), Instant.now()))
+        assertThatThrownBy(() -> new ScoreReplica(-1, 50, T1, UUID.randomUUID(), Instant.now(), null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void construtorValidaScoreEntre0E100() {
-        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, -1, T1, UUID.randomUUID(), Instant.now()))
+        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, -1, T1, UUID.randomUUID(), Instant.now(), null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 101, T1, UUID.randomUUID(), Instant.now()))
+        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 101, T1, UUID.randomUUID(), Instant.now(), null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void construtorRejeitaCamposNulos() {
-        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 50, null, UUID.randomUUID(), Instant.now()))
+        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 50, null, UUID.randomUUID(), Instant.now(), null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 50, T1, null, Instant.now()))
+        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 50, T1, null, Instant.now(), null))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 50, T1, UUID.randomUUID(), null))
+        assertThatThrownBy(() -> new ScoreReplica(PACIENTE_ID, 50, T1, UUID.randomUUID(), null, null))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void numeroSequencialTriagemAceitaNull() {
+        // Boundaries da spec 3.2b1: campo de carga, nullable -- origem sem o
+        // dado (bootstrap defensivo ou SQS sem triagemId) nunca falha o
+        // construtor.
+        ScoreReplica r = new ScoreReplica(PACIENTE_ID, 50, T1, UUID.randomUUID(), Instant.now(), null);
+
+        assertThat(r.getNumeroSequencialTriagem()).isNull();
     }
 
     @Test
@@ -138,8 +153,8 @@ class ScoreReplicaTest {
 
     @Test
     void comparacaoEntrePacientesDiferentesLancaExcecao() {
-        ScoreReplica pacienteA = new ScoreReplica(1L, 50, T1, UUID.randomUUID(), Instant.now());
-        ScoreReplica pacienteB = new ScoreReplica(2L, 50, T1, UUID.randomUUID(), Instant.now());
+        ScoreReplica pacienteA = new ScoreReplica(1L, 50, T1, UUID.randomUUID(), Instant.now(), null);
+        ScoreReplica pacienteB = new ScoreReplica(2L, 50, T1, UUID.randomUUID(), Instant.now(), null);
 
         assertThatThrownBy(() -> pacienteB.maisRecenteQue(pacienteA))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -149,12 +164,13 @@ class ScoreReplicaTest {
     void gettersExpoemOsCamposConstruidos() {
         Instant atualizadoEm = Instant.parse("2026-09-08T14:00:00Z");
         UUID eventId = UUID.randomUUID();
-        ScoreReplica r = new ScoreReplica(PACIENTE_ID, 88, T1, eventId, atualizadoEm);
+        ScoreReplica r = new ScoreReplica(PACIENTE_ID, 88, T1, eventId, atualizadoEm, 7L);
 
         assertThat(r.getPacienteId()).isEqualTo(PACIENTE_ID);
         assertThat(r.getScore()).isEqualTo(88);
         assertThat(r.getOccurredAt()).isEqualTo(T1);
         assertThat(r.getEventId()).isEqualTo(eventId);
         assertThat(r.getUpdatedAt()).isEqualTo(atualizadoEm);
+        assertThat(r.getNumeroSequencialTriagem()).isEqualTo(7L);
     }
 }

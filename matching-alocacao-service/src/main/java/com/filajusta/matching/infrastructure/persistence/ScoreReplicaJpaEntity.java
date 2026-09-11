@@ -36,6 +36,9 @@ public class ScoreReplicaJpaEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "numero_sequencial_triagem")
+    private Long numeroSequencialTriagem;
+
     protected ScoreReplicaJpaEntity() {
         // Exigido pelo JPA.
     }
@@ -58,5 +61,9 @@ public class ScoreReplicaJpaEntity {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Long getNumeroSequencialTriagem() {
+        return numeroSequencialTriagem;
     }
 }

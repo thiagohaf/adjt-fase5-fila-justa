@@ -16,9 +16,17 @@ import java.util.UUID;
  * Code Map da spec 3.1b) -- {@code @JsonIgnoreProperties} tolera esses
  * campos extras em vez de falhar o parse (e qualquer campo futuro que o
  * contrato venha a ganhar).
+ *
+ * <p>{@code numeroSequencialTriagem} (Story 3.2b1) mapeia por nome via
+ * Jackson -- mesmo campo top-level de {@code ScoreAtualResponse}
+ * (triagem-score-service, Story 3.2a). Nullable e sem
+ * {@code @JsonProperty(required = true)}: uma resposta que ainda não traga
+ * o campo (compatibilidade defensiva, Boundaries da spec 3.2b1) deixa o
+ * record com {@code null} em vez de falhar o parse.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-record ScoreInternalDto(long pacienteId, ScoreDto score, Instant occurredAt, UUID eventId) {
+record ScoreInternalDto(
+        long pacienteId, ScoreDto score, Instant occurredAt, UUID eventId, Long numeroSequencialTriagem) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ScoreDto(int valor) {

@@ -34,7 +34,7 @@ class AtualizarScoreReplicaTest {
         Instant occurredAt = Instant.parse("2026-09-08T12:00:00Z");
         UUID eventId = UUID.randomUUID();
 
-        useCase.atualizar(42L, 77, occurredAt, eventId);
+        useCase.atualizar(42L, 77, occurredAt, eventId, 7L);
 
         ArgumentCaptor<ScoreReplica> captor = ArgumentCaptor.forClass(ScoreReplica.class);
         verify(repositorio).upsertSeMaisRecente(captor.capture());
@@ -45,5 +45,20 @@ class AtualizarScoreReplicaTest {
         assertThat(replica.getOccurredAt()).isEqualTo(occurredAt);
         assertThat(replica.getEventId()).isEqualTo(eventId);
         assertThat(replica.getUpdatedAt()).isEqualTo(AGORA);
+        assertThat(replica.getNumeroSequencialTriagem()).isEqualTo(7L);
+    }
+
+    @Test
+    void numeroSequencialTriagemNuloConstroiAReplicaComOCampoNulo() {
+        // I/O Matrix da spec 3.2b1: ausencia do dado (bootstrap defensivo ou
+        // SQS sem triagemId) grava null, nunca falha.
+        Instant occurredAt = Instant.parse("2026-09-08T12:00:00Z");
+        UUID eventId = UUID.randomUUID();
+
+        useCase.atualizar(42L, 77, occurredAt, eventId, null);
+
+        ArgumentCaptor<ScoreReplica> captor = ArgumentCaptor.forClass(ScoreReplica.class);
+        verify(repositorio).upsertSeMaisRecente(captor.capture());
+        assertThat(captor.getValue().getNumeroSequencialTriagem()).isNull();
     }
 }

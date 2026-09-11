@@ -26,6 +26,7 @@ class ScoreReplicaRepositorioAdapter implements ScoreReplicaRepositorio {
     @Transactional
     public void upsertSeMaisRecente(ScoreReplica replica) {
         jpaRepository.upsertSeMaisRecente(replica.getPacienteId(), replica.getScore(),
-                replica.getOccurredAt(), replica.getEventId(), replica.getUpdatedAt());
+                replica.getOccurredAt(), replica.getEventId(), replica.getUpdatedAt(),
+                replica.getNumeroSequencialTriagem());
     }
 }

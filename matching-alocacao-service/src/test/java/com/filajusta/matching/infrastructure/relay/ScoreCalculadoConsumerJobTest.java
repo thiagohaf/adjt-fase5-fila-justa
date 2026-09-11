@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigInteger;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -78,11 +79,111 @@ class ScoreCalculadoConsumerJobTest {
 
         job().consumirPendentes();
 
-        verify(atualizarScoreReplica).atualizar(42L, 77, Instant.parse("2026-09-08T12:00:00Z"), eventId);
+        verify(atualizarScoreReplica).atualizar(42L, 77, Instant.parse("2026-09-08T12:00:00Z"), eventId, 7L);
         verify(sqsClient).deleteMessage(DeleteMessageRequest.builder()
                 .queueUrl(QUEUE_URL)
                 .receiptHandle("receipt-1")
                 .build());
+    }
+
+    @Test
+    void payloadSemTriagemIdGravaNumeroSequencialTriagemNuloENaoRejeitaOEvento() {
+        // I/O Matrix da spec 3.2b1: ausencia de triagemId no payload nunca
+        // rejeita o evento inteiro -- grava numeroSequencialTriagem = null e
+        // segue processando normalmente (upsert e delete acontecem).
+        UUID eventId = UUID.randomUUID();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("pacienteId", 42L);
+        payload.put("scoreValor", 77);
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("eventId", eventId.toString());
+        envelope.put("eventType", "ScoreCalculado");
+        envelope.put("occurredAt", "2026-09-08T12:00:00Z");
+        envelope.put("payload", payload);
+        Message mensagem = mensagem(objectMapper.writeValueAsString(envelope), "msg-1", "receipt-1");
+        when(sqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
+                .thenReturn(ReceiveMessageResponse.builder().messages(mensagem).build());
+
+        job().consumirPendentes();
+
+        verify(atualizarScoreReplica).atualizar(42L, 77, Instant.parse("2026-09-08T12:00:00Z"), eventId, null);
+        verify(sqsClient).deleteMessage(any(DeleteMessageRequest.class));
+    }
+
+    @Test
+    void payloadComTriagemIdEmFormatoInvalidoGravaNumeroSequencialTriagemNuloENaoRejeitaOEvento() {
+        // I/O Matrix da spec 3.2b1: formato invalido de triagemId (ex.:
+        // string em vez de numero) tambem degrada para null, sem rejeitar o
+        // evento inteiro -- diferente de scoreValor, que E validado em
+        // validarEnvelope.
+        UUID eventId = UUID.randomUUID();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("pacienteId", 42L);
+        payload.put("scoreValor", 77);
+        payload.put("triagemId", "nao-e-um-numero");
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("eventId", eventId.toString());
+        envelope.put("eventType", "ScoreCalculado");
+        envelope.put("occurredAt", "2026-09-08T12:00:00Z");
+        envelope.put("payload", payload);
+        Message mensagem = mensagem(objectMapper.writeValueAsString(envelope), "msg-1", "receipt-1");
+        when(sqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
+                .thenReturn(ReceiveMessageResponse.builder().messages(mensagem).build());
+
+        job().consumirPendentes();
+
+        verify(atualizarScoreReplica).atualizar(42L, 77, Instant.parse("2026-09-08T12:00:00Z"), eventId, null);
+        verify(sqsClient).deleteMessage(any(DeleteMessageRequest.class));
+    }
+
+    @Test
+    void payloadComTriagemIdFracionarioGravaNumeroSequencialTriagemNuloENaoRejeitaOEvento() {
+        // Achado do code review (Patch 2): um numero JSON fracionario passa
+        // em isNumber(), mas asLong() o truncaria silenciosamente -- deve
+        // degradar para null, igual a ausencia/formato invalido.
+        UUID eventId = UUID.randomUUID();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("pacienteId", 42L);
+        payload.put("scoreValor", 77);
+        payload.put("triagemId", 123.7);
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("eventId", eventId.toString());
+        envelope.put("eventType", "ScoreCalculado");
+        envelope.put("occurredAt", "2026-09-08T12:00:00Z");
+        envelope.put("payload", payload);
+        Message mensagem = mensagem(objectMapper.writeValueAsString(envelope), "msg-1", "receipt-1");
+        when(sqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
+                .thenReturn(ReceiveMessageResponse.builder().messages(mensagem).build());
+
+        job().consumirPendentes();
+
+        verify(atualizarScoreReplica).atualizar(42L, 77, Instant.parse("2026-09-08T12:00:00Z"), eventId, null);
+        verify(sqsClient).deleteMessage(any(DeleteMessageRequest.class));
+    }
+
+    @Test
+    void payloadComTriagemIdForaDaFaixaDeLongGravaNumeroSequencialTriagemNuloENaoRejeitaOEvento() {
+        // Achado do code review (Patch 2): um numero integral fora da faixa
+        // de long tambem deve degradar para null em vez de estourar/
+        // truncar via asLong().
+        UUID eventId = UUID.randomUUID();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("pacienteId", 42L);
+        payload.put("scoreValor", 77);
+        payload.put("triagemId", new BigInteger("99999999999999999999999999999999"));
+        Map<String, Object> envelope = new LinkedHashMap<>();
+        envelope.put("eventId", eventId.toString());
+        envelope.put("eventType", "ScoreCalculado");
+        envelope.put("occurredAt", "2026-09-08T12:00:00Z");
+        envelope.put("payload", payload);
+        Message mensagem = mensagem(objectMapper.writeValueAsString(envelope), "msg-1", "receipt-1");
+        when(sqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
+                .thenReturn(ReceiveMessageResponse.builder().messages(mensagem).build());
+
+        job().consumirPendentes();
+
+        verify(atualizarScoreReplica).atualizar(42L, 77, Instant.parse("2026-09-08T12:00:00Z"), eventId, null);
+        verify(sqsClient).deleteMessage(any(DeleteMessageRequest.class));
     }
 
     @Test
@@ -198,7 +299,7 @@ class ScoreCalculadoConsumerJobTest {
         when(sqsClient.receiveMessage(any(ReceiveMessageRequest.class)))
                 .thenReturn(ReceiveMessageResponse.builder().messages(mensagem).build());
         doThrow(new RuntimeException("DB indisponivel"))
-                .when(atualizarScoreReplica).atualizar(anyLong(), anyInt(), any(), any());
+                .when(atualizarScoreReplica).atualizar(anyLong(), anyInt(), any(), any(), any());
 
         assertThatCode(() -> job().consumirPendentes()).doesNotThrowAnyException();
 
@@ -217,7 +318,7 @@ class ScoreCalculadoConsumerJobTest {
 
         assertThatCode(() -> job().consumirPendentes()).doesNotThrowAnyException();
 
-        verify(atualizarScoreReplica).atualizar(eq(42L), eq(77), any(), eq(eventId));
+        verify(atualizarScoreReplica).atualizar(eq(42L), eq(77), any(), eq(eventId), eq(7L));
     }
 
     @Test
@@ -231,8 +332,8 @@ class ScoreCalculadoConsumerJobTest {
 
         job().consumirPendentes();
 
-        verify(atualizarScoreReplica, times(1)).atualizar(anyLong(), anyInt(), any(), any());
-        verify(atualizarScoreReplica).atualizar(43L, 88, Instant.parse("2026-09-08T12:00:00Z"), eventIdValida);
+        verify(atualizarScoreReplica, times(1)).atualizar(anyLong(), anyInt(), any(), any(), any());
+        verify(atualizarScoreReplica).atualizar(43L, 88, Instant.parse("2026-09-08T12:00:00Z"), eventIdValida, 7L);
         verify(sqsClient, times(1)).deleteMessage(any(DeleteMessageRequest.class));
     }
 

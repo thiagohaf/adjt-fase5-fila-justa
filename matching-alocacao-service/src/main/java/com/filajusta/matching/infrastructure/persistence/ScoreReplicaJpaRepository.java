@@ -22,15 +22,25 @@ interface ScoreReplicaJpaRepository extends JpaRepository<ScoreReplicaJpaEntity,
     // Story 3.0). Comparacao de tupla (occurred_at, event_id): Postgres
     // compara UUID pelos bytes brutos, equivalente a ordem lexicografica da
     // forma textual canonica.
+    // numero_sequencial_triagem (Story 3.2b1) e campo de CARGA -- fica fora
+    // da tupla do WHERE (occurred_at, event_id) que decide last-write-wins.
+    // COALESCE(excluded.*, score_replica.*) em vez de so excluded.*: uma
+    // linha vencedora (por occurred_at/event_id) cujo candidato nao traz o
+    // dado (null -- bootstrap/evento sem o campo) preserva o valor ja
+    // persistido em vez de apaga-lo -- nunca REGRIDE um desempate residual
+    // ja conhecido so porque o evento mais recente nao trouxe triagemId
+    // (achado do code review).
     @Modifying
     @Query(value = "INSERT INTO matching_alocacao.score_replica "
-            + "(paciente_id, score, occurred_at, event_id, updated_at) "
-            + "VALUES (:pacienteId, :score, :occurredAt, :eventId, :updatedAt) "
+            + "(paciente_id, score, occurred_at, event_id, updated_at, numero_sequencial_triagem) "
+            + "VALUES (:pacienteId, :score, :occurredAt, :eventId, :updatedAt, :numeroSequencialTriagem) "
             + "ON CONFLICT (paciente_id) DO UPDATE SET "
             + "score = excluded.score, "
             + "occurred_at = excluded.occurred_at, "
             + "event_id = excluded.event_id, "
-            + "updated_at = excluded.updated_at "
+            + "updated_at = excluded.updated_at, "
+            + "numero_sequencial_triagem = COALESCE(excluded.numero_sequencial_triagem, "
+            + "score_replica.numero_sequencial_triagem) "
             + "WHERE (excluded.occurred_at, excluded.event_id) "
             + "> (score_replica.occurred_at, score_replica.event_id)",
             nativeQuery = true)
@@ -38,5 +48,6 @@ interface ScoreReplicaJpaRepository extends JpaRepository<ScoreReplicaJpaEntity,
                               @Param("score") int score,
                               @Param("occurredAt") Instant occurredAt,
                               @Param("eventId") UUID eventId,
-                              @Param("updatedAt") Instant updatedAt);
+                              @Param("updatedAt") Instant updatedAt,
+                              @Param("numeroSequencialTriagem") Long numeroSequencialTriagem);
 }

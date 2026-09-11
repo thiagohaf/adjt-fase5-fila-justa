@@ -50,26 +50,63 @@ class ScoreReplicaRepositorioAdapterIntegrationTest {
         long pacienteId = novoPacienteId();
         UUID eventId = UUID.randomUUID();
 
-        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 55, T1, eventId, Instant.now()));
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 55, T1, eventId, Instant.now(), null));
 
         ScoreReplicaJpaEntity linha = buscar(pacienteId);
         assertThat(linha.getScore()).isEqualTo(55);
         assertThat(linha.getOccurredAt()).isEqualTo(T1);
         assertThat(linha.getEventId()).isEqualTo(eventId);
+        assertThat(linha.getNumeroSequencialTriagem()).isNull();
+    }
+
+    @Test
+    void primeiroUpsertComNumeroSequencialTriagemPersisteOValor() {
+        // Story 3.2b1: campo de carga, propagado ponta a ponta pelo upsert
+        // nativo.
+        long pacienteId = novoPacienteId();
+        UUID eventId = UUID.randomUUID();
+
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 55, T1, eventId, Instant.now(), 123L));
+
+        ScoreReplicaJpaEntity linha = buscar(pacienteId);
+        assertThat(linha.getNumeroSequencialTriagem()).isEqualTo(123L);
     }
 
     @Test
     void consumoNormalOccurredAtMaisRecenteSubstituiALinha() {
         long pacienteId = novoPacienteId();
-        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 40, T1, UUID.randomUUID(), Instant.now()));
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 40, T1, UUID.randomUUID(), Instant.now(), 1L));
 
         UUID eventIdNovo = UUID.randomUUID();
-        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 90, T2, eventIdNovo, Instant.now()));
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 90, T2, eventIdNovo, Instant.now(), 2L));
 
         ScoreReplicaJpaEntity linha = buscar(pacienteId);
         assertThat(linha.getScore()).isEqualTo(90);
         assertThat(linha.getOccurredAt()).isEqualTo(T2);
         assertThat(linha.getEventId()).isEqualTo(eventIdNovo);
+        assertThat(linha.getNumeroSequencialTriagem()).isEqualTo(2L);
+    }
+
+    @Test
+    void vencedorSemNumeroSequencialTriagemPreservaOValorJaPersistido() {
+        // Achado do code review (Patch 1): o candidato vencedor (por
+        // occurred_at/event_id) pode nao trazer triagemId (evento mais
+        // recente sem o dado) -- isso NUNCA pode apagar um
+        // numero_sequencial_triagem ja conhecido. COALESCE no SET preserva
+        // o valor antigo em vez de sobrescrever com null.
+        long pacienteId = novoPacienteId();
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 40, T1, UUID.randomUUID(), Instant.now(), 1L));
+
+        UUID eventIdNovo = UUID.randomUUID();
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 90, T2, eventIdNovo, Instant.now(), null));
+
+        ScoreReplicaJpaEntity linha = buscar(pacienteId);
+        assertThat(linha.getScore()).isEqualTo(90);
+        assertThat(linha.getOccurredAt()).isEqualTo(T2);
+        assertThat(linha.getEventId()).isEqualTo(eventIdNovo);
+        assertThat(linha.getNumeroSequencialTriagem())
+                .as("numero_sequencial_triagem nao pode regredir para null so porque o vencedor nao trouxe o dado")
+                .isEqualTo(1L);
     }
 
     @Test
@@ -78,7 +115,7 @@ class ScoreReplicaRepositorioAdapterIntegrationTest {
         // idempotente, replica nao duplica nem retrocede".
         long pacienteId = novoPacienteId();
         UUID eventId = UUID.randomUUID();
-        ScoreReplica evento = new ScoreReplica(pacienteId, 60, T1, eventId, Instant.now());
+        ScoreReplica evento = new ScoreReplica(pacienteId, 60, T1, eventId, Instant.now(), 5L);
 
         repositorio.upsertSeMaisRecente(evento);
         repositorio.upsertSeMaisRecente(evento);
@@ -87,32 +124,38 @@ class ScoreReplicaRepositorioAdapterIntegrationTest {
         ScoreReplicaJpaEntity linha = buscar(pacienteId);
         assertThat(linha.getScore()).isEqualTo(60);
         assertThat(linha.getEventId()).isEqualTo(eventId);
+        assertThat(linha.getNumeroSequencialTriagem()).isEqualTo(5L);
     }
 
     @Test
     void mensagemForaDeOrdemOccurredAtMaisAntigoNaoSobrescreve() {
         // I/O Matrix: "occurredAt menor que o ja persistido -- replica
         // mantem a versao mais recente; mensagem antiga nao sobrescreve".
+        // numeroSequencialTriagem e campo de carga fora da tupla de
+        // comparacao (Boundaries da spec 3.2b1) -- mas como a linha inteira
+        // e um no-op quando occurredAt/eventId nao sao mais recentes, o
+        // valor antigo tambem permanece.
         long pacienteId = novoPacienteId();
         UUID eventIdRecente = UUID.randomUUID();
-        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 90, T2, eventIdRecente, Instant.now()));
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 90, T2, eventIdRecente, Instant.now(), 9L));
 
-        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 10, T1, UUID.randomUUID(), Instant.now()));
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 10, T1, UUID.randomUUID(), Instant.now(), 1L));
 
         ScoreReplicaJpaEntity linha = buscar(pacienteId);
         assertThat(linha.getScore()).isEqualTo(90);
         assertThat(linha.getOccurredAt()).isEqualTo(T2);
         assertThat(linha.getEventId()).isEqualTo(eventIdRecente);
+        assertThat(linha.getNumeroSequencialTriagem()).isEqualTo(9L);
     }
 
     @Test
     void empateDeOccurredAtDesempataPorEventIdLexicograficamenteMaior() {
         long pacienteId = novoPacienteId();
         repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 30, T1,
-                UUID.fromString("00000000-0000-0000-0000-000000000001"), Instant.now()));
+                UUID.fromString("00000000-0000-0000-0000-000000000001"), Instant.now(), null));
 
         UUID eventIdMaior = UUID.fromString("00000000-0000-0000-0000-000000000002");
-        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 31, T1, eventIdMaior, Instant.now()));
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 31, T1, eventIdMaior, Instant.now(), null));
 
         ScoreReplicaJpaEntity linha = buscar(pacienteId);
         assertThat(linha.getScore()).isEqualTo(31);
@@ -123,10 +166,10 @@ class ScoreReplicaRepositorioAdapterIntegrationTest {
     void empateDeOccurredAtComEventIdLexicograficamenteMenorNaoSobrescreve() {
         long pacienteId = novoPacienteId();
         UUID eventIdMaior = UUID.fromString("00000000-0000-0000-0000-000000000002");
-        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 30, T1, eventIdMaior, Instant.now()));
+        repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 30, T1, eventIdMaior, Instant.now(), null));
 
         repositorio.upsertSeMaisRecente(new ScoreReplica(pacienteId, 99, T1,
-                UUID.fromString("00000000-0000-0000-0000-000000000001"), Instant.now()));
+                UUID.fromString("00000000-0000-0000-0000-000000000001"), Instant.now(), null));
 
         ScoreReplicaJpaEntity linha = buscar(pacienteId);
         assertThat(linha.getScore()).isEqualTo(30);

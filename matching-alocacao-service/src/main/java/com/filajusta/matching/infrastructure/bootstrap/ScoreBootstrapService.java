@@ -76,7 +76,8 @@ class ScoreBootstrapService implements ScoreBootstrap {
         // transacao do metodo (Patch 1, ver javadoc da classe) e vira 500
         // generico, nunca 503.
         for (ScoreInternalDto dto : scores) {
-            atualizarScoreReplica.atualizar(dto.pacienteId(), dto.score().valor(), dto.occurredAt(), dto.eventId());
+            atualizarScoreReplica.atualizar(dto.pacienteId(), dto.score().valor(), dto.occurredAt(), dto.eventId(),
+                    dto.numeroSequencialTriagem());
         }
     }
 }

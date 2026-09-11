@@ -50,7 +50,13 @@ class ConsultarFilaPriorizadaTest {
             new ConsultarFilaPriorizada(filaRepositorio, scoreBootstrap, prioridadeEfetiva, clock);
 
     private static ScoreReplica replica(long pacienteId, int score, Instant occurredAt) {
-        return new ScoreReplica(pacienteId, score, occurredAt, UUID.randomUUID(), Instant.now());
+        return replica(pacienteId, score, occurredAt, null);
+    }
+
+    private static ScoreReplica replica(long pacienteId, int score, Instant occurredAt,
+                                         Long numeroSequencialTriagem) {
+        return new ScoreReplica(
+                pacienteId, score, occurredAt, UUID.randomUUID(), Instant.now(), numeroSequencialTriagem);
     }
 
     @Test
@@ -112,6 +118,38 @@ class ConsultarFilaPriorizadaTest {
         // (occurredAt mais antigo) vem primeiro entre os empatados.
         assertThat(fila).extracting(ConsultarFilaPriorizada.ItemFila::pacienteId)
                 .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void empateResidualDePrioridadeEfetivaEOccurredAtDesempataPorNumeroSequencialTriagemAscendente() {
+        // AC da spec 3.2b1: dois Pacientes com Prioridade Efetiva e
+        // occurredAt identicos -- vence o de menor numeroSequencialTriagem
+        // (Triagem mais antiga).
+        when(filaRepositorio.estaVazia()).thenReturn(false);
+        when(filaRepositorio.listarTodas()).thenReturn(List.of(
+                replica(1L, 50, AGORA, 20L),
+                replica(2L, 50, AGORA, 10L)));
+
+        List<ConsultarFilaPriorizada.ItemFila> fila = useCase.consultar();
+
+        assertThat(fila).extracting(ConsultarFilaPriorizada.ItemFila::pacienteId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void empateResidualComNumeroSequencialTriagemNuloPerdeParaOItemComValorNaoNulo() {
+        // I/O Matrix da spec 3.2b1: nulls-last -- item sem o dado nunca
+        // quebra a ordenacao nem e excluido, so perde o desempate final.
+        when(filaRepositorio.estaVazia()).thenReturn(false);
+        when(filaRepositorio.listarTodas()).thenReturn(List.of(
+                replica(1L, 50, AGORA, null),
+                replica(2L, 50, AGORA, 10L)));
+
+        List<ConsultarFilaPriorizada.ItemFila> fila = useCase.consultar();
+
+        assertThat(fila).extracting(ConsultarFilaPriorizada.ItemFila::pacienteId)
+                .containsExactly(2L, 1L);
+        assertThat(fila).hasSize(2);
     }
 
     @Test

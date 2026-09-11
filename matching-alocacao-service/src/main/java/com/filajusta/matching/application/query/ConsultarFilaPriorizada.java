@@ -15,13 +15,16 @@ import java.util.List;
  * Recomputa a Prioridade Efetiva de cada linha sob demanda
  * ({@link PrioridadeEfetiva#calcular}, {@code agora} vindo do
  * {@link Clock} injetado, nunca cacheado) e ordena decrescente -- sem
- * paginação, sem desempate residual "de negócio" por Triagem/sequência
- * (Story 3.2, "Never" da spec 3.1c) -- só um desempate barato e
- * determinístico por {@code occurredAt} (achado do code review -- Patch 5)
- * para a resposta da API não flutuar de ordem entre requisições quando
- * duas linhas empatam em Prioridade Efetiva (nem
+ * paginação, com desempate por {@code occurredAt} (achado do code review --
+ * Patch 5) para a resposta da API não flutuar de ordem entre requisições
+ * quando duas linhas empatam em Prioridade Efetiva (nem
  * {@code FilaRepositorio#listarTodas()} nem o {@code Comparator} original
- * garantiam uma ordem estável nesse caso).
+ * garantiam uma ordem estável nesse caso), seguido do desempate residual de
+ * AD-5 por {@code numeroSequencialTriagem} ascendente, nulls-last (Story
+ * 3.2b1): quando Prioridade Efetiva E {@code occurredAt} empatam também,
+ * vence a Triagem mais antiga (menor número sequencial); um item sem o dado
+ * (origem sem o campo, Boundaries da spec 3.2b1) nunca quebra a ordenação
+ * nem é excluído -- só perde esse desempate final.
  *
  * <p>{@code synchronized} em volta de "checar vazia + bootstrapar"
  * (achado do code review -- Patch 2): sem essa guarda, requisições
@@ -74,15 +77,18 @@ public class ConsultarFilaPriorizada {
         return filaRepositorio.listarTodas().stream()
                 .map(replica -> ItemFila.de(replica, prioridadeEfetiva.calcular(replica, agora)))
                 .sorted(Comparator.comparingDouble(ItemFila::prioridadeEfetiva).reversed()
-                        .thenComparing(ItemFila::occurredAt))
+                        .thenComparing(ItemFila::occurredAt)
+                        .thenComparing(ItemFila::numeroSequencialTriagem,
+                                Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
 
-    public record ItemFila(long pacienteId, int score, Instant occurredAt, double prioridadeEfetiva) {
+    public record ItemFila(long pacienteId, int score, Instant occurredAt, double prioridadeEfetiva,
+                            Long numeroSequencialTriagem) {
 
         static ItemFila de(ScoreReplica replica, double prioridadeEfetiva) {
-            return new ItemFila(
-                    replica.getPacienteId(), replica.getScore(), replica.getOccurredAt(), prioridadeEfetiva);
+            return new ItemFila(replica.getPacienteId(), replica.getScore(), replica.getOccurredAt(),
+                    prioridadeEfetiva, replica.getNumeroSequencialTriagem());
         }
     }
 }

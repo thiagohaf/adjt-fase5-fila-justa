@@ -129,11 +129,15 @@ class ScoreCalculadoConsumerJobIntegrationTest {
         long limite = System.currentTimeMillis() + 20_000;
         while (System.currentTimeMillis() < limite) {
             var linhas = jdbcTemplate.queryForList(
-                    "SELECT score, event_id FROM matching_alocacao.score_replica WHERE paciente_id = ?", pacienteId);
+                    "SELECT score, event_id, numero_sequencial_triagem FROM matching_alocacao.score_replica "
+                            + "WHERE paciente_id = ?", pacienteId);
             if (!linhas.isEmpty()) {
                 assertThat(linhas).hasSize(1);
                 assertThat(linhas.get(0).get("score")).isEqualTo(73);
                 assertThat(linhas.get(0).get("event_id").toString()).isEqualTo(eventId.toString());
+                // Story 3.2b1: payload.triagemId (99L no envelope enviado
+                // acima) propagado ate numero_sequencial_triagem.
+                assertThat(linhas.get(0).get("numero_sequencial_triagem")).isEqualTo(99L);
                 return;
             }
             Thread.sleep(200);

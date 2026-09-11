@@ -259,3 +259,53 @@
   summary: Implementar em `matching-alocacao-service` a propagação de `numeroSequencialTriagem` até `ScoreReplica` (bootstrap + consumidor SQS), o domínio/persistência/upsert interno de `Recurso`, e `GET /v1/recursos/{id}/sugestao` com o algoritmo de tiers de desempate (AD-5).
   evidence: Spec único da Story 3.2 cruzava `triagem-score-service` e `matching-alocacao-service` e introduzia um domínio novo (`Recurso`) do zero — ~2700-2800 tokens (alvo 900-1600), mesmo padrão que gerou o split da Story 3.1. Decisão do usuário no checkpoint de token count do `bmad-build` (step-02): dividir em 3-2a (`triagem-score-service`, spec acima) e 3-2b (este item).
   status: "PROMOVIDO A STORY FORMAL em 2026-09-10 — decisão do usuário: seguir o mesmo padrão de cascata da Story 3.1 (3-1a→3-1b→3-1c). Rastreado agora como Story 3-2b em `sprint-status.yaml`; este item deixa de ser trabalho solto assim que seu spec (`spec-3-2b-sugestao-matching-recurso-desempates.md`) for criado."
+
+## Deferred from: bmad-build step-02 checkpoint da Story 3-2b (2026-09-11, token count)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: Criar em `matching-alocacao-service` o domínio, persistência e endpoint interno de upsert (`POST /internal/recursos` por `codigoRecurso`) do agregado `Recurso` (`recursoId`, `codigoRecurso`, `especificidadeRank`, `disponivel`).
+  evidence: Spec único da Story 3-2b cruzava propagação de `numeroSequencialTriagem`, domínio `Recurso` novo (persistência + upsert) e o endpoint de sugestão com algoritmo de tiers — ~3327 tokens (alvo 900-1600), mesmo padrão que gerou os splits anteriores (Story 3.1 e Story 3.2 original). Decisão do usuário no checkpoint de token count do `bmad-build` (step-02): dividir em cascata 3-2b1 (propagação, spec acima) → 3-2b2 (este item) → 3-2b3 (sugestão, item seguinte).
+  status: "PROMOVIDO A STORY FORMAL em 2026-09-11 — decisão do usuário: seguir o mesmo padrão de cascata das Stories 3.1 e 3.2. Este item deixa de ser trabalho solto assim que seu spec (`spec-3-2b2-*.md`) for criado."
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: Implementar `GET /v1/recursos/{id}/sugestao` em `matching-alocacao-service` com o algoritmo de tiers de desempate (AD-5): fila global de Pacientes por Prioridade Efetiva (desempate `occurredAt` asc, depois `numeroSequencialTriagem` asc); cada tier de `especificidadeRank` estritamente mais genérico que o do Recurso R, com ≥1 Recurso disponível, consome 1 posição do topo da fila; R recebe `fila[N]`, N = quantidade desses tiers; recursos do mesmo tier nunca se bloqueiam entre si.
+  evidence: Mesmo split acima (checkpoint de token count do `bmad-build` step-02, 2026-09-11). Depende de 3-2b1 (`numeroSequencialTriagem` disponível na fila priorizada) e 3-2b2 (domínio/persistência de `Recurso` existir) estarem implementados primeiro.
+  status: "PROMOVIDO A STORY FORMAL em 2026-09-11 — mesma decisão de cascata. Este item deixa de ser trabalho solto assim que seu spec (`spec-3-2b3-*.md`) for criado."
+
+## Deferred from: bmad-build step-04 code review da Story 3-2b1 (2026-09-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: `ScoreReplica`/migration `V2` não validam que `numeroSequencialTriagem` seja positivo (construtor aceita zero/negativo sem lançar exceção; coluna sem `CHECK`), diferente de `pacienteId`/`score` no mesmo construtor.
+  evidence: Achado convergente (blind-hunter + edge-case-hunter) sobre o diff da Story 3.2b1. Risco baixo hoje -- `triagemId` sempre vem de `TriagemJpaEntity.id` (`IDENTITY`, sempre positivo) -- mas nada no código impede um valor inválido de entrar no desempate residual.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: Nenhum logging/métrica é emitido no caminho de degradação para `numeroSequencialTriagem = null` (ausência ou formato inválido de `triagemId`/campo do bootstrap).
+  evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b1. Sem isso não há como detectar uma regressão sistêmica no payload de `ScoreCalculado` (ex.: produtor para de mandar `triagemId`) sem inspecionar linhas individuais no banco.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: Assimetria não documentada entre produtor e consumidor -- `ScoreAtual` (`triagem-score-service`) exige `numeroSequencialTriagem` via `Objects.requireNonNull`, mas `ScoreInternalDto`/`ScoreReplica`/`ScoreCalculadoConsumerJob` (`matching-alocacao-service`) tratam a ausência como caso permanente de primeira classe.
+  evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b1. Não fica claro se a nulabilidade defensiva é para um produtor futuro/alternativo ou complexidade evitável dado o contrato real de hoje.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: `AtualizarScoreReplica.atualizar(...)` cresceu para 5 parâmetros posicionais de mesmo tipo/boxed (`pacienteId, score, occurredAt, eventId, numeroSequencialTriagem`) ao longo das Stories 3.1/3.2a/3.2b1, sem proteção do compilador contra troca de ordem nos dois call sites (bootstrap, consumidor SQS).
+  evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b1. Candidato a um pequeno objeto de parâmetro/valor se a assinatura continuar crescendo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: `GET /v1/fila` (`FilaItemResponse`) não expõe `numeroSequencialTriagem`, mesmo já fluindo por todo domínio/query e decidindo o ranking -- confirmar se é decisão deliberada (fator interno de ordenação) ou descuido.
+  evidence: Achado convergente (blind-hunter + verification-gap) sobre o diff da Story 3.2b1. Sem isso não há como um chamador (ou debug de "por que este paciente está nesta posição") ver o fator que acabou de entrar no algoritmo de ranking.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: A cadeia de desempate de `ConsultarFilaPriorizada` (Prioridade Efetiva desc -> `occurredAt` asc -> `numeroSequencialTriagem` asc, nulls-last) ainda não tem uma chave final determinística -- dois itens empatados nos três critérios (plausível quando ambos têm `numeroSequencialTriagem = null`) caem na ordem não determinística do stream, reintroduzindo em escopo mais estreito o problema de flutuação de ordem que o Patch 5 (Story 3.1c) resolveu.
+  evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b1.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: Nenhum teste de contrato fixa a equivalência do nome do campo JSON entre `ScoreAtualResponse.numeroSequencialTriagem` (`triagem-score-service`) e `ScoreInternalDto.numeroSequencialTriagem` (`matching-alocacao-service`) além de ambos os lados coincidentemente usarem o mesmo identificador Java.
+  evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b1. Um rename em um dos lados degradaria silenciosamente para `null` em todo lugar, sem nenhum teste falhar (ausência já é tratada como estado válido).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: O caminho de bootstrap (`ScoreInternalDto`) depende da desserialização padrão do Jackson para `numeroSequencialTriagem` (`Long`) -- um valor JSON malformado/não-inteiro falharia o parse do lote inteiro, diferente do consumidor SQS, que degrada graciosamente via `extrairNumeroSequencialTriagem` (Patch 2 do code review desta story).
+  evidence: Achado pelo edge-case-hunter sobre o diff da Story 3.2b1. Assimetria de tolerância entre as duas origens de escrita do mesmo campo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
+  summary: Nenhuma nota operacional/runbook documenta que `numero_sequencial_triagem IS NULL` no banco é um estado esperado e benigno vs. sintoma de uma integração upstream quebrada.
+  evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b1. Um engenheiro de plantão encontrando nulls hoje só tem os comentários de código como guia.

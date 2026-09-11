@@ -31,8 +31,10 @@ public class AtualizarScoreReplica {
         this.clock = clock;
     }
 
-    public void atualizar(long pacienteId, int score, Instant occurredAt, UUID eventId) {
-        ScoreReplica candidata = new ScoreReplica(pacienteId, score, occurredAt, eventId, clock.instant());
+    public void atualizar(long pacienteId, int score, Instant occurredAt, UUID eventId,
+                           Long numeroSequencialTriagem) {
+        ScoreReplica candidata =
+                new ScoreReplica(pacienteId, score, occurredAt, eventId, clock.instant(), numeroSequencialTriagem);
         repositorio.upsertSeMaisRecente(candidata);
     }
 }

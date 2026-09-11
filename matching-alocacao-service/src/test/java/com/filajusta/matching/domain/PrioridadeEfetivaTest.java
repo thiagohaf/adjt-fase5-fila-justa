@@ -26,7 +26,7 @@ class PrioridadeEfetivaTest {
     private final PrioridadeEfetiva prioridadeEfetiva = new PrioridadeEfetiva(K, TETO);
 
     private static ScoreReplica replicaComOccurredAt(int score, Instant occurredAt) {
-        return new ScoreReplica(1L, score, occurredAt, UUID.randomUUID(), Instant.now());
+        return new ScoreReplica(1L, score, occurredAt, UUID.randomUUID(), Instant.now(), null);
     }
 
     @Test
