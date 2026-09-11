@@ -38,4 +38,17 @@ interface RecursoJpaRepository extends JpaRepository<RecursoJpaEntity, UUID> {
     // por sua vez decide criado (201) vs atualizado (200) comparando esse
     // valor com o candidato que enviou (ver javadoc de UpsertRecurso).
     Optional<RecursoJpaEntity> findByCodigoRecurso(String codigoRecurso);
+
+    // Conta quantos tiers ESTRITAMENTE mais genericos que :rank tem pelo
+    // menos 1 Recurso disponivel (Story 3.2b3, algoritmo de tiers de
+    // ConsultarSugestaoRecurso) -- COUNT(DISTINCT especificidade_rank),
+    // nunca COUNT(*): Recursos do mesmo tier consomem 1 posicao no total,
+    // nunca uma por Recurso (Boundaries "Always" da spec 3.2b3).
+    // findById(UUID) usado para buscar o Recurso pelo path {id} ja vem
+    // herdado de JpaRepository -- nao precisa de metodo novo aqui (Code Map
+    // da spec 3.2b3).
+    @Query(value = "SELECT COUNT(DISTINCT especificidade_rank) FROM matching_alocacao.recurso "
+            + "WHERE disponivel = true AND especificidade_rank < :rank",
+            nativeQuery = true)
+    long contarTiersMaisGenericosDisponiveis(@Param("rank") int rank);
 }

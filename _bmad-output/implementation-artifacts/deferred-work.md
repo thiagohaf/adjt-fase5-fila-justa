@@ -316,3 +316,17 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-2b1-numero-sequencial-triagem-score-replica.md`
   summary: Nenhuma nota operacional/runbook documenta que `numero_sequencial_triagem IS NULL` no banco é um estado esperado e benigno vs. sintoma de uma integração upstream quebrada.
   evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b1. Um engenheiro de plantão encontrando nulls hoje só tem os comentários de código como guia.
+
+## Deferred from: bmad-build step-04 code review da Story 3.2b3 (2026-09-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b3-consulta-sugestao-matching-tiers.md`
+  summary: `ConsultarSugestaoRecurso.consultar` faz 3 leituras independentes (`buscarPorId`, `contarTiersMaisGenericosDisponiveis`, `ConsultarFilaPriorizada.consultar()`), cada uma em sua própria transação `readOnly` no nível do adapter, sem um snapshot único consistente entre elas.
+  evidence: Achado convergente (blind-hunter + edge-case-hunter) sobre o diff da Story 3.2b3. Uma escrita concorrente (Recurso muda de disponível, ou a fila muda) entre as 3 chamadas pode gerar uma sugestão levemente inconsistente -- risco aceito por design (a spec já declara "sempre recalculada nesta consulta, sem cache, sem reserva de Paciente" -- staleness eventual já é tolerada pelo modelo), mas vale documentar explicitamente ou avaliar uma única transação.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b3-consulta-sugestao-matching-tiers.md`
+  summary: Nenhum logging/métrica é emitido em `ConsultarSugestaoRecurso`/`RecursoSugestaoController` distinguindo operacionalmente "sugestão encontrada" vs. "sem sugestão" (fila esgotada ou recurso indisponível) vs. "recurso inexistente".
+  evidence: Achado pelo blind-hunter sobre o diff da Story 3.2b3. Sem isso não há como medir, por exemplo, com que frequência um Recurso fica ocioso sem Paciente elegível -- útil para operação de um endpoint central de suporte a decisão de matching. Mesmo padrão do item já deferido para a Story 3.2b1 (linha 289 acima).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2b3-consulta-sugestao-matching-tiers.md`
+  summary: Nenhum teste exercita `GET /v1/recursos/{id}/sugestao` com a réplica de Score vazia e o bootstrap síncrono falhando -- o `503` RFC 7807 nesse cenário depende do fallthrough implícito entre `RecursosExceptionHandler` (sem handler para `ScoreBootstrapIndisponivelException`) e `FilaExceptionHandler` (que já trata isso para `GET /v1/fila`, provado por `FilaBootstrapIntegrationTest`).
+  evidence: Achado pelo verification-gap sobre o diff da Story 3.2b3. Risco baixo -- a resolução de `@ExceptionHandler` do Spring é por tipo de exceção em todos os beans `@ControllerAdvice`, não por controller de origem, então o mecanismo já provado para `/v1/fila` cobre esta rota também -- mas nenhum teste prova isso diretamente para a nova rota.

@@ -1,5 +1,6 @@
 package com.filajusta.matching.infrastructure.persistence;
 
+import com.filajusta.matching.domain.Recurso;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -49,5 +50,15 @@ public class RecursoJpaEntity {
 
     public boolean isDisponivel() {
         return disponivel;
+    }
+
+    /**
+     * Mapeia para o domínio {@link Recurso} -- compartilhado por
+     * {@link RecursoRepositorioAdapter} (comando, Story 3.2b2) e
+     * {@link RecursoConsultaRepositorioAdapter} (consulta, Story 3.2b3) para
+     * não duplicar a mesma tradução entidade→domínio nos dois adapters.
+     */
+    Recurso paraDominio() {
+        return new Recurso(recursoId, codigoRecurso, especificidadeRank, disponivel);
     }
 }

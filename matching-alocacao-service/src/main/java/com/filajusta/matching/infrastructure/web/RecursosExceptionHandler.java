@@ -1,5 +1,6 @@
 package com.filajusta.matching.infrastructure.web;
 
+import com.filajusta.matching.application.query.RecursoNaoEncontradoException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -8,6 +9,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Traduz falhas de Bean Validation de {@code POST /internal/recursos}
@@ -32,6 +34,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * LOWEST_PRECEDENCE}) podia ser consultado primeiro e "vencer" trivialmente
  * pelo seu fallback {@code Exception}, mesmo esse handler aqui sendo mais
  * específico -- exatamente o bug observado antes deste {@code @Order}.
+ *
+ * <p>{@link RecursoNaoEncontradoException} -&gt; {@code 404} e {@link
+ * MethodArgumentTypeMismatchException} -&gt; {@code 400} (Story 3.2b3, {@code
+ * GET /v1/recursos/{id}/sugestao}) seguem o mesmo padrão de {@code
+ * TriagemNaoEncontradaException}/{@code MethodArgumentTypeMismatchException}
+ * em {@code TriagemExceptionHandler} (triagem-score-service).
  */
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -62,6 +70,32 @@ class RecursosExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST, "Corpo da requisicao ausente ou ilegivel: "
                         + "esperado JSON com codigoRecurso, especificidadeRank e disponivel");
+        problem.setTitle("Requisicao invalida");
+        return problem;
+    }
+
+    /**
+     * {@code recursoId} sintaticamente válido (UUID) mas sem registro em
+     * {@code GET /v1/recursos/{id}/sugestao} -- {@code 404} nomeando o id
+     * (Boundaries da spec 3.2b3, mesmo padrão de {@code
+     * TriagemExceptionHandler#handleTriagemNaoEncontrada}).
+     */
+    @ExceptionHandler(RecursoNaoEncontradoException.class)
+    ProblemDetail handleRecursoNaoEncontrado(RecursoNaoEncontradoException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Recurso nao encontrado");
+        return problem;
+    }
+
+    /**
+     * {@code id} não-UUID no path de {@code GET /v1/recursos/{id}/sugestao}
+     * não deve escapar como {@code 500} genérico (Boundaries da spec 3.2b3,
+     * mesmo padrão de {@code TriagemExceptionHandler#handleIdInvalido}).
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ProblemDetail handleIdInvalido(MethodArgumentTypeMismatchException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Parametro '" + ex.getName() + "' invalido: '" + ex.getValue() + "'");
         problem.setTitle("Requisicao invalida");
         return problem;
     }
