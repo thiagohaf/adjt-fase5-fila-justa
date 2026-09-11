@@ -163,11 +163,20 @@ class ListarScoresAtuaisIntegrationTest {
         assertThat(item1.get("pacienteId").asLong()).isEqualTo(registrado1.get("pacienteId").asLong());
         assertThat(item1.get("occurredAt").asText()).isEqualTo(registrado1.get("criadoEm").asText());
         assertThat(item1.get("eventId").asText()).isNotBlank();
+        assertThat(item1.get("numeroSequencialTriagem").asLong())
+                .isEqualTo(registrado1.get("triagemId").asLong());
 
         JsonNode item2 = encontrarPorScore(itens, registrado2.get("score"));
         assertThat(item2.get("pacienteId").asLong()).isEqualTo(registrado2.get("pacienteId").asLong());
         assertThat(item2.get("occurredAt").asText()).isEqualTo(registrado2.get("criadoEm").asText());
         assertThat(item2.get("eventId").asText()).isNotBlank();
+        assertThat(item2.get("numeroSequencialTriagem").asLong())
+                .isEqualTo(registrado2.get("triagemId").asLong());
+
+        // numeroSequencialTriagem (Story 3.2a) distingue as 2 Triagens do
+        // mesmo paciente -- nunca reaproveitado entre Triagens.
+        assertThat(item1.get("numeroSequencialTriagem").asLong())
+                .isNotEqualTo(item2.get("numeroSequencialTriagem").asLong());
 
         // eventId distinto por evento -- nunca reaproveitado entre Triagens.
         assertThat(item1.get("eventId").asText()).isNotEqualTo(item2.get("eventId").asText());
@@ -199,6 +208,8 @@ class ListarScoresAtuaisIntegrationTest {
         assertThat(json.get(0).get("pacienteId").asLong()).isEqualTo(registrado.get("pacienteId").asLong());
         assertThat(json.get(0).get("score")).isEqualTo(registrado.get("score"));
         assertThat(json.get(0).get("eventId").asText()).isNotBlank();
+        assertThat(json.get(0).get("numeroSequencialTriagem").asLong())
+                .isEqualTo(registrado.get("triagemId").asLong());
     }
 
     private static JsonNode encontrarPorScore(List<JsonNode> itens, JsonNode scoreEsperado) {

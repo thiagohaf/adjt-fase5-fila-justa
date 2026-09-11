@@ -252,3 +252,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1a-listar-scores-atuais.md`
   summary: Sem logging/observabilidade (contagem de linhas, tempo de execução) em torno da leitura em massa de `GET /internal/scores`, usada como bootstrap síncrono a frio de `matching-alocacao-service`.
   evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1a. Útil para diagnosticar boot a frio lento/vazio em produção, mas não bloqueia os ACs desta story (ainda sem deploy real).
+
+## Deferred from: bmad-build step-02 checkpoint da Story 3.2 (2026-09-10, token count)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-2a-numero-sequencial-triagem-scores.md`
+  summary: Implementar em `matching-alocacao-service` a propagação de `numeroSequencialTriagem` até `ScoreReplica` (bootstrap + consumidor SQS), o domínio/persistência/upsert interno de `Recurso`, e `GET /v1/recursos/{id}/sugestao` com o algoritmo de tiers de desempate (AD-5).
+  evidence: Spec único da Story 3.2 cruzava `triagem-score-service` e `matching-alocacao-service` e introduzia um domínio novo (`Recurso`) do zero — ~2700-2800 tokens (alvo 900-1600), mesmo padrão que gerou o split da Story 3.1. Decisão do usuário no checkpoint de token count do `bmad-build` (step-02): dividir em 3-2a (`triagem-score-service`, spec acima) e 3-2b (este item).
+  status: "PROMOVIDO A STORY FORMAL em 2026-09-10 — decisão do usuário: seguir o mesmo padrão de cascata da Story 3.1 (3-1a→3-1b→3-1c). Rastreado agora como Story 3-2b em `sprint-status.yaml`; este item deixa de ser trabalho solto assim que seu spec (`spec-3-2b-sugestao-matching-recurso-desempates.md`) for criado."

@@ -52,6 +52,59 @@ class ScoresAtuaisRepositorioAdapterTest {
         assertThat(scoreAtual.score().getValor()).isEqualTo(75);
         assertThat(scoreAtual.score().getAlgoritmoVersao()).isEqualTo("v1");
         assertThat(scoreAtual.score().getFatores()).hasSize(1);
+        assertThat(scoreAtual.numeroSequencialTriagem()).isEqualTo(1L);
+    }
+
+    @Test
+    void linhaSemTriagemIdNoPayloadEIgnoradaSemDerrubarORestanteDaListagem() {
+        // Story 3.2a, I/O & Edge-Case Matrix: payload sem triagemId (evento
+        // legado/malformado) -- linha isolada e ignorada, demais linhas
+        // validas continuam presentes.
+        UUID eventIdSemTriagemId = UUID.randomUUID();
+        Instant occurredAt = Instant.parse("2026-09-08T12:00:00Z");
+        String payloadSemTriagemId = "{\"pacienteId\":40,\"scoreValor\":60,"
+                + "\"algoritmoVersao\":\"v1\",\"fatores\":[]}";
+
+        UUID eventIdValido = UUID.randomUUID();
+        String payloadValido = "{\"pacienteId\":41,\"triagemId\":5,\"scoreValor\":65,"
+                + "\"algoritmoVersao\":\"v1\",\"fatores\":[]}";
+
+        when(jpaRepository.findByEventTypeOrderByOccurredAtAsc(EVENT_TYPE))
+                .thenReturn(List.of(
+                        evento(eventIdSemTriagemId, occurredAt, payloadSemTriagemId),
+                        evento(eventIdValido, occurredAt, payloadValido)));
+
+        List<ScoreAtual> resultado = adapter.listarTodos();
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).eventId()).isEqualTo(eventIdValido);
+        assertThat(resultado.get(0).numeroSequencialTriagem()).isEqualTo(5L);
+    }
+
+    @Test
+    void linhaComTriagemIdDeTipoErradoEIgnoradaSemDerrubarORestanteDaListagem() {
+        // Story 3.2a, I/O & Edge-Case Matrix: "payload.triagemId ausente ou
+        // nao-numerico" -- este cobre a metade "nao-numerico" (triagemId
+        // presente, mas como string em vez de numero).
+        UUID eventIdTipoErrado = UUID.randomUUID();
+        Instant occurredAt = Instant.parse("2026-09-08T12:00:00Z");
+        String payloadTriagemIdTipoErrado = "{\"pacienteId\":50,\"triagemId\":\"abc\",\"scoreValor\":70,"
+                + "\"algoritmoVersao\":\"v1\",\"fatores\":[]}";
+
+        UUID eventIdValido = UUID.randomUUID();
+        String payloadValido = "{\"pacienteId\":51,\"triagemId\":6,\"scoreValor\":72,"
+                + "\"algoritmoVersao\":\"v1\",\"fatores\":[]}";
+
+        when(jpaRepository.findByEventTypeOrderByOccurredAtAsc(EVENT_TYPE))
+                .thenReturn(List.of(
+                        evento(eventIdTipoErrado, occurredAt, payloadTriagemIdTipoErrado),
+                        evento(eventIdValido, occurredAt, payloadValido)));
+
+        List<ScoreAtual> resultado = adapter.listarTodos();
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).eventId()).isEqualTo(eventIdValido);
+        assertThat(resultado.get(0).numeroSequencialTriagem()).isEqualTo(6L);
     }
 
     @Test
