@@ -66,8 +66,8 @@ development_status:
   # endpoint de sugestão com algoritmo de tiers (~3327 tokens, alvo 900-1600);
   # decisão do usuário via bmad-build/step-02 checkpoint (token count check),
   # mesmo padrão da Story 3.1 e da Story 3.2a/3.2b. Ver deferred-work.md.
-  3-2b1-numero-sequencial-triagem-score-replica: review
-  3-2b2-dominio-persistencia-upsert-recurso: backlog
+  3-2b1-numero-sequencial-triagem-score-replica: done
+  3-2b2-dominio-persistencia-upsert-recurso: review
   3-2b3-consulta-sugestao-matching-tiers: backlog
   3-3-confirmação-ou-recusa-da-sugestão-de-matching: backlog
   3-4-liberação-automática-de-recurso: backlog

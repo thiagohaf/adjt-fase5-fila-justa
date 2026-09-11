@@ -62,6 +62,15 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+    <!-- Story 3.2b2: Bean Validation (NotBlank/Positive/NotNull) em
+         UpsertRecursoRequest, mesmo precedente de auth-service/pom.xml
+         (LoginRequest). Ainda nao usada em nenhum outro request deste
+         servico (RegistrarTriagemRequest, triagem-score-service, delega a
+         validacao ao dominio de proposito). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
     <!-- Boot 4.1 modularizou a autoconfiguracao de RestClient para fora de
          spring-boot-starter-web (mesmo achado ja documentado para o Flyway,
          ver comentario abaixo) - sem isso, RestClient.Builder nao tem

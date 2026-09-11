@@ -1,7 +1,9 @@
 package com.filajusta.matching;
 
 import com.filajusta.matching.application.command.AtualizarScoreReplica;
+import com.filajusta.matching.application.command.RecursoRepositorio;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
+import com.filajusta.matching.application.command.UpsertRecurso;
 import com.filajusta.matching.application.query.ConsultarFilaPriorizada;
 import com.filajusta.matching.application.query.FilaRepositorio;
 import com.filajusta.matching.application.query.ScoreBootstrap;
@@ -36,6 +38,8 @@ import java.time.Clock;
  * conecta as portas {@link FilaRepositorio} e {@link ScoreBootstrap}
  * (implementadas em {@code infrastructure.persistence}/
  * {@code infrastructure.bootstrap}) -- atende {@code GET /v1/fila}
+ * (infrastructure/web). {@link UpsertRecurso} (Story 3.2b2) conecta a porta
+ * {@link RecursoRepositorio} -- atende {@code POST /internal/recursos}
  * (infrastructure/web).
  */
 @SpringBootApplication
@@ -66,5 +70,10 @@ public class MatchingAlocacaoServiceApplication {
     ConsultarFilaPriorizada consultarFilaPriorizada(FilaRepositorio filaRepositorio, ScoreBootstrap scoreBootstrap,
                                                       PrioridadeEfetiva prioridadeEfetiva, Clock clock) {
         return new ConsultarFilaPriorizada(filaRepositorio, scoreBootstrap, prioridadeEfetiva, clock);
+    }
+
+    @Bean
+    UpsertRecurso upsertRecurso(RecursoRepositorio recursoRepositorio) {
+        return new UpsertRecurso(recursoRepositorio);
     }
 }

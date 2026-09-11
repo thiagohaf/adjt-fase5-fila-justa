@@ -8,5 +8,10 @@
  * calculo puro de Score + Urgencia Acumulada (Aging com teto), consumido
  * por {@code ConsultarFilaPriorizada} (application/query) -- k/teto vem
  * calibrados de application.yml, nunca hardcoded aqui.
+ * {@link com.filajusta.matching.domain.Recurso} (Story 3.2b2): agregado de
+ * capacidade de atendimento (leito, especialista, sala etc.), valida suas
+ * proprias invariantes no construtor (codigoRecurso nao vazio,
+ * especificidadeRank positivo) -- upsertado idempotentemente por
+ * codigoRecurso via {@code UpsertRecurso} (application/command).
  */
 package com.filajusta.matching.domain;
