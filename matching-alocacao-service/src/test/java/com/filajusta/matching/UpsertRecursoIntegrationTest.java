@@ -38,9 +38,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-// Relay SQS (Story 3.1b) desligado -- este teste so cobre POST
-// /internal/recursos, sem depender de LocalStack/SQS.
-@TestPropertySource(properties = "filajusta.matching.relay.enabled=false")
+// Relay SQS (Story 3.1b) e relay outbox (Story 3-3a) desligados -- este
+// teste so cobre POST /internal/recursos, sem depender de
+// LocalStack/SQS/SNS.
+@TestPropertySource(properties = {
+        "filajusta.matching.relay.enabled=false",
+        "filajusta.matching.outbox-relay.enabled=false"
+})
 class UpsertRecursoIntegrationTest {
 
     @Container

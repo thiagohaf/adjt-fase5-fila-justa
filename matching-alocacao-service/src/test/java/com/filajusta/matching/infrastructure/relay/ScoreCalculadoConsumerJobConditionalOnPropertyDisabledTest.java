@@ -27,7 +27,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Testcontainers
 @SpringBootTest
-@TestPropertySource(properties = "filajusta.matching.relay.enabled=false")
+// Relay outbox (Story 3-3a) tambem desligado aqui -- sem isso o contexto
+// completo deste @SpringBootTest tentaria construir RelaySnsPublisherJob
+// com topic-arn vazio (fail-fast), fora do escopo deste teste (que prova
+// so o @ConditionalOnProperty do relay SQS/ScoreCalculadoConsumerJob).
+@TestPropertySource(properties = {
+        "filajusta.matching.relay.enabled=false",
+        "filajusta.matching.outbox-relay.enabled=false"
+})
 class ScoreCalculadoConsumerJobConditionalOnPropertyDisabledTest {
 
     @Container

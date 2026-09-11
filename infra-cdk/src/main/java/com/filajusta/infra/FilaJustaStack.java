@@ -87,7 +87,12 @@ import java.util.Map;
  * {@code maxReceiveCount=5}) e a IAM role de consumo de
  * {@code matching-alocacao-service} -- deploy ECS daquele servico tambem
  * continua deferido; a futura {@code FargateTaskDefinition} deve reusar
- * {@code MatchingAlocacaoServiceTaskRole}.
+ * {@code MatchingAlocacaoServiceTaskRole}. Story 3-3a acrescenta o topico
+ * SNS FIFO proprio de {@code matching-alocacao-service}
+ * ({@code matching-alocacao-eventos.fifo}, relay outbox daquele servico) --
+ * publish concedido a mesma {@code MatchingAlocacaoServiceTaskRole} acima
+ * (nao cria outra role); nenhuma fila assinante ainda (fora de escopo,
+ * Epic 4/auditoria-service assina depois).
  */
 public class FilaJustaStack extends Stack {
 
@@ -219,7 +224,17 @@ public class FilaJustaStack extends Stack {
         // -- deploy do matching-alocacao-service no ECS tambem continua
         // deferido (deferred-work.md, ver javadoc da classe).
         Queue scoreCalculadoConsumerQueue = buildScoreCalculadoConsumerQueue(scoreCalculadoTopic);
-        buildMatchingAlocacaoServiceTaskRole(scoreCalculadoConsumerQueue);
+        Role matchingAlocacaoServiceTaskRole = buildMatchingAlocacaoServiceTaskRole(scoreCalculadoConsumerQueue);
+
+        // --- Relay outbox proprio do matching-alocacao-service (Story 3-3a, AD-3) ---
+        // So o topico + a permissao de publish -- deploy ECS deste servico
+        // continua deferido (deferred-work.md, ver javadoc da classe); reusa
+        // a MatchingAlocacaoServiceTaskRole ja existente (Story 3.1b), nao
+        // cria outra role (mesmo principio do topico ScoreCalculado acima).
+        // Nenhuma fila/subscription assinante nesta story -- Epic 4
+        // (auditoria-service) assina depois, fora de escopo.
+        Topic matchingAlocacaoEventosTopic = buildMatchingAlocacaoEventosTopic();
+        matchingAlocacaoEventosTopic.grantPublish(matchingAlocacaoServiceTaskRole);
 
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
@@ -229,6 +244,9 @@ public class FilaJustaStack extends Stack {
         CfnOutput.Builder.create(this, "ScoreCalculadoTopicArn").value(scoreCalculadoTopic.getTopicArn()).build();
         CfnOutput.Builder.create(this, "ScoreCalculadoConsumerQueueUrl")
                 .value(scoreCalculadoConsumerQueue.getQueueUrl())
+                .build();
+        CfnOutput.Builder.create(this, "MatchingAlocacaoEventosTopicArn")
+                .value(matchingAlocacaoEventosTopic.getTopicArn())
                 .build();
     }
 
@@ -308,6 +326,20 @@ public class FilaJustaStack extends Stack {
                 .build();
         scoreCalculadoConsumerQueue.grantConsumeMessages(role);
         return role;
+    }
+
+    private Topic buildMatchingAlocacaoEventosTopic() {
+        // FIFO (nao standard) -- mesmo padrao de buildScoreCalculadoTopic():
+        // ordem determinística por recurso via MessageGroupId = recursoId
+        // (Story 3-3a, spec-3-3a). contentBasedDeduplication=false:
+        // RelaySnsPublisherJob deste servico sempre manda um
+        // MessageDeduplicationId explicito (o eventId do outbox), nunca
+        // depende de deduplicacao por conteudo.
+        return Topic.Builder.create(this, "MatchingAlocacaoEventosTopic")
+                .topicName("matching-alocacao-eventos.fifo")
+                .fifo(true)
+                .contentBasedDeduplication(false)
+                .build();
     }
 
     private IVpc buildVpc() {

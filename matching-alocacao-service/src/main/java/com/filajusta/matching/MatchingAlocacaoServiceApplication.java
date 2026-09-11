@@ -47,6 +47,20 @@ import java.time.Clock;
  * {@link ConsultarFilaPriorizada} (reutilizada sem duplicar o cálculo de
  * Prioridade Efetiva) -- atende {@code GET /v1/recursos/{id}/sugestao}
  * (infrastructure/web).
+ *
+ * <p>Story 3-3a: infraestrutura outbox própria deste serviço (AD-3) --
+ * {@code EventoOutboxRepositorioAdapter} (infrastructure/persistence) e
+ * {@code RelaySnsPublisherJob}/{@code RelaySnsClientConfig}
+ * (infrastructure/relay) são {@code @Component}/{@code @Configuration}
+ * registrados via component scan, mesmo padrão de todos os demais adapters
+ * deste serviço (ex.: {@link RecursoRepositorio} → {@code
+ * RecursoRepositorioAdapter}) -- sem {@code @Bean} explícito aqui, porque
+ * nenhum caso de uso real desta story consome {@code EventoOutboxRepositorio}
+ * como dependência de construtor (nenhum produtor existe ainda, ver
+ * Boundaries da spec 3-3a; isso fica para as Stories 3.3b/3.3c).
+ * {@code @EnableScheduling} (já presente desde a Story 3.1b, para
+ * {@code ScoreCalculadoConsumerJob}) também habilita o {@code @Scheduled} de
+ * {@code RelaySnsPublisherJob} -- nenhuma anotação nova necessária aqui.
  */
 @SpringBootApplication
 @EnableScheduling

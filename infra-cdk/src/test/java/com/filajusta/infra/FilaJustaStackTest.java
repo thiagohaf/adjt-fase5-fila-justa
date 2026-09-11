@@ -362,4 +362,49 @@ class FilaJustaStackTest {
         // gateway-service + auth-service.
         template.resourceCountIs("AWS::ECS::Service", 3);
     }
+
+    @Test
+    void matchingAlocacaoEventosTopicIsFifo() {
+        // Story 3-3a (emenda, AD-3): topico SNS FIFO proprio do
+        // matching-alocacao-service que RelaySnsPublisherJob publica --
+        // ordem deterministica por recurso via MessageGroupId=recursoId,
+        // mesma propriedade do topico irmao ScoreCalculadoTopic
+        // (ContentBasedDeduplication=false: MessageDeduplicationId sempre
+        // explicito, o eventId do outbox).
+        template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
+                "TopicName", "matching-alocacao-eventos.fifo",
+                "FifoTopic", true,
+                "ContentBasedDeduplication", false)));
+    }
+
+    @Test
+    void matchingAlocacaoServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic() {
+        // Deploy ECS do matching-alocacao-service continua deferido -- mas a
+        // policy de publish no topico outbox proprio ja precisa existir
+        // (Code Map da spec 3-3a), presa a MESMA MatchingAlocacaoServiceTaskRole
+        // ja usada pelo consumo da fila ScoreCalculado (Story 3.1b), nao uma
+        // role nova (mesmo raciocinio de
+        // triagemScoreServiceTaskRoleCanPublishToScoreCalculadoTopic acima:
+        // resolve os logical IDs reais do topico e da role, confirma que E
+        // esta policy, presa a ESTA role, que aponta para ESTE topico).
+        Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "TopicName", "matching-alocacao-eventos.fifo")))));
+        assertThat(topicos).hasSize(1);
+        String topicoLogicalId = topicos.keySet().iterator().next();
+
+        Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
+        assertThat(roles).hasSize(1);
+        String roleLogicalId = roles.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
+                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
+                "PolicyDocument", Match.objectLike(Map.of(
+                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                "Action", "sns:Publish",
+                                "Effect", "Allow",
+                                "Resource", Match.objectLike(Map.of("Ref", topicoLogicalId)))))))))));
+    }
 }

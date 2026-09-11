@@ -77,6 +77,11 @@ class ScoreCalculadoConsumerJobIntegrationTest {
         registry.add("filajusta.matching.relay.queue-url", () -> queueUrl);
         registry.add("filajusta.matching.relay.poll-interval-ms", () -> "500");
         registry.add("filajusta.matching.relay.wait-time-seconds", () -> "1");
+        // Relay outbox (Story 3-3a) desligado aqui -- este teste so cobre o
+        // consumidor SQS de ScoreCalculado, sem topico SNS/LocalStack para
+        // ele; sem isso o RelaySnsPublisherJob falharia ao subir (topic-arn
+        // vazio, fail-fast).
+        registry.add("filajusta.matching.outbox-relay.enabled", () -> "false");
     }
 
     private static SqsClient sqsClient() {
