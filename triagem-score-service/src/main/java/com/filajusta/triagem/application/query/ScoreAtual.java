@@ -20,13 +20,25 @@ import java.util.UUID;
  * todos os Scores atuais", sem qualificador de "mais recente por
  * paciente"). Vive em {@code application/query} (nao {@code domain}) por ser
  * um modelo de leitura, nao um agregado de dominio.
+ *
+ * <p>{@code numeroSequencialTriagem} (Story 3.2a) = {@code triagemId}
+ * gravado no payload do evento {@code ScoreCalculado} por {@code
+ * RegistrarTriagem} -- usado pelo {@code matching-alocacao-service} (Story
+ * 3.2b) para desempate residual entre Pacientes com Prioridade Efetiva e
+ * {@code occurredAt} identicos (AD-5). Nunca recalculado, nunca lido da
+ * tabela {@code triagens} diretamente. Quanto MENOR o valor, mais ANTIGA a
+ * Triagem (coluna {@code IDENTITY}, so cresce) -- por AD-5 a Triagem mais
+ * antiga vence o desempate, entao a 3.2b deve comparar/ordenar em ordem
+ * ascendente.
  */
-public record ScoreAtual(Long pacienteId, Score score, Instant occurredAt, UUID eventId) {
+public record ScoreAtual(
+        Long pacienteId, Score score, Instant occurredAt, UUID eventId, Long numeroSequencialTriagem) {
 
     public ScoreAtual {
         Objects.requireNonNull(pacienteId, "pacienteId");
         Objects.requireNonNull(score, "score");
         Objects.requireNonNull(occurredAt, "occurredAt");
         Objects.requireNonNull(eventId, "eventId");
+        Objects.requireNonNull(numeroSequencialTriagem, "numeroSequencialTriagem");
     }
 }

@@ -12,7 +12,9 @@ Um Regulador consulta a fila de Pacientes priorizada por Prioridade Efetiva (Sco
   - `3-1a` ListarScoresAtuais (endpoint interno em `triagem-score-service`)
   - `3-1b` réplica local de Score + consumidor SQS FIFO + fila CDK (`matching-alocacao-service`, sem HTTP)
   - `3-1c` `GET /v1/fila` + bootstrap síncrono a frio (liga 3.1a+3.1b ao AC original da story)
-- Story 3.2: Sugestão de Matching para um Recurso com Desempates
+- Story 3.2: Sugestão de Matching para um Recurso com Desempates -- **dividida em 2 sub-stories em 2026-09-10** (spec único excedia ~2700-2800 tokens por cruzar `triagem-score-service` e `matching-alocacao-service` além de introduzir o domínio `Recurso` do zero; decisão do usuário no checkpoint de token count do `bmad-build`, mesmo padrão da Story 3.1 — ver `sprint-status.yaml` e `deferred-work.md`):
+  - `3-2a` Expor `numeroSequencialTriagem` em `GET /internal/scores` (`triagem-score-service`) -- o campo já existe no payload do evento `ScoreCalculado` (`RegistrarTriagem`), só nunca foi lido/exposto
+  - `3-2b` Propaga `numeroSequencialTriagem` até `ScoreReplica`, cria domínio/persistência/upsert interno de `Recurso`, e `GET /v1/recursos/{id}/sugestao` com o algoritmo de tiers de desempate (`matching-alocacao-service`, depende de 3-2a)
 - Story 3.3: Confirmação ou Recusa da Sugestão de Matching
 - Story 3.4: Liberação Automática de Recurso
 

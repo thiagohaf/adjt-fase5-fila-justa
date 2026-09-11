@@ -14,15 +14,22 @@ import java.util.UUID;
  * occurredAt} e {@code eventId} do evento {@code ScoreCalculado} de origem
  * (I/O & Edge-Case Matrix da spec 3.1a). Mesmo padrao de DTO aninhado de
  * {@code ConsultarTriagemResponse}/{@code RegistrarTriagemResponse}.
+ *
+ * <p>{@code numeroSequencialTriagem} (Story 3.2a) = {@code triagemId} do
+ * evento de origem -- consumido pelo {@code matching-alocacao-service}
+ * (Story 3.2b) para desempate residual entre Pacientes com Prioridade
+ * Efetiva e {@code occurredAt} identicos (AD-5).
  */
-record ScoreAtualResponse(Long pacienteId, ScoreResponse score, Instant occurredAt, UUID eventId) {
+record ScoreAtualResponse(
+        Long pacienteId, ScoreResponse score, Instant occurredAt, UUID eventId, Long numeroSequencialTriagem) {
 
     static ScoreAtualResponse de(ScoreAtual scoreAtual) {
         return new ScoreAtualResponse(
                 scoreAtual.pacienteId(),
                 ScoreResponse.de(scoreAtual.score()),
                 scoreAtual.occurredAt(),
-                scoreAtual.eventId());
+                scoreAtual.eventId(),
+                scoreAtual.numeroSequencialTriagem());
     }
 
     record ScoreResponse(int valor, String algoritmoVersao, List<FatorContribuinteResponse> fatores) {

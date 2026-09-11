@@ -28,9 +28,12 @@ import java.util.Map;
  *
  * <p>Desserializa {@code payload} como {@code Map} generico (mesmo padrao de
  * {@link EventoOutboxRepositorioAdapter#paraDominio}), depois converte os
- * campos necessarios -- {@code pacienteId}/{@code scoreValor} chegam como
- * {@link Number} (Integer ou Long dependendo do valor, desserializacao
- * generica do Jackson), nunca um cast direto para {@code Long}/{@code int}.
+ * campos necessarios -- {@code pacienteId}/{@code triagemId}/{@code
+ * scoreValor} chegam como {@link Number} (Integer ou Long dependendo do
+ * valor, desserializacao generica do Jackson), nunca um cast direto para
+ * {@code Long}/{@code int}. {@code triagemId} (Story 3.2a) vira {@code
+ * numeroSequencialTriagem} em {@link ScoreAtual} -- ja gravado no payload
+ * por {@code RegistrarTriagem}, nenhuma mudanca no writer do evento.
  *
  * <p><b>Resiliencia por linha (achado do code review):</b> {@link
  * #listarTodos()} isola a falha de UMA linha (JSON invalido, campo
@@ -86,6 +89,7 @@ class ScoresAtuaisRepositorioAdapter implements ScoresAtuaisRepositorio {
         Map<String, Object> payload = objectMapper.readValue(entity.getPayload(), Map.class);
 
         Object pacienteIdBruto = payload.get("pacienteId");
+        Object triagemIdBruto = payload.get("triagemId");
         Object scoreValorBruto = payload.get("scoreValor");
         Object algoritmoVersaoBruto = payload.get("algoritmoVersao");
         Object fatoresBruto = payload.get("fatores");
@@ -94,16 +98,19 @@ class ScoresAtuaisRepositorioAdapter implements ScoresAtuaisRepositorio {
         // direto: um payload sem algum destes campos (ou com o tipo errado)
         // vira uma excecao com o eventId no texto, capturada por
         // listarTodos() -- nunca um NPE/ClassCastException cru propagando
-        // ate o controller.
-        if (!(pacienteIdBruto instanceof Number) || !(scoreValorBruto instanceof Number)
+        // ate o controller. triagemId (Story 3.2a) segue o mesmo padrao:
+        // ausente/tipo errado isola a linha, nao derruba a listagem.
+        if (!(pacienteIdBruto instanceof Number) || !(triagemIdBruto instanceof Number)
+                || !(scoreValorBruto instanceof Number)
                 || !(algoritmoVersaoBruto instanceof String) || fatoresBruto == null) {
             throw new IllegalStateException(
                     "payload do evento " + entity.getEventId() + " incompleto ou malformado -- "
-                            + "esperado pacienteId (numero), scoreValor (numero), algoritmoVersao (texto) "
-                            + "e fatores");
+                            + "esperado pacienteId (numero), triagemId (numero), scoreValor (numero), "
+                            + "algoritmoVersao (texto) e fatores");
         }
 
         Long pacienteId = ((Number) pacienteIdBruto).longValue();
+        Long numeroSequencialTriagem = ((Number) triagemIdBruto).longValue();
         int scoreValor = ((Number) scoreValorBruto).intValue();
         String algoritmoVersao = (String) algoritmoVersaoBruto;
         List<FatorContribuinte> fatores =
@@ -113,6 +120,7 @@ class ScoresAtuaisRepositorioAdapter implements ScoresAtuaisRepositorio {
         // propaga como RuntimeException, capturada por listarTodos() como
         // qualquer outro payload malformado.
         Score score = new Score(scoreValor, algoritmoVersao, fatores);
-        return new ScoreAtual(pacienteId, score, entity.getOccurredAt(), entity.getEventId());
+        return new ScoreAtual(
+                pacienteId, score, entity.getOccurredAt(), entity.getEventId(), numeroSequencialTriagem);
     }
 }
