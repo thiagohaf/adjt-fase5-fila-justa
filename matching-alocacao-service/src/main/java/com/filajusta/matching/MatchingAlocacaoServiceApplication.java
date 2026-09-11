@@ -5,7 +5,9 @@ import com.filajusta.matching.application.command.RecursoRepositorio;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
 import com.filajusta.matching.application.command.UpsertRecurso;
 import com.filajusta.matching.application.query.ConsultarFilaPriorizada;
+import com.filajusta.matching.application.query.ConsultarSugestaoRecurso;
 import com.filajusta.matching.application.query.FilaRepositorio;
+import com.filajusta.matching.application.query.RecursoConsultaRepositorio;
 import com.filajusta.matching.application.query.ScoreBootstrap;
 import com.filajusta.matching.domain.PrioridadeEfetiva;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +42,10 @@ import java.time.Clock;
  * {@code infrastructure.bootstrap}) -- atende {@code GET /v1/fila}
  * (infrastructure/web). {@link UpsertRecurso} (Story 3.2b2) conecta a porta
  * {@link RecursoRepositorio} -- atende {@code POST /internal/recursos}
+ * (infrastructure/web). {@link ConsultarSugestaoRecurso} (Story 3.2b3)
+ * conecta as portas {@link RecursoConsultaRepositorio} e
+ * {@link ConsultarFilaPriorizada} (reutilizada sem duplicar o cálculo de
+ * Prioridade Efetiva) -- atende {@code GET /v1/recursos/{id}/sugestao}
  * (infrastructure/web).
  */
 @SpringBootApplication
@@ -75,5 +81,11 @@ public class MatchingAlocacaoServiceApplication {
     @Bean
     UpsertRecurso upsertRecurso(RecursoRepositorio recursoRepositorio) {
         return new UpsertRecurso(recursoRepositorio);
+    }
+
+    @Bean
+    ConsultarSugestaoRecurso consultarSugestaoRecurso(RecursoConsultaRepositorio recursoConsultaRepositorio,
+                                                        ConsultarFilaPriorizada consultarFilaPriorizada) {
+        return new ConsultarSugestaoRecurso(recursoConsultaRepositorio, consultarFilaPriorizada);
     }
 }

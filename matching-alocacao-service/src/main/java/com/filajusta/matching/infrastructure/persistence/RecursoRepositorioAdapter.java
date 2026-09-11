@@ -33,11 +33,6 @@ class RecursoRepositorioAdapter implements RecursoRepositorio {
         RecursoJpaEntity persistido = jpaRepository.findByCodigoRecurso(recurso.getCodigoRecurso())
                 .orElseThrow(() -> new IllegalStateException(
                         "Recurso nao encontrado logo apos o upsert -- codigoRecurso=" + recurso.getCodigoRecurso()));
-        return paraDominio(persistido);
-    }
-
-    private static Recurso paraDominio(RecursoJpaEntity entidade) {
-        return new Recurso(entidade.getRecursoId(), entidade.getCodigoRecurso(),
-                entidade.getEspecificidadeRank(), entidade.isDisponivel());
+        return persistido.paraDominio();
     }
 }
