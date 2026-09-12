@@ -83,7 +83,9 @@ development_status:
   # da fila priorizada -- ~2300-2750 tokens (alvo 900-1600); decisão do
   # usuário no checkpoint de token count do bmad-build (step-02), mesmo
   # padrão das Stories 3.1/3.2/3.2b/3-3a. Ver deferred-work.md.
-  3-3b1-confirmacao-alocacao: review
+  # 2026-09-11: 3-3b1 -> done (PR #31 confirmado mergeado em develop via
+  # git log/gh pr view; sprint-status.yaml estava desatualizado).
+  3-3b1-confirmacao-alocacao: done
   3-3b2-exclusao-pacientes-alocados-fila: backlog
   3-3c-recusa-sugestao-gerada: backlog
   3-4-liberação-automática-de-recurso: backlog
