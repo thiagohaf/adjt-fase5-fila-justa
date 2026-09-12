@@ -376,3 +376,36 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3a-infraestrutura-outbox-matching-alocacao.md`
   summary: Nenhuma métrica/gauge (idade da linha pendente mais antiga, contagem de pendentes) nem alarme CloudWatch está associado ao novo tópico `matching-alocacao-eventos.fifo` ou aos caminhos de falha do relay -- mesma classe de gap já deferida para a Story 3.2b3 (linha ~322 acima), agora também no lado de publicação.
   evidence: Achado pelo blind-hunter. Consistente com o padrão já aceito de adiar observabilidade neste projeto (ver itens já deferidos para 3.2b1/3.2b3).
+
+## Deferred from: bmad-build step-02 checkpoint da Story 3-3b (2026-09-11, token count)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
+  summary: Excluir Pacientes com Alocação ativa da fila priorizada (`ConsultarFilaPriorizada`, `GET /v1/fila`) -- novo porto de leitura `AlocacaoConsultaRepositorio`/adapter, filtro antes da ordenação.
+  evidence: Spec da Story 3-3b (confirmação de sugestão de matching) cruzava domínio `Alocacao` novo + os 2 índices únicos parciais de `409` + `marcarIndisponivel` + evento `AlocacaoConfirmada` via outbox + endpoint REST + exception handler + a exclusão da fila -- ~2300-2750 tokens dependendo do método de contagem (alvo 900-1600), mesmo padrão que gerou os splits das Stories 3.1, 3.2, 3.2b e 3-3a. Decisão do usuário no checkpoint de token count do `bmad-build` (step-02): dividir em cascata 3-3b1 (confirmação/criação de Alocação, spec acima) → 3-3b2 (este item). Depende de 3-3b1 (domínio `Alocacao` e sua persistência) estar implementado primeiro.
+  status: "PROMOVIDO A STORY FORMAL em 2026-09-11 -- decisão do usuário: seguir o mesmo padrão de cascata das Stories 3.1/3.2/3.2b/3-3a. Este item deixa de ser trabalho solto assim que seu spec (`spec-3-3b2-*.md`) for criado."
+
+## Deferred from: bmad-build step-04 code review da Story 3-3b1 (2026-09-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
+  summary: `matching_alocacao.alocacao.recurso_id` (`V5__create_alocacao.sql`) não tem `FOREIGN KEY` para `matching_alocacao.recurso.recurso_id` -- nada no banco impede um `recursoId` órfão/inexistente de ser inserido fora do caminho normal da aplicação (ex. backfill, bug futuro).
+  evidence: Achado pelo blind-hunter. `matching_alocacao.recurso` vive no mesmo schema/serviço (ao contrário de `paciente_id`, que referencia dado de outro serviço via réplica) -- tecnicamente viável adicionar a FK. Risco baixo hoje (o único caminho de escrita, `ConfirmarAlocacao`, sempre valida a existência do Recurso antes do INSERT).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
+  summary: `matching_alocacao.alocacao.status` é `TEXT NOT NULL` sem `CHECK (status = 'ATIVA')` -- nada no banco impede um valor inválido escrito por um caminho futuro fora do domínio Java.
+  evidence: Achado pelo blind-hunter. Mesma classe de gap já deferida para `eventos_outbox`/`Recurso` (linha ~365 acima) -- consistente com o padrão já aceito de não usar `CHECK` constraints neste projeto.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
+  summary: A AC "duas confirmações concorrentes para o mesmo `recursoId`: exatamente uma recebe `201` e a outra `409`" só é provada com chamadas sequenciais (`AlocacaoRepositorioAdapterIntegrationTest`/`AlocacaoControllerIntegrationTest`) -- nenhum teste multi-thread real exercita a corrida via 2 threads simultâneas contra o mesmo `recursoId`.
+  evidence: Achado pelo blind-hunter. A garantia real vem do índice único parcial do Postgres (mecanismo já bem estabelecido), não de lógica da aplicação -- um teste multi-thread validaria majoritariamente o próprio Postgres, não código deste serviço. Risco baixo, mas registrado para eventual reforço.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
+  summary: Nenhum teste cobre o branch de fallback de `AlocacaoRepositorioAdapter#traduzir` -- uma `DataIntegrityViolationException` cujo nome de constraint não é `ux_alocacao_recurso_ativa` nem `ux_alocacao_paciente_ativa` propaga sem tradução (comportamento documentado), mas não testado.
+  evidence: Achado pelo blind-hunter. Branch defensivo de baixa probabilidade (só dispara se uma constraint nova/diferente for adicionada à tabela no futuro) -- mesma classe de gaps de cobertura já aceita em outras stories deste épico (3.2b1/3.2b3).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
+  summary: `X-Correlation-Id` só valida comprimento (`> 128` caracteres); caracteres de controle/quebra de linha no header fluem sem sanitização para o payload do outbox e para logs.
+  evidence: Achado pelo blind-hunter. Pré-existente e idêntico ao `CorrelationIdInvalidoException` de `triagem-score-service` (Story 3.0) -- mesma validação, mesma lacuna, não introduzida por esta story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
+  summary: Nenhum teste de integração prova que uma falha em `RecursoRepositorio#marcarIndisponivel` ou `EventoOutboxRepositorio#salvar` (depois do INSERT de `Alocacao` já ter sido aceito) reverte a transação inteira -- exatamente o cenário que o `@Transactional` único de `ConfirmarAlocacao` existe para proteger.
+  evidence: Achado pelo blind-hunter e pelo verification-gap (via `ConfirmarAlocacao`, ordenação das 3 escritas). Mecanismo padrão do Spring (`@Transactional` reverte em `RuntimeException` não capturada) já usado e confiado em toda a base -- sem teste dedicado, mas sem motivo concreto para desconfiar do comportamento padrão.

@@ -2,6 +2,8 @@ package com.filajusta.matching.application.command;
 
 import com.filajusta.matching.domain.Recurso;
 
+import java.util.UUID;
+
 /**
  * Porta de saída para persistência de {@link Recurso} (Story 3.2b2).
  * Implementada em {@code infrastructure.persistence} (JPA nativo, schema
@@ -27,4 +29,13 @@ import com.filajusta.matching.domain.Recurso;
 public interface RecursoRepositorio {
 
     Recurso upsert(Recurso recurso);
+
+    /**
+     * Marca o Recurso indisponível (Story 3-3b1, {@code ConfirmarAlocacao}) --
+     * chamado dentro da mesma transação da confirmação de Alocação, depois
+     * do INSERT em {@code alocacao} ter sido aceito. Idempotente: uma
+     * segunda chamada para o mesmo {@code recursoId} já indisponível não
+     * falha, apenas não altera nada.
+     */
+    void marcarIndisponivel(UUID recursoId);
 }

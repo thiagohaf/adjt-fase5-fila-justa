@@ -5,6 +5,8 @@ import com.filajusta.matching.domain.Recurso;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 /**
  * Adapter que implementa a porta {@link RecursoRepositorio}
  * (application/command) usando {@link RecursoJpaRepository} (Spring Data,
@@ -34,5 +36,11 @@ class RecursoRepositorioAdapter implements RecursoRepositorio {
                 .orElseThrow(() -> new IllegalStateException(
                         "Recurso nao encontrado logo apos o upsert -- codigoRecurso=" + recurso.getCodigoRecurso()));
         return persistido.paraDominio();
+    }
+
+    @Override
+    @Transactional
+    public void marcarIndisponivel(UUID recursoId) {
+        jpaRepository.marcarIndisponivel(recursoId);
     }
 }

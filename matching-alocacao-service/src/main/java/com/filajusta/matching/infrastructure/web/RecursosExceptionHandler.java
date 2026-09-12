@@ -1,5 +1,8 @@
 package com.filajusta.matching.infrastructure.web;
 
+import com.filajusta.matching.application.command.CorrelationIdInvalidoException;
+import com.filajusta.matching.application.command.PacienteJaAlocadoException;
+import com.filajusta.matching.application.command.RecursoJaAlocadoException;
 import com.filajusta.matching.application.query.RecursoNaoEncontradoException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -10,6 +13,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import java.util.stream.Collectors;
 
 /**
  * Traduz falhas de Bean Validation de {@code POST /internal/recursos}
@@ -47,9 +52,21 @@ class RecursosExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail handleValidacaoInvalida(MethodArgumentNotValidException ex) {
+        // Mensagem generica por campo (Story 3-3b1, patch do code review
+        // multi-agente): este handler e global (@RestControllerAdvice sem
+        // escopo por controller), compartilhado por POST /internal/recursos
+        // (UpsertRecursoRequest) e POST /v1/recursos/{id}/alocacoes
+        // (ConfirmarAlocacaoRequest) -- construida a partir de
+        // getFieldErrors() (nome do campo + mensagem padrao do Bean
+        // Validation), nunca de ex.getMessage() bruto: essa mensagem padrao
+        // do Spring inclui o nome tecnico do record/bean vinculado
+        // (ex. "confirmarAlocacaoRequest"), vazamento de detalhe interno
+        // achado no code review.
+        String detalhe = ex.getBindingResult().getFieldErrors().stream()
+                .map(erro -> erro.getField() + ": " + erro.getDefaultMessage())
+                .collect(Collectors.joining("; "));
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST, "codigoRecurso, especificidadeRank e disponivel sao obrigatorios "
-                        + "e especificidadeRank deve ser positivo");
+                HttpStatus.BAD_REQUEST, "Corpo da requisicao invalido: " + detalhe);
         problem.setTitle("Requisicao invalida");
         return problem;
     }
@@ -96,6 +113,44 @@ class RecursosExceptionHandler {
     ProblemDetail handleIdInvalido(MethodArgumentTypeMismatchException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST, "Parametro '" + ex.getName() + "' invalido: '" + ex.getValue() + "'");
+        problem.setTitle("Requisicao invalida");
+        return problem;
+    }
+
+    /**
+     * {@code recursoId} já tem uma Alocação ativa -- {@code 409} (Story
+     * 3-3b1, {@code POST /v1/recursos/{id}/alocacoes}), mapeado do índice
+     * único parcial {@code ux_alocacao_recurso_ativa} por
+     * {@code AlocacaoRepositorioAdapter}.
+     */
+    @ExceptionHandler(RecursoJaAlocadoException.class)
+    ProblemDetail handleRecursoJaAlocado(RecursoJaAlocadoException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Recurso ja alocado");
+        return problem;
+    }
+
+    /**
+     * {@code pacienteId} já tem uma Alocação ativa para outro Recurso --
+     * {@code 409} (Story 3-3b1), mapeado do índice único parcial
+     * {@code ux_alocacao_paciente_ativa}.
+     */
+    @ExceptionHandler(PacienteJaAlocadoException.class)
+    ProblemDetail handlePacienteJaAlocado(PacienteJaAlocadoException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Paciente ja alocado");
+        return problem;
+    }
+
+    /**
+     * Header {@code X-Correlation-Id} maior que o limite persistível
+     * ({@code 128} caracteres) -- {@code 400} (Story 3-3b1, mesmo padrão de
+     * {@code TriagemExceptionHandler#handleCorrelationIdInvalido},
+     * triagem-score-service).
+     */
+    @ExceptionHandler(CorrelationIdInvalidoException.class)
+    ProblemDetail handleCorrelationIdInvalido(CorrelationIdInvalidoException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("Requisicao invalida");
         return problem;
     }

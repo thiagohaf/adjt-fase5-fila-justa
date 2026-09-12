@@ -1,6 +1,9 @@
 package com.filajusta.matching;
 
+import com.filajusta.matching.application.command.AlocacaoRepositorio;
 import com.filajusta.matching.application.command.AtualizarScoreReplica;
+import com.filajusta.matching.application.command.ConfirmarAlocacao;
+import com.filajusta.matching.application.command.EventoOutboxRepositorio;
 import com.filajusta.matching.application.command.RecursoRepositorio;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
 import com.filajusta.matching.application.command.UpsertRecurso;
@@ -101,5 +104,15 @@ public class MatchingAlocacaoServiceApplication {
     ConsultarSugestaoRecurso consultarSugestaoRecurso(RecursoConsultaRepositorio recursoConsultaRepositorio,
                                                         ConsultarFilaPriorizada consultarFilaPriorizada) {
         return new ConsultarSugestaoRecurso(recursoConsultaRepositorio, consultarFilaPriorizada);
+    }
+
+    @Bean
+    ConfirmarAlocacao confirmarAlocacao(AlocacaoRepositorio alocacaoRepositorio,
+                                         RecursoRepositorio recursoRepositorio,
+                                         RecursoConsultaRepositorio recursoConsultaRepositorio,
+                                         EventoOutboxRepositorio eventoOutboxRepositorio,
+                                         Clock clock) {
+        return new ConfirmarAlocacao(
+                alocacaoRepositorio, recursoRepositorio, recursoConsultaRepositorio, eventoOutboxRepositorio, clock);
     }
 }

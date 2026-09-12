@@ -51,4 +51,14 @@ interface RecursoJpaRepository extends JpaRepository<RecursoJpaEntity, UUID> {
             + "WHERE disponivel = true AND especificidade_rank < :rank",
             nativeQuery = true)
     long contarTiersMaisGenericosDisponiveis(@Param("rank") int rank);
+
+    // Story 3-3b1 (ConfirmarAlocacao): marca o Recurso indisponivel apos uma
+    // confirmacao aceita. JPQL simples (nao native, ao contrario do upsert
+    // acima) -- e so um UPDATE de 1 coluna por PK, sem necessidade de SQL
+    // nativo. Sem WHERE disponivel = true: idempotente por natureza (uma
+    // segunda chamada para o mesmo recursoId ja indisponivel nao falha, so
+    // nao muda nada).
+    @Modifying
+    @Query("UPDATE RecursoJpaEntity r SET r.disponivel = false WHERE r.recursoId = :recursoId")
+    void marcarIndisponivel(@Param("recursoId") UUID recursoId);
 }
