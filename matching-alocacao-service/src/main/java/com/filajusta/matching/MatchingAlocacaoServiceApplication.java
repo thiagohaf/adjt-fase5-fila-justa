@@ -15,6 +15,7 @@ import com.filajusta.matching.application.query.ConsultarSugestaoRecurso;
 import com.filajusta.matching.application.query.FilaRepositorio;
 import com.filajusta.matching.application.query.RecursoConsultaRepositorio;
 import com.filajusta.matching.application.query.ScoreBootstrap;
+import com.filajusta.matching.application.query.SugestaoRecusadaConsultaRepositorio;
 import com.filajusta.matching.domain.PrioridadeEfetiva;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -117,8 +118,10 @@ public class MatchingAlocacaoServiceApplication {
 
     @Bean
     ConsultarSugestaoRecurso consultarSugestaoRecurso(RecursoConsultaRepositorio recursoConsultaRepositorio,
-                                                        ConsultarFilaPriorizada consultarFilaPriorizada) {
-        return new ConsultarSugestaoRecurso(recursoConsultaRepositorio, consultarFilaPriorizada);
+                                                        ConsultarFilaPriorizada consultarFilaPriorizada,
+                                                        SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio) {
+        return new ConsultarSugestaoRecurso(
+                recursoConsultaRepositorio, consultarFilaPriorizada, sugestaoRecusadaConsultaRepositorio);
     }
 
     @Bean
