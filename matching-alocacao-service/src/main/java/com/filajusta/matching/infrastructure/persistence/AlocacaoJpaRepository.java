@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 interface AlocacaoJpaRepository extends JpaRepository<AlocacaoJpaEntity, UUID> {
@@ -26,4 +27,13 @@ interface AlocacaoJpaRepository extends JpaRepository<AlocacaoJpaEntity, UUID> {
                  @Param("pacienteId") long pacienteId,
                  @Param("status") String status,
                  @Param("confirmadoEm") Instant confirmadoEm);
+
+    // Story 3-3b2a (AlocacaoConsultaRepositorio): fonte dos paciente_id com
+    // Alocacao ATIVA -- mesmo padrao 100% nativo do INSERT acima. Sem
+    // nenhuma linha :status -> Set vazio (comportamento padrao do Spring
+    // Data para uma projecao de colecao sem resultados), nunca excecao
+    // (Boundaries "Always" da spec 3-3b2a).
+    @Query(value = "SELECT paciente_id FROM matching_alocacao.alocacao WHERE status = :status",
+            nativeQuery = true)
+    Set<Long> pacientesComAlocacaoAtiva(@Param("status") String status);
 }

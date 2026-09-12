@@ -409,3 +409,16 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3b1-confirmacao-alocacao.md`
   summary: Nenhum teste de integração prova que uma falha em `RecursoRepositorio#marcarIndisponivel` ou `EventoOutboxRepositorio#salvar` (depois do INSERT de `Alocacao` já ter sido aceito) reverte a transação inteira -- exatamente o cenário que o `@Transactional` único de `ConfirmarAlocacao` existe para proteger.
   evidence: Achado pelo blind-hunter e pelo verification-gap (via `ConfirmarAlocacao`, ordenação das 3 escritas). Mecanismo padrão do Spring (`@Transactional` reverte em `RuntimeException` não capturada) já usado e confiado em toda a base -- sem teste dedicado, mas sem motivo concreto para desconfiar do comportamento padrão.
+
+## Deferred from: bmad-build step-02 checkpoint da Story 3-3b2 (2026-09-11, token count)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b2-exclusao-pacientes-alocados-fila.md`
+  summary: Aplicar o filtro de exclusão em `ConsultarFilaPriorizada.consultar()` usando o novo `AlocacaoConsultaRepositorio` -- a mudança de comportamento real de `GET /v1/fila` (Paciente com Alocação ativa deixa de aparecer), com teste unitário de `ConsultarFilaPriorizadaTest` e cenário E2E em `FilaBootstrapIntegrationTest`.
+  evidence: Spec original de 3-3b2 (~2067 tokens estimados, alvo 900-1600) cruzava a criação do porto de leitura `AlocacaoConsultaRepositorio`/adapter/query JPA nova (infraestrutura pura, sem mudança de comportamento visível) com a aplicação do filtro no caso de uso da fila (mudança de comportamento real). Decisão do usuário no checkpoint de token count do `bmad-build` (step-02): dividir em cascata 3-3b2a (porto de leitura + adapter + teste de integração, spec acima) → 3-3b2b (este item). Depende de 3-3b2a (o porto `AlocacaoConsultaRepositorio` e sua implementação) estar implementado primeiro.
+  status: "Trabalho solto até este item ser promovido a spec formal (`spec-3-3b2b-*.md`), quando 3-3b2a estiver concluído."
+
+## Deferred from: bmad-build step-04 code review da Story 3-3b2a (2026-09-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3b2a-porto-leitura-alocacoes-ativas.md`
+  summary: `matching-alocacao-service` inteiro está fora do pipeline de CI -- `.github/workflows/ci.yml` só roda `mvn -B -pl gateway-service,auth-service,infra-cdk -am test`, excluindo o módulo do reactor.
+  evidence: Achado pelo verification-gap. Pré-existente (introduzido no commit `50f224d`, antes desta story) e não causado por esta mudança -- afeta igualmente todos os testes já existentes do módulo (ex.: 3-3a/3-3b1). Hoje a única rede de segurança automática para o novo comportamento desta story (e todo o resto do serviço) é execução manual/local de `mvn -pl matching-alocacao-service -am verify`.
