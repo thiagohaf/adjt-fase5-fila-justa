@@ -428,3 +428,36 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3b2b-exclusao-pacientes-alocados-fila.md`
   summary: `ConsultarFilaPriorizada.consultar()` lê `AlocacaoConsultaRepositorio#pacientesComAlocacaoAtiva()` e `FilaRepositorio#listarTodas()` em duas consultas separadas, fora de uma transação/snapshot compartilhado -- uma Alocação confirmada ou liberada entre as duas leituras pode gerar uma resposta transitoriamente inconsistente (paciente aparece indevidamente ou some por um instante).
   evidence: Achado de forma convergente pelo blind-hunter e pelo edge-case-hunter (independentemente). Consistente com o design geral do épico, que já tolera leituras não transacionais entre bounded contexts (a fila é "sempre recomputada sob demanda", "não reserva o Paciente", e o mesmo Paciente pode aparecer sugerido para mais de um Recurso até uma confirmação consumi-lo, resolvido via constraint única + `409`). Risco baixo e da mesma classe já aceita no resto do serviço, mas nunca havia duas leituras live combinadas numa única resposta antes desta story -- vale reavaliar se a fila crescer em criticidade.
+
+## Deferred from: bmad-build step-02 checkpoint da Story 3-3c (2026-09-12, token count)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c-recusa-sugestao-gerada.md`
+  summary: Aplicar em `ConsultarSugestaoRecurso` o pulo de pares `(recursoId, pacienteId)` já recusados ao decidir a sugestão, e o rastreamento AD-10 (`ultima_sugestao_registrada` + publicação de `SugestaoGerada` via outbox quando o Paciente sugerido para um Recurso muda).
+  evidence: Spec original da Story 3-3c (~2913 tokens, alvo 900-1600) cruzava o comando `RecusarSugestao` (persistência do par recusado + evento `SugestaoRecusada`, escrita nova e isolada) com uma mudança de comportamento real em `ConsultarSugestaoRecurso` (algoritmo de sugestão + tabela de apoio AD-10) -- mesmo padrão que gerou os splits das Stories 3.1/3.2/3.2b/3-3a/3-3b/3-3b2. Decisão do usuário no checkpoint de token count do `bmad-build` (step-02): dividir em cascata 3-3c1 (comando `RecusarSugestao`, spec renomeada para `spec-3-3c1-recusa-sugestao-comando.md`) → 3-3c2 (este item). Depende de 3-3c1 (persistência do par recusado, porta `SugestaoRecusadaRepositorio`) estar implementado primeiro.
+  status: "PROMOVIDO A STORY FORMAL em 2026-09-12 -- decisão do usuário: seguir o mesmo padrão de cascata das Stories anteriores. Este item deixa de ser trabalho solto assim que seu spec (`spec-3-3c2-*.md`) for criado."
+
+## Deferred from: bmad-build step-04 code review da Story 3-3c1 (2026-09-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c1-recusa-sugestao-comando.md`
+  summary: Nenhum teste prova que `{id}` não-UUID em `POST /v1/recursos/{id}/alocacoes/recusa` retorna `400`, apesar do Javadoc de `AlocacaoController` afirmar explicitamente "mesmo tratamento... de id não-UUID" do endpoint de confirmação.
+  evidence: Achado pelo blind-hunter. Mesma categoria de gap já aceita no épico (ex. Story 3.2b3, `ScoreBootstrapIndisponivelException`/fallthrough do `@ExceptionHandler`): a resolução de exceção do Spring é por tipo em todos os beans `@ControllerAdvice`, não por controller de origem, então o mecanismo já provado para `POST /v1/recursos/{id}/alocacoes` cobre esta rota também -- mas nenhum teste prova isso diretamente para o endpoint novo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c1-recusa-sugestao-comando.md`
+  summary: Nenhum teste de integração HTTP prova `correlationId` acima de 128 caracteres retornando `400` no endpoint de recusa -- a cobertura desse cenário existe só a nível de teste unitário do caso de uso (`RecusarSugestaoTest`), nunca ponta a ponta via HTTP/Postgres real para esta rota específica.
+  evidence: Achado pelo blind-hunter. Mesmo padrão de "mecanismo já provado, não testado por rota" do item acima -- `correlationIdAcimaDoLimiteRetorna400` já prova o caminho completo para o endpoint de confirmação.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c1-recusa-sugestao-comando.md`
+  summary: O campo `motivo` de `RecusarSugestaoRequest` não tem limite de tamanho (`@Size`) na validação Bean Validation, permitindo payloads arbitrariamente grandes persistidos em `sugestao_recusada` e propagados no payload JSONB do evento de outbox.
+  evidence: Achado de forma convergente pelo blind-hunter e pelo edge-case-hunter (independentemente). Mesma categoria de hardening sem limite de tamanho já deferida para `sintomas` em `POST /v1/triagens` (Story 2.1, ver entrada acima) -- nenhuma NFR define um limite; fica como hardening a revisitar se o volume/abuso justificar.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c1-recusa-sugestao-comando.md`
+  summary: `matching_alocacao.sugestao_recusada.recurso_id` (`V6__create_sugestao_recusada.sql`) não tem `FOREIGN KEY` para `matching_alocacao.recurso.recurso_id` -- nada no banco impede um `recursoId` órfão/inexistente de ser inserido fora do caminho normal da aplicação.
+  evidence: Achado de forma convergente pelo blind-hunter e pelo edge-case-hunter (independentemente). Mesma classe de gap já deferida para `matching_alocacao.alocacao.recurso_id` na Story 3-3b1 (ver entrada acima) -- consistente com o padrão já aceito de não usar FK entre essas tabelas neste projeto; risco baixo hoje (o único caminho de escrita, `RecusarSugestao`, sempre valida a existência do Recurso antes do INSERT).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c1-recusa-sugestao-comando.md`
+  summary: `SugestaoRecusadaJpaRepository#upsert` é `@Modifying` sem `clearAutomatically`/`flushAutomatically` -- se uma chamada futura, na mesma transação, ler a entidade via JPA depois do upsert nativo, pode obter um estado desatualizado do contexto de persistência.
+  evidence: Achado pelo blind-hunter. Risco baixo hoje -- nenhum caminho de código lê `SugestaoRecusadaJpaEntity` via JPA na mesma transação após o upsert (a leitura de verificação nos testes é via `jdbcTemplate` cru) -- mas vale revisitar se um consumidor futuro (ex. Story 3-3c2) precisar reler a entidade pela mesma via.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c1-recusa-sugestao-comando.md`
+  summary: Nenhum campo de texto livre da aplicação (`motivo`, `correlationId`, `codigoRecurso`, etc.) sanitiza bytes NUL (` `) antes de gravar em colunas `TEXT`/`VARCHAR` do Postgres -- um JSON de entrada com ` ` escapado desserializa normalmente via Jackson, mas o INSERT subsequente falha no Postgres (que não aceita NUL em texto), surgindo como `500` não tratado.
+  evidence: Achado pelo edge-case-hunter, generalizado após inspeção: gap sistêmico pré-existente em toda a base (não introduzido por esta story especificamente, replicado em qualquer campo de texto livre novo, incluindo `motivo` desta story) -- nunca tratado em nenhuma story anterior.

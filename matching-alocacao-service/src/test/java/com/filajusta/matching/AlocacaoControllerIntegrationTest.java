@@ -84,6 +84,22 @@ class AlocacaoControllerIntegrationTest {
         return "{\"pacienteId\":" + pacienteId + "}";
     }
 
+    private HttpResponse<String> recusar(String recursoId, String corpoJson, String correlationId)
+            throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/v1/recursos/" + recursoId + "/alocacoes/recusa"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(corpoJson));
+        if (correlationId != null) {
+            builder.header("X-Correlation-Id", correlationId);
+        }
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static String corpoDeRecusa(long pacienteId, String motivo) {
+        return "{\"pacienteId\":" + pacienteId + ",\"motivo\":\"" + motivo + "\"}";
+    }
+
     // pacienteId proprio por teste (indice unico parcial no banco) -- evita
     // colisao entre metodos de teste que rodam na mesma instancia do
     // Postgres/Spring context (mesmo raciocinio do codigoRecurso proprio por
@@ -195,5 +211,124 @@ class AlocacaoControllerIntegrationTest {
         HttpResponse<String> resposta = confirmar(recursoId.toString(), corpoComPaciente(1L), correlationIdMuitoLongo);
 
         assertThat(resposta.statusCode()).isEqualTo(400);
+    }
+
+    // Story 3-3c1 (RecusarSugestao): cenarios de
+    // POST /v1/recursos/{id}/alocacoes/recusa a nivel HTTP contra Postgres
+    // real -- feliz (grava o par em sugestao_recusada e o evento no outbox)
+    // e duplicata (upsert idempotente, sem duplicar linha nem falhar). Os
+    // cenarios de recurso inexistente e correlationId invalido ja tem
+    // cobertura equivalente, unitaria, em RecusarSugestaoTest -- aqui so se
+    // prova o FORMATO da resposta/persistencia deste novo endpoint. Motivo
+    // em branco e pacienteId invalido sao Bean Validation no
+    // RecusarSugestaoRequest (nivel HTTP) -- RecusarSugestaoTest opera sobre
+    // o comando ja com um "long pacienteId" primitivo validado, entao nao
+    // exercita essa anotacao; a cobertura real desses 2 cenarios vive so
+    // aqui.
+
+    @Test
+    void recusaFelizRetorna201EGravaParEEventoOutbox() throws Exception {
+        UUID recursoId = upsertRecursoDisponivel();
+        long pacienteId = novoPacienteId();
+
+        HttpResponse<String> resposta = recusar(
+                recursoId.toString(), corpoDeRecusa(pacienteId, "Paciente recusou o leito"), "corr-recusa-1");
+
+        assertThat(resposta.statusCode()).isEqualTo(201);
+        JsonNode json = objectMapper.readTree(resposta.body());
+        assertThat(json.get("recursoId").asText()).isEqualTo(recursoId.toString());
+        assertThat(json.get("pacienteId").asLong()).isEqualTo(pacienteId);
+        assertThat(json.get("motivo").asText()).isEqualTo("Paciente recusou o leito");
+
+        String motivoPersistido = jdbcTemplate.queryForObject(
+                "SELECT motivo FROM matching_alocacao.sugestao_recusada "
+                        + "WHERE recurso_id = ?::uuid AND paciente_id = ?",
+                String.class, recursoId.toString(), pacienteId);
+        assertThat(motivoPersistido).isEqualTo("Paciente recusou o leito");
+
+        Integer linhasOutboxPendentes = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM matching_alocacao.eventos_outbox "
+                        + "WHERE event_type = 'SugestaoRecusada' AND publicado_em IS NULL "
+                        + "AND payload ->> 'recursoId' = ? AND correlation_id = 'corr-recusa-1'",
+                Integer.class, recursoId.toString());
+        assertThat(linhasOutboxPendentes).isEqualTo(1);
+    }
+
+    @Test
+    void recusaDuplicadaParaOMesmoParRetorna201DeNovoESemDuplicarLinha() throws Exception {
+        UUID recursoId = upsertRecursoDisponivel();
+        long pacienteId = novoPacienteId();
+        recusar(recursoId.toString(), corpoDeRecusa(pacienteId, "motivo original"), "corr-recusa-1");
+
+        HttpResponse<String> resposta = recusar(
+                recursoId.toString(), corpoDeRecusa(pacienteId, "motivo atualizado"), "corr-recusa-2");
+
+        assertThat(resposta.statusCode()).isEqualTo(201);
+
+        Integer totalLinhas = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM matching_alocacao.sugestao_recusada "
+                        + "WHERE recurso_id = ?::uuid AND paciente_id = ?",
+                Integer.class, recursoId.toString(), pacienteId);
+        assertThat(totalLinhas).isEqualTo(1);
+
+        String motivoPersistido = jdbcTemplate.queryForObject(
+                "SELECT motivo FROM matching_alocacao.sugestao_recusada "
+                        + "WHERE recurso_id = ?::uuid AND paciente_id = ?",
+                String.class, recursoId.toString(), pacienteId);
+        assertThat(motivoPersistido).isEqualTo("motivo atualizado");
+    }
+
+    @Test
+    void recusaComRecursoInexistenteRetorna404RFC7807NomeandoOId() throws Exception {
+        UUID recursoIdInexistente = UUID.randomUUID();
+
+        HttpResponse<String> resposta = recusar(
+                recursoIdInexistente.toString(), corpoDeRecusa(novoPacienteId(), "motivo"), "corr-1");
+
+        assertThat(resposta.statusCode()).isEqualTo(404);
+        JsonNode json = objectMapper.readTree(resposta.body());
+        assertThat(json.get("detail").asText()).contains(recursoIdInexistente.toString());
+    }
+
+    @Test
+    void recusaComMotivoEmBrancoRetorna400() throws Exception {
+        UUID recursoId = upsertRecursoDisponivel();
+
+        HttpResponse<String> resposta = recusar(
+                recursoId.toString(), corpoDeRecusa(novoPacienteId(), ""), "corr-1");
+
+        assertThat(resposta.statusCode()).isEqualTo(400);
+        assertThat(resposta.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+        JsonNode json = objectMapper.readTree(resposta.body());
+        assertThat(json.get("detail").asText()).contains("motivo");
+    }
+
+    @Test
+    void recusaComPacienteIdAusenteRetorna400ComDetailNomeandoOCampo() throws Exception {
+        UUID recursoId = upsertRecursoDisponivel();
+
+        HttpResponse<String> resposta = recusar(
+                recursoId.toString(), "{\"motivo\":\"Paciente recusou o leito\"}", "corr-1");
+
+        assertThat(resposta.statusCode()).isEqualTo(400);
+        assertThat(resposta.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+        JsonNode json = objectMapper.readTree(resposta.body());
+        assertThat(json.get("detail").asText())
+                .contains("pacienteId")
+                .doesNotContain("recusarSugestaoRequest", "Validation failed for argument");
+    }
+
+    @Test
+    void recusaComPacienteIdNaoPositivoRetorna400ComDetailNomeandoOCampo() throws Exception {
+        UUID recursoId = upsertRecursoDisponivel();
+
+        HttpResponse<String> resposta = recusar(
+                recursoId.toString(), corpoDeRecusa(0L, "Paciente recusou o leito"), "corr-1");
+
+        assertThat(resposta.statusCode()).isEqualTo(400);
+        JsonNode json = objectMapper.readTree(resposta.body());
+        assertThat(json.get("detail").asText()).contains("pacienteId");
     }
 }
