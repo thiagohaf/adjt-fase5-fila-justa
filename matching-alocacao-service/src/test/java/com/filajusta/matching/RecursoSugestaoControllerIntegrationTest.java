@@ -99,6 +99,14 @@ class RecursoSugestaoControllerIntegrationTest {
                 UUID.randomUUID(), Timestamp.from(Instant.now()));
     }
 
+    private void seedSugestaoRecusada(UUID recursoId, long pacienteId) {
+        jdbcTemplate.update(
+                "INSERT INTO matching_alocacao.sugestao_recusada "
+                        + "(recurso_id, paciente_id, motivo, recusado_em) VALUES (?, ?, ?, ?)",
+                recursoId, pacienteId, "sem leitos disponiveis na especialidade",
+                Timestamp.from(Instant.now()));
+    }
+
     @Test
     void recursoDisponivelComRankMaisGenericoRetorna200ComPacienteIdDoTopoDaFila() throws Exception {
         // HAPPY_PATH no nivel HTTP: Recurso rank=1 (o mais generico
@@ -116,6 +124,29 @@ class RecursoSugestaoControllerIntegrationTest {
         JsonNode json = objectMapper.readTree(resposta.body());
         assertThat(json.get("recursoId").asText()).isEqualTo(recursoId.toString());
         assertThat(json.get("pacienteId").asLong()).isEqualTo(pacienteId);
+    }
+
+    @Test
+    void pacienteRecusadoParaORecursoEPuladoNaSugestaoDoTopoDaFila() throws Exception {
+        // Story 3-3c2a: topo da fila global (pacienteId=502931L) ja foi
+        // recusado para este Recurso -- sugestao deve pular para o proximo
+        // paciente elegivel da fila (pacienteId=502942L), sem erro.
+        // Scores bem acima dos usados nos demais testes desta classe (80) --
+        // a tabela score_replica nao e limpa entre metodos (container
+        // Testcontainers estatico), entao o topo da fila global precisa ser
+        // garantido mesmo com linhas de outros testes ja persistidas.
+        long pacienteRecusado = 502931L;
+        long pacienteElegivel = 502942L;
+        seedScoreReplica(pacienteRecusado, 100);
+        seedScoreReplica(pacienteElegivel, 99);
+        UUID recursoId = upsertRecurso(1, true);
+        seedSugestaoRecusada(recursoId, pacienteRecusado);
+
+        HttpResponse<String> resposta = consultarSugestao(recursoId.toString());
+
+        assertThat(resposta.statusCode()).isEqualTo(200);
+        JsonNode json = objectMapper.readTree(resposta.body());
+        assertThat(json.get("pacienteId").asLong()).isEqualTo(pacienteElegivel);
     }
 
     @Test

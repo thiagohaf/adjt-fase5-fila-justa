@@ -3,6 +3,7 @@ package com.filajusta.matching.application.query;
 import com.filajusta.matching.domain.Recurso;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,13 +27,21 @@ import java.util.UUID;
  * SEMPRE recalculada nesta consulta, sem cache nem reserva de Paciente
  * (Boundaries da spec 3.2b3).
  *
- * <p>Quando a fila global se esgota antes do índice {@code N} (menos
- * Pacientes na fila do que tiers mais genéricos disponíveis), OU quando o
- * próprio Recurso consultado está {@code disponivel=false} (nunca é
- * elegível, achado do code review multi-agente da Story 3.2b3 -- decisão do
- * usuário: mesmo tratamento de fila esgotada), não há sugestão -- {@link
- * Resultado#pacienteId()} vem {@code null}, NUNCA um erro (requisito do
- * epic, I/O Matrix "FILA_ESGOTADA"/"RECURSO_INDISPONIVEL" da spec 3.2b3).
+ * <p>Desde a Story 3-3c2a, o candidato em {@code filaGlobal[N]} é pulado se
+ * já foi recusado para este {@code recursoId} especificamente ({@link
+ * SugestaoRecusadaConsultaRepositorio#recusadosPara}, tabela {@code
+ * sugestao_recusada} da Story 3-3c1) -- a busca avança dentro de {@code
+ * filaGlobal} a partir do índice {@code N} até achar o primeiro Paciente não
+ * recusado; {@code N} em si não muda, então a contagem de tiers de outros
+ * Recursos não é afetada.
+ *
+ * <p>Quando a fila global se esgota antes de achar um Paciente elegível
+ * (considerando o pulo de recusados), OU quando o próprio Recurso consultado
+ * está {@code disponivel=false} (nunca é elegível, achado do code review
+ * multi-agente da Story 3.2b3 -- decisão do usuário: mesmo tratamento de
+ * fila esgotada), não há sugestão -- {@link Resultado#pacienteId()} vem
+ * {@code null}, NUNCA um erro (requisito do epic, I/O Matrix
+ * "FILA_ESGOTADA"/"RECURSO_INDISPONIVEL" da spec 3.2b3).
  *
  * <p>{@link RecursoNaoEncontradoException} propaga sem tratamento -- não é
  * capturada aqui de propósito, para chegar até {@code infrastructure/web} e
@@ -43,11 +52,14 @@ public class ConsultarSugestaoRecurso {
 
     private final RecursoConsultaRepositorio recursoConsultaRepositorio;
     private final ConsultarFilaPriorizada consultarFilaPriorizada;
+    private final SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio;
 
     public ConsultarSugestaoRecurso(RecursoConsultaRepositorio recursoConsultaRepositorio,
-                                     ConsultarFilaPriorizada consultarFilaPriorizada) {
+                                     ConsultarFilaPriorizada consultarFilaPriorizada,
+                                     SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio) {
         this.recursoConsultaRepositorio = recursoConsultaRepositorio;
         this.consultarFilaPriorizada = consultarFilaPriorizada;
+        this.sugestaoRecusadaConsultaRepositorio = sugestaoRecusadaConsultaRepositorio;
     }
 
     public Resultado consultar(UUID recursoId) {
@@ -62,7 +74,17 @@ public class ConsultarSugestaoRecurso {
 
         List<ConsultarFilaPriorizada.ItemFila> filaGlobal = consultarFilaPriorizada.consultar();
 
-        Long pacienteIdSugerido = n < filaGlobal.size() ? filaGlobal.get(n).pacienteId() : null;
+        Long pacienteIdSugerido = null;
+        if (n < filaGlobal.size()) {
+            Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(recursoId);
+            for (int i = n; i < filaGlobal.size(); i++) {
+                long candidato = filaGlobal.get(i).pacienteId();
+                if (!recusados.contains(candidato)) {
+                    pacienteIdSugerido = candidato;
+                    break;
+                }
+            }
+        }
 
         return new Resultado(recursoId, pacienteIdSugerido);
     }

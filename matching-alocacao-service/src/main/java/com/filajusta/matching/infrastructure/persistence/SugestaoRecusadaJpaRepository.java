@@ -6,9 +6,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 interface SugestaoRecusadaJpaRepository extends JpaRepository<SugestaoRecusadaJpaEntity, SugestaoRecusadaJpaEntity.Id> {
+
+    // Leitura em massa dos pacientes recusados para um Recurso (Story
+    // 3-3c2a) -- nenhuma linha para :recursoId -> Set vazio (comportamento
+    // padrao do Spring Data para uma projecao de colecao sem resultados),
+    // nunca excecao, mesmo estilo de AlocacaoJpaRepository#pacientesComAlocacaoAtiva.
+    @Query(value = "SELECT paciente_id FROM matching_alocacao.sugestao_recusada WHERE recurso_id = :recursoId",
+            nativeQuery = true)
+    Set<Long> buscarPacientesRecusados(@Param("recursoId") UUID recursoId);
 
     // Upsert direto e idempotente pela PK composta (recurso_id, paciente_id)
     // (Boundaries "Always" da spec 3-3c1, Design Notes) -- mesmo estilo do

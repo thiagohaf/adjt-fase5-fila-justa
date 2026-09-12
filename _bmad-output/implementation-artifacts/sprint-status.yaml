@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-12-2026 15:00
+last_updated: 09-12-2026 12:05
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -106,8 +106,15 @@ development_status:
   # SugestaoGerada) -- ~2913 tokens (alvo 900-1600); decisão do usuário no
   # checkpoint de token count do bmad-build (step-02), mesmo padrão das
   # Stories 3.1/3.2/3.2b/3-3a/3-3b/3-3b2. Ver deferred-work.md.
-  3-3c1-recusa-sugestao-comando: review
-  3-3c2-recusa-sugestao-ad10: backlog
+  3-3c1-recusa-sugestao-comando: done
+  # Story 3-3c2 dividida em 2 sub-stories em cascata em 2026-09-12 -- spec
+  # único cruzava o pulo de pacientes recusados em ConsultarSugestaoRecurso
+  # com o rastreamento AD-10 (tabela ultima_sugestao_registrada + evento
+  # SugestaoGerada) -- ~3113 tokens (alvo 900-1600); decisão do usuário no
+  # checkpoint de token count do bmad-build (step-02), mesmo padrão das
+  # Stories 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c. Ver deferred-work.md.
+  3-3c2a-pulo-recusados-sugestao: review
+  3-3c2b-rastreamento-ad10-sugestao-gerada: backlog
   3-4-liberação-automática-de-recurso: backlog
   epic-3-retrospective: optional
 

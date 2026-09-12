@@ -461,3 +461,20 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3c1-recusa-sugestao-comando.md`
   summary: Nenhum campo de texto livre da aplicação (`motivo`, `correlationId`, `codigoRecurso`, etc.) sanitiza bytes NUL (` `) antes de gravar em colunas `TEXT`/`VARCHAR` do Postgres -- um JSON de entrada com ` ` escapado desserializa normalmente via Jackson, mas o INSERT subsequente falha no Postgres (que não aceita NUL em texto), surgindo como `500` não tratado.
   evidence: Achado pelo edge-case-hunter, generalizado após inspeção: gap sistêmico pré-existente em toda a base (não introduzido por esta story especificamente, replicado em qualquer campo de texto livre novo, incluindo `motivo` desta story) -- nunca tratado em nenhuma story anterior.
+
+## Deferred from: bmad-build step-02 checkpoint da Story 3-3c2 (2026-09-12, token count)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2-recusa-sugestao-ad10.md`
+  summary: Rastreamento AD-10 em `ConsultarSugestaoRecurso` -- tabela de apoio nova `ultima_sugestao_registrada` (schema `matching_alocacao`, PK `recurso_id`) guardando a ultima sugestao registrada por Recurso, e publicacao de `SugestaoGerada` via outbox (mesmo molde de `RecusarSugestao`/`ConfirmarAlocacao`) somente quando o Paciente sugerido para aquele Recurso muda em relacao ao ultimo registro.
+  evidence: Spec original da Story 3-3c2 (~3113 tokens, alvo 900-1600) cruzava o pulo de pacientes recusados (leitura pura, porta `SugestaoRecusadaConsultaRepositorio` sobre a tabela `sugestao_recusada` da 3-3c1) com uma mudanca de comportamento mais ampla em `ConsultarSugestaoRecurso` (nova tabela de apoio, `@Transactional`, novo evento de outbox, rewiring do bean) -- mesmo padrao que gerou os splits das Stories 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c. Decisao do usuario no checkpoint de token count do `bmad-build` (step-02): dividir em cascata 3-3c2a (pulo de recusados, spec renomeada para `spec-3-3c2a-pulo-recusados-sugestao.md`) -> 3-3c2b (este item). Depende de 3-3c2a (o loop de selecao de `pacienteIdSugerido` que o rastreamento AD-10 vai observar) estar implementado primeiro.
+  status: "PROMOVIDO A STORY FORMAL em 2026-09-12 -- decisao do usuario: seguir o mesmo padrao de cascata das Stories anteriores. Este item deixa de ser trabalho solto assim que seu spec (`spec-3-3c2b-*.md`) for criado."
+
+## Deferred from: bmad-build step-04 code review da Story 3-3c2a (2026-09-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2a-pulo-recusados-sugestao.md`
+  summary: `matching_alocacao.sugestao_recusada` (criada na Story 3-3c1) nao tem estrategia de retencao/limpeza -- a tabela so cresce ao longo da vida operacional de cada Recurso, sem archival ou expurgo.
+  evidence: Achado pelo blind-hunter. Pre-existente a esta story (a tabela e o padrao de escrita foram introduzidos na 3-3c1) -- 3-3c2a apenas passou a LER essa tabela, sem alterar seu padrao de crescimento. Nenhuma NFR define um limite ou politica de retencao; fica como hardening a revisitar se o volume justificar.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2a-pulo-recusados-sugestao.md`
+  summary: `ConsultarSugestaoRecurso.consultar()` agora combina 3 leituras nao-transacionais (fila global, contagem de tiers, recusados) numa unica resposta -- uma recusa registrada entre a leitura de `filaGlobal` e a leitura de `recusadosPara` pode nao ser considerada na mesma consulta (paciente recem-recusado ainda aparece sugerido).
+  evidence: Achado pelo edge-case-hunter. Mesma classe de risco ja aceita no epico (janela de corrida entre leitura do Set de alocados e a replica de score em `ConsultarFilaPriorizada`, Story 3-3b2b/3.2b3 -- ver entradas anteriores deste arquivo) -- esta story estende o mesmo padrao ja tolerado (leituras live combinadas sem transacao unica) para uma terceira fonte. Risco baixo e da mesma classe ja aceita; vale reavaliar se a fila crescer em criticidade.
