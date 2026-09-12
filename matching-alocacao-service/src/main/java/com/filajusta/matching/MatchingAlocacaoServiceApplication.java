@@ -5,7 +5,9 @@ import com.filajusta.matching.application.command.AtualizarScoreReplica;
 import com.filajusta.matching.application.command.ConfirmarAlocacao;
 import com.filajusta.matching.application.command.EventoOutboxRepositorio;
 import com.filajusta.matching.application.command.RecursoRepositorio;
+import com.filajusta.matching.application.command.RecusarSugestao;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
+import com.filajusta.matching.application.command.SugestaoRecusadaRepositorio;
 import com.filajusta.matching.application.command.UpsertRecurso;
 import com.filajusta.matching.application.query.AlocacaoConsultaRepositorio;
 import com.filajusta.matching.application.query.ConsultarFilaPriorizada;
@@ -69,6 +71,12 @@ import java.time.Clock;
  * {@code @EnableScheduling} (já presente desde a Story 3.1b, para
  * {@code ScoreCalculadoConsumerJob}) também habilita o {@code @Scheduled} de
  * {@code RelaySnsPublisherJob} -- nenhuma anotação nova necessária aqui.
+ *
+ * <p>{@link RecusarSugestao} (Story 3-3c1) conecta a porta
+ * {@link SugestaoRecusadaRepositorio} (implementada em {@code
+ * infrastructure.persistence}) -- atende {@code POST
+ * /v1/recursos/{id}/alocacoes/recusa} (infrastructure/web), mesmo molde de
+ * {@link ConfirmarAlocacao}.
  */
 @SpringBootApplication
 @EnableScheduling
@@ -121,5 +129,14 @@ public class MatchingAlocacaoServiceApplication {
                                          Clock clock) {
         return new ConfirmarAlocacao(
                 alocacaoRepositorio, recursoRepositorio, recursoConsultaRepositorio, eventoOutboxRepositorio, clock);
+    }
+
+    @Bean
+    RecusarSugestao recusarSugestao(SugestaoRecusadaRepositorio sugestaoRecusadaRepositorio,
+                                      EventoOutboxRepositorio eventoOutboxRepositorio,
+                                      RecursoConsultaRepositorio recursoConsultaRepositorio,
+                                      Clock clock) {
+        return new RecusarSugestao(
+                sugestaoRecusadaRepositorio, eventoOutboxRepositorio, recursoConsultaRepositorio, clock);
     }
 }

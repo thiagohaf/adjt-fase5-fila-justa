@@ -1,6 +1,7 @@
 package com.filajusta.matching.infrastructure.web;
 
 import com.filajusta.matching.application.command.ConfirmarAlocacao;
+import com.filajusta.matching.application.command.RecusarSugestao;
 import com.filajusta.matching.domain.Alocacao;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -29,14 +31,21 @@ import java.util.UUID;
  * <p>Sem autenticação JWT/rota no gateway nesta fase -- mesmo padrão de
  * {@link RecursoSugestaoController} (roteamento no gateway ainda pendente,
  * gap pré-existente, não desta story).
+ *
+ * <p>Story 3-3c1: {@code POST /v1/recursos/{id}/alocacoes/recusa} recusa a
+ * Sugestão para o par {@code (recursoId, pacienteId)}, mesmo tratamento de
+ * {@code X-Correlation-Id}/{@code id} não-UUID/{@code 404} do endpoint de
+ * confirmação -- repassa a {@link RecusarSugestao}.
  */
 @RestController
 public class AlocacaoController {
 
     private final ConfirmarAlocacao confirmarAlocacao;
+    private final RecusarSugestao recusarSugestao;
 
-    public AlocacaoController(ConfirmarAlocacao confirmarAlocacao) {
+    public AlocacaoController(ConfirmarAlocacao confirmarAlocacao, RecusarSugestao recusarSugestao) {
         this.confirmarAlocacao = confirmarAlocacao;
+        this.recusarSugestao = recusarSugestao;
     }
 
     @PostMapping("/v1/recursos/{id}/alocacoes")
@@ -47,5 +56,15 @@ public class AlocacaoController {
             @RequestHeader(value = "X-Correlation-Id", required = false) String correlationId) {
         Alocacao alocacao = confirmarAlocacao.confirmar(id, request.pacienteId(), correlationId);
         return AlocacaoResponse.de(alocacao);
+    }
+
+    @PostMapping("/v1/recursos/{id}/alocacoes/recusa")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RecusarSugestaoResponse recusar(
+            @PathVariable("id") UUID id,
+            @Valid @RequestBody RecusarSugestaoRequest request,
+            @RequestHeader(value = "X-Correlation-Id", required = false) String correlationId) {
+        Instant recusadoEm = recusarSugestao.recusar(id, request.pacienteId(), request.motivo(), correlationId);
+        return new RecusarSugestaoResponse(id, request.pacienteId(), request.motivo(), recusadoEm);
     }
 }
