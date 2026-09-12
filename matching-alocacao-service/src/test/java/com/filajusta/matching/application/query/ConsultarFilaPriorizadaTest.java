@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -32,10 +33,14 @@ import static org.mockito.Mockito.when;
  * ANTES de ler quando a réplica está vazia, nunca quando já tem linhas,
  * ordena o resultado por Prioridade Efetiva decrescente com desempate
  * estável por {@code occurredAt} (Boundaries/AC da spec 3.1c + Patch 5 do
- * code review), e serializa "checar vazia + bootstrapar" para requisições
+ * code review), serializa "checar vazia + bootstrapar" para requisições
  * concorrentes nunca dispararem bootstrap em paralelo (Patch 2 do code
- * review). Usa {@link PrioridadeEfetiva} real (k/teto fixos, cálculo puro
- * já coberto por {@code PrioridadeEfetivaTest}).
+ * review), e exclui todo {@code pacienteId} com Alocação ATIVA
+ * ({@link AlocacaoConsultaRepositorio#pacientesComAlocacaoAtiva()}, Story
+ * 3-3b2b) antes de calcular Prioridade Efetiva/ordenar -- {@code Set} vazio
+ * (default do mock) preserva 100% dos casos pré-existentes. Usa
+ * {@link PrioridadeEfetiva} real (k/teto fixos, cálculo puro já coberto por
+ * {@code PrioridadeEfetivaTest}).
  */
 class ConsultarFilaPriorizadaTest {
 
@@ -45,9 +50,15 @@ class ConsultarFilaPriorizadaTest {
     private final ScoreBootstrap scoreBootstrap = mock(ScoreBootstrap.class);
     private final PrioridadeEfetiva prioridadeEfetiva = new PrioridadeEfetiva(20.0 / 18.0, 20.0);
     private final Clock clock = Clock.fixed(AGORA, ZoneOffset.UTC);
+    // Mockito RETURNS_DEFAULTS ja responde Set.of() (vazio) para qualquer
+    // metodo de retorno Set nao estubado -- "mock da porta (Set.of()
+    // default)" do Code Map da spec 3-3b2b. So os testes desta story
+    // estubam explicitamente um Set nao-vazio.
+    private final AlocacaoConsultaRepositorio alocacaoConsultaRepositorio =
+            mock(AlocacaoConsultaRepositorio.class);
 
-    private final ConsultarFilaPriorizada useCase =
-            new ConsultarFilaPriorizada(filaRepositorio, scoreBootstrap, prioridadeEfetiva, clock);
+    private final ConsultarFilaPriorizada useCase = new ConsultarFilaPriorizada(
+            filaRepositorio, scoreBootstrap, prioridadeEfetiva, clock, alocacaoConsultaRepositorio);
 
     private static ScoreReplica replica(long pacienteId, int score, Instant occurredAt) {
         return replica(pacienteId, score, occurredAt, null);
@@ -183,5 +194,83 @@ class ConsultarFilaPriorizadaTest {
         }
 
         verify(scoreBootstrap, times(1)).bootstrapar();
+    }
+
+    @Test
+    void pacienteComAlocacaoAtivaNaoApareceNaFila() {
+        // I/O Matrix da spec 3-3b2b: "Com Alocacao ativa".
+        when(filaRepositorio.estaVazia()).thenReturn(false);
+        when(filaRepositorio.listarTodas()).thenReturn(List.of(
+                replica(1L, 90, AGORA),
+                replica(2L, 50, AGORA)));
+        when(alocacaoConsultaRepositorio.pacientesComAlocacaoAtiva()).thenReturn(Set.of(1L));
+
+        List<ConsultarFilaPriorizada.ItemFila> fila = useCase.consultar();
+
+        assertThat(fila).extracting(ConsultarFilaPriorizada.ItemFila::pacienteId)
+                .containsExactly(2L);
+    }
+
+    @Test
+    void pacienteSemAlocacaoAtivaApareceNormalmenteOrdenadoPorPrioridadeEfetiva() {
+        // I/O Matrix da spec 3-3b2b: "Sem Alocacao ativa".
+        when(filaRepositorio.estaVazia()).thenReturn(false);
+        when(filaRepositorio.listarTodas()).thenReturn(List.of(
+                replica(1L, 90, AGORA),
+                replica(2L, 50, AGORA)));
+        when(alocacaoConsultaRepositorio.pacientesComAlocacaoAtiva()).thenReturn(Set.of(999L));
+
+        List<ConsultarFilaPriorizada.ItemFila> fila = useCase.consultar();
+
+        assertThat(fila).extracting(ConsultarFilaPriorizada.ItemFila::pacienteId)
+                .containsExactly(1L, 2L);
+    }
+
+    @Test
+    void nenhumaAlocacaoNoSistemaPreservaAFilaCompletaIdenticaAoComportamentoPreExistente() {
+        // I/O Matrix da spec 3-3b2b: "Nenhuma Alocacao no sistema" -- Set
+        // vazio preserva 100% do comportamento pre-existente.
+        when(filaRepositorio.estaVazia()).thenReturn(false);
+        when(filaRepositorio.listarTodas()).thenReturn(List.of(
+                replica(1L, 90, AGORA),
+                replica(2L, 50, AGORA),
+                replica(3L, 70, AGORA)));
+        when(alocacaoConsultaRepositorio.pacientesComAlocacaoAtiva()).thenReturn(Set.of());
+
+        List<ConsultarFilaPriorizada.ItemFila> fila = useCase.consultar();
+
+        assertThat(fila).extracting(ConsultarFilaPriorizada.ItemFila::pacienteId)
+                .containsExactly(1L, 3L, 2L);
+    }
+
+    @Test
+    void todosOsPacientesAlocadosResultaEmListaVazia() {
+        // I/O Matrix da spec 3-3b2b: "Todos alocados".
+        when(filaRepositorio.estaVazia()).thenReturn(false);
+        when(filaRepositorio.listarTodas()).thenReturn(List.of(
+                replica(1L, 90, AGORA),
+                replica(2L, 50, AGORA)));
+        when(alocacaoConsultaRepositorio.pacientesComAlocacaoAtiva()).thenReturn(Set.of(1L, 2L));
+
+        List<ConsultarFilaPriorizada.ItemFila> fila = useCase.consultar();
+
+        assertThat(fila).isEmpty();
+    }
+
+    @Test
+    void pacientesComAlocacaoAtivaELidoUmaUnicaVezPorChamadaAConsultar() {
+        // Boundaries da spec 3-3b2b: pacientesComAlocacaoAtiva() chamado 1x
+        // por consultar(), nunca dentro do predicado (o que o chamaria uma
+        // vez por replica).
+        when(filaRepositorio.estaVazia()).thenReturn(false);
+        when(filaRepositorio.listarTodas()).thenReturn(List.of(
+                replica(1L, 90, AGORA),
+                replica(2L, 50, AGORA),
+                replica(3L, 70, AGORA)));
+        when(alocacaoConsultaRepositorio.pacientesComAlocacaoAtiva()).thenReturn(Set.of());
+
+        useCase.consultar();
+
+        verify(alocacaoConsultaRepositorio, times(1)).pacientesComAlocacaoAtiva();
     }
 }
