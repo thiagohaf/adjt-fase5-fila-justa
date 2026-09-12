@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-12-2026 00:28
+last_updated: 09-12-2026 13:00
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -93,8 +93,10 @@ development_status:
   # (alvo 900-1600); decisão do usuário no checkpoint de token count do
   # bmad-build (step-02), mesmo padrão das Stories 3.1/3.2/3.2b/3-3a/3-3b.
   # Ver deferred-work.md.
-  3-3b2a-porto-leitura-alocacoes-ativas: review
-  3-3b2b-filtro-alocados-fila: backlog
+  # 2026-09-12: 3-3b2a -> done (PR #32 confirmado mergeado em develop via
+  # git log; sprint-status.yaml estava desatualizado).
+  3-3b2a-porto-leitura-alocacoes-ativas: done
+  3-3b2b-filtro-alocados-fila: review
   3-3c-recusa-sugestao-gerada: backlog
   3-4-liberação-automática-de-recurso: backlog
   epic-3-retrospective: optional

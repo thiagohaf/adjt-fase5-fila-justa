@@ -7,6 +7,7 @@ import com.filajusta.matching.application.command.EventoOutboxRepositorio;
 import com.filajusta.matching.application.command.RecursoRepositorio;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
 import com.filajusta.matching.application.command.UpsertRecurso;
+import com.filajusta.matching.application.query.AlocacaoConsultaRepositorio;
 import com.filajusta.matching.application.query.ConsultarFilaPriorizada;
 import com.filajusta.matching.application.query.ConsultarSugestaoRecurso;
 import com.filajusta.matching.application.query.FilaRepositorio;
@@ -43,7 +44,11 @@ import java.time.Clock;
  * conecta as portas {@link FilaRepositorio} e {@link ScoreBootstrap}
  * (implementadas em {@code infrastructure.persistence}/
  * {@code infrastructure.bootstrap}) -- atende {@code GET /v1/fila}
- * (infrastructure/web). {@link UpsertRecurso} (Story 3.2b2) conecta a porta
+ * (infrastructure/web); desde a Story 3-3b2b também conecta
+ * {@link AlocacaoConsultaRepositorio} (porto da Story 3-3b2a, implementado
+ * em {@code infrastructure.persistence}) para excluir da fila todo
+ * {@code pacienteId} com {@code Alocacao} ATIVA. {@link UpsertRecurso}
+ * (Story 3.2b2) conecta a porta
  * {@link RecursoRepositorio} -- atende {@code POST /internal/recursos}
  * (infrastructure/web). {@link ConsultarSugestaoRecurso} (Story 3.2b3)
  * conecta as portas {@link RecursoConsultaRepositorio} e
@@ -91,8 +96,10 @@ public class MatchingAlocacaoServiceApplication {
 
     @Bean
     ConsultarFilaPriorizada consultarFilaPriorizada(FilaRepositorio filaRepositorio, ScoreBootstrap scoreBootstrap,
-                                                      PrioridadeEfetiva prioridadeEfetiva, Clock clock) {
-        return new ConsultarFilaPriorizada(filaRepositorio, scoreBootstrap, prioridadeEfetiva, clock);
+                                                      PrioridadeEfetiva prioridadeEfetiva, Clock clock,
+                                                      AlocacaoConsultaRepositorio alocacaoConsultaRepositorio) {
+        return new ConsultarFilaPriorizada(
+                filaRepositorio, scoreBootstrap, prioridadeEfetiva, clock, alocacaoConsultaRepositorio);
     }
 
     @Bean

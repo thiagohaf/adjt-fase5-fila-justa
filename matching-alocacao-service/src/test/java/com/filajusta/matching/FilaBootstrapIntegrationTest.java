@@ -22,6 +22,9 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
@@ -87,6 +90,9 @@ class FilaBootstrapIntegrationTest {
     @BeforeEach
     void limparReplicaEStubs() {
         jdbcTemplate.execute("TRUNCATE TABLE matching_alocacao.score_replica");
+        // Story 3-3b2b: cenario E2E de exclusao por Alocacao ATIVA precisa
+        // de uma tabela limpa entre testes tambem.
+        jdbcTemplate.execute("TRUNCATE TABLE matching_alocacao.alocacao");
         wireMockServer.resetAll();
     }
 
@@ -250,6 +256,65 @@ class FilaBootstrapIntegrationTest {
                         + "commitada isoladamente quando a linha seguinte (pacienteId=%d) falhou",
                         pacienteIdValido, pacienteIdInvalido)
                 .isZero();
+    }
+
+    private void seedAlocacaoAtiva(long pacienteId) {
+        jdbcTemplate.update(
+                "INSERT INTO matching_alocacao.alocacao "
+                        + "(alocacao_id, recurso_id, paciente_id, status, confirmado_em) "
+                        + "VALUES (?, ?, ?, 'ATIVA', ?)",
+                UUID.randomUUID(), UUID.randomUUID(), pacienteId, Timestamp.from(Instant.now()));
+    }
+
+    @Test
+    void pacienteComAlocacaoAtivaNaoApareceNaFilaRetornadaPeloEndpoint() throws Exception {
+        // AC da spec 3-3b2b: Alocacao ATIVA real via Postgres (nao so mock)
+        // exclui o pacienteId de GET /v1/fila -- prova ponta a ponta do
+        // filtro ligado a ConsultarFilaPriorizada (Story 3-3b2a + 3-3b2b).
+        long pacienteAlocado = 777888L;
+        long pacienteNormal = 555666L;
+        String corpoInternalScores = """
+                [
+                  {
+                    "pacienteId": %d,
+                    "score": {"valor": 95, "algoritmoVersao": "v1", "fatores": []},
+                    "occurredAt": "2026-09-08T12:00:00Z",
+                    "eventId": "44444444-4444-4444-4444-444444444444"
+                  },
+                  {
+                    "pacienteId": %d,
+                    "score": {"valor": 60, "algoritmoVersao": "v1", "fatores": []},
+                    "occurredAt": "2026-09-08T12:00:00Z",
+                    "eventId": "55555555-5555-5555-5555-555555555555"
+                  }
+                ]
+                """.formatted(pacienteAlocado, pacienteNormal);
+
+        wireMockServer.stubFor(get(urlEqualTo("/internal/scores"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(corpoInternalScores)));
+
+        seedAlocacaoAtiva(pacienteAlocado);
+
+        HttpResponse<String> resposta = consultarFila();
+
+        assertThat(resposta.statusCode()).isEqualTo(200);
+        JsonNode fila = objectMapper.readTree(resposta.body());
+        assertThat(itemDoPaciente(fila, pacienteAlocado))
+                .as("pacienteId=%d tem Alocacao ATIVA -- nao deve aparecer na fila", pacienteAlocado)
+                .isNull();
+        assertThat(itemDoPaciente(fila, pacienteNormal))
+                .as("pacienteId=%d sem Alocacao ativa -- deve aparecer normalmente", pacienteNormal)
+                .isNotNull();
+
+        // Continua na replica (o filtro e so na leitura da fila, nao apaga
+        // nem marca a linha de score_replica).
+        Integer totalNaReplica = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM matching_alocacao.score_replica WHERE paciente_id = ?",
+                Integer.class, pacienteAlocado);
+        assertThat(totalNaReplica).isEqualTo(1);
     }
 
     private static JsonNode itemDoPaciente(JsonNode fila, long pacienteId) {

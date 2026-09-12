@@ -11,7 +11,11 @@ import java.util.UUID;
  * específico, aplicando o algoritmo de tiers de desempate sobre a fila
  * priorizada já existente ({@link ConsultarFilaPriorizada#consultar()},
  * reutilizada sem duplicar o cálculo de Prioridade Efetiva/Aging --
- * Boundaries "Always" da spec 3.2b3).
+ * Boundaries "Always" da spec 3.2b3). Desde a Story 3-3b2b,
+ * {@code consultar()} passou a excluir da fila global todo Paciente com
+ * {@code Alocacao} ativa -- {@code ConsultarSugestaoRecurso} herda esse
+ * filtro automaticamente por reutilizar o mesmo método, sem duplicar
+ * lógica nem precisar de mudança própria.
  *
  * <p>Algoritmo: {@code N} é a quantidade de valores DISTINTOS de {@code
  * especificidadeRank} estritamente menores que o do Recurso consultado, com

@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Caso de uso de {@code GET /v1/fila} (Story 3.1c): réplica vazia dispara o
@@ -45,6 +46,18 @@ import java.util.List;
  * {@link ScoreBootstrap#bootstrapar()} propaga sem tratamento -- não é
  * capturada aqui de propósito, para chegar até
  * {@code infrastructure/web} e virar {@code 503} RFC 7807.
+ *
+ * <p>Story 3-3b2b: exclui da fila todo {@code pacienteId} com
+ * {@code Alocacao} ATIVA ({@link AlocacaoConsultaRepositorio
+ * #pacientesComAlocacaoAtiva()}, porto de leitura da Story 3-3b2a) -- um
+ * Paciente já alocado a um Recurso não deve mais aparecer disputando a fila
+ * nem a Sugestão de Matching ({@code ConsultarSugestaoRecurso} reutiliza
+ * este {@code consultar()}, consequência desejada). O {@code Set} é lido
+ * 1x por chamada (nunca cacheado, nunca dentro do predicado) e o
+ * {@code .filter} entra no stream ANTES do {@code .map}/{@code .sorted} --
+ * não participa do cálculo de Prioridade Efetiva nem do desempate, só
+ * decide quem chega a ser calculado/ordenado. {@code Set} vazio (nenhuma
+ * Alocação ativa no sistema) preserva 100% do comportamento pré-existente.
  */
 public class ConsultarFilaPriorizada {
 
@@ -52,14 +65,17 @@ public class ConsultarFilaPriorizada {
     private final ScoreBootstrap scoreBootstrap;
     private final PrioridadeEfetiva prioridadeEfetiva;
     private final Clock clock;
+    private final AlocacaoConsultaRepositorio alocacaoConsultaRepositorio;
     private final Object bootstrapLock = new Object();
 
     public ConsultarFilaPriorizada(FilaRepositorio filaRepositorio, ScoreBootstrap scoreBootstrap,
-                                    PrioridadeEfetiva prioridadeEfetiva, Clock clock) {
+                                    PrioridadeEfetiva prioridadeEfetiva, Clock clock,
+                                    AlocacaoConsultaRepositorio alocacaoConsultaRepositorio) {
         this.filaRepositorio = filaRepositorio;
         this.scoreBootstrap = scoreBootstrap;
         this.prioridadeEfetiva = prioridadeEfetiva;
         this.clock = clock;
+        this.alocacaoConsultaRepositorio = alocacaoConsultaRepositorio;
     }
 
     public List<ItemFila> consultar() {
@@ -74,7 +90,9 @@ public class ConsultarFilaPriorizada {
         }
 
         Instant agora = clock.instant();
+        Set<Long> pacientesComAlocacaoAtiva = alocacaoConsultaRepositorio.pacientesComAlocacaoAtiva();
         return filaRepositorio.listarTodas().stream()
+                .filter(replica -> !pacientesComAlocacaoAtiva.contains(replica.getPacienteId()))
                 .map(replica -> ItemFila.de(replica, prioridadeEfetiva.calcular(replica, agora)))
                 .sorted(Comparator.comparingDouble(ItemFila::prioridadeEfetiva).reversed()
                         .thenComparing(ItemFila::occurredAt)
