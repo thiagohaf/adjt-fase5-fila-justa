@@ -135,6 +135,12 @@ development_status:
   # token count do bmad-build (step-02), mesmo padrão das Stories
   # 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c/3-3c2/3-3c2b. Ver deferred-work.md.
   3-4a1-persistencia-liberacao-agendada: review
+  # Story 3-4a2 (publicação de fato da liberação agendada) implementada em
+  # 2026-09-13 via bmad-build (spec-3-4a2-publicacao-liberacao-agendada.md,
+  # status done) -- LiberacaoAgendadaRelayJob + fila SQS standard/DLQ no CDK +
+  # LiberacaoAgendadaSqsClientConfig; code review multi-agente com 4 achados
+  # corrigidos. Ver deferred-work.md para achados de baixo risco remanescentes.
+  3-4a2-publicacao-liberacao-agendada: review
   epic-3-retrospective: optional
 
   epic-4: backlog

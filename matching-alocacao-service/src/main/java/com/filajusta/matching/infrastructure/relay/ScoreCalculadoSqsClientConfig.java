@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
@@ -53,6 +54,15 @@ import java.time.Duration;
  * {@code filajusta.matching.relay.enabled}, default {@code true}): usado
  * por testes que não exercitam o consumidor para não criar nenhum
  * {@link SqsClient} nem agendar {@link ScoreCalculadoConsumerJob}.
+ *
+ * <p>{@code @Primary} (Story 3-4a2): desde que
+ * {@code LiberacaoAgendadaSqsClientConfig} passou a existir, este contexto
+ * Spring pode ter DOIS beans {@link SqsClient} simultaneamente (quando os
+ * dois relays estao habilitados) -- sem {@code @Primary} aqui, a injecao SEM
+ * qualifier de {@link ScoreCalculadoConsumerJob#ScoreCalculadoConsumerJob}
+ * (parametro {@code SqsClient sqsClient}) ficaria ambigua
+ * ({@code NoUniqueBeanDefinitionException}) assim que o outro bean nomeado
+ * ({@code liberacaoAgendadaSqsClient}) tambem existisse no contexto.
  */
 @Configuration
 @ConditionalOnProperty(prefix = "filajusta.matching.relay", name = "enabled", matchIfMissing = true)
@@ -63,6 +73,7 @@ class ScoreCalculadoSqsClientConfig {
     // quanto a latencia normal de rede da chamada em si.
     private static final int API_CALL_TIMEOUT_SECONDS = 30;
 
+    @Primary
     @Bean
     SqsClient sqsClient(@Value("${filajusta.matching.relay.endpoint-override:}") String endpointOverride,
                          @Value("${filajusta.matching.relay.region:}") String region) {

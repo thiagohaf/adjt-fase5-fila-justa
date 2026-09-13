@@ -43,7 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 // LocalStack/SQS/SNS.
 @TestPropertySource(properties = {
         "filajusta.matching.relay.enabled=false",
-        "filajusta.matching.outbox-relay.enabled=false"
+        "filajusta.matching.outbox-relay.enabled=false",
+        "filajusta.matching.liberacao-agendada-relay.enabled=false"
 })
 class UpsertRecursoIntegrationTest {
 

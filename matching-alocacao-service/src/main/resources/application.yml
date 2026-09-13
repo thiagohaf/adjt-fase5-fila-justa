@@ -89,6 +89,28 @@ filajusta:
       endpoint-override: ${FILAJUSTA_MATCHING_OUTBOX_RELAY_ENDPOINT_OVERRIDE:}
       poll-interval-ms: 5000
       batch-size: 50
+    # Relay de publicacao da liberacao agendada (Story 3-4a2) --
+    # LiberacaoAgendadaRelayJob (infrastructure/relay). Namespace
+    # "liberacao-agendada-relay" isolado (nao "relay" nem "outbox-relay"
+    # acima) para nao colidir os pollers/beans SqsClient independentes
+    # (Boundaries da spec 3-4a2).
+    #
+    # enabled=true (mesmo padrao real de outbox-relay.enabled) -- fila SQS
+    # standard propria (liberacao-agendada) ja provisionada em infra-cdk
+    # (FilaJustaStack). queue-url fica vazio por padrao (injetado so no
+    # deploy real via FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL)
+    # -- deploy ECS deste servico ainda pendente (gap pre-existente,
+    # deferred-work.md, nao desta story). Testes @SpringBootTest
+    # pre-existentes que nao exercitam este relay setam
+    # liberacao-agendada-relay.enabled=false explicitamente (mesmo padrao de
+    # outbox-relay acima).
+    liberacao-agendada-relay:
+      enabled: true
+      queue-url: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_RELAY_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 50
 
   # Prioridade Efetiva = score + min(k * max(0, horas_espera), teto)
   # (Story 3.1c, epic-3-context.md) -- teto = 20% da amplitude do Score
