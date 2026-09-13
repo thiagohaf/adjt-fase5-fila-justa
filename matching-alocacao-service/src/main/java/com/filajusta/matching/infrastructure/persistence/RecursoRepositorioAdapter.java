@@ -43,4 +43,10 @@ class RecursoRepositorioAdapter implements RecursoRepositorio {
     public void marcarIndisponivel(UUID recursoId) {
         jpaRepository.marcarIndisponivel(recursoId);
     }
+
+    @Override
+    @Transactional
+    public void marcarDisponivel(UUID recursoId) {
+        jpaRepository.marcarDisponivel(recursoId);
+    }
 }

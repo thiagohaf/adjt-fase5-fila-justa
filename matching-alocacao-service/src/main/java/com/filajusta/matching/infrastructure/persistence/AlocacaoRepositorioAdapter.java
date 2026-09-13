@@ -9,6 +9,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 /**
  * Adapter que implementa a porta {@link AlocacaoRepositorio}
  * (application/command) usando {@link AlocacaoJpaRepository} (Spring Data,
@@ -53,6 +55,12 @@ class AlocacaoRepositorioAdapter implements AlocacaoRepositorio {
             throw traduzir(ex, alocacao);
         }
         return alocacao;
+    }
+
+    @Override
+    @Transactional
+    public boolean liberar(UUID alocacaoId) {
+        return jpaRepository.liberar(alocacaoId) > 0;
     }
 
     private static RuntimeException traduzir(DataIntegrityViolationException ex, Alocacao alocacao) {

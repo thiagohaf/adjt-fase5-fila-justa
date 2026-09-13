@@ -9,9 +9,11 @@ import java.util.UUID;
  * Matching -- criada por {@code ConfirmarAlocacao} (application/command) a
  * partir de {@code POST /v1/recursos/{id}/alocacoes}.
  *
- * <p>{@code status} tem um único valor possível nesta fase ({@code "ATIVA"})
- * -- não existe ainda transição para outro estado (liberação automática é a
- * Story 3.4, fora de escopo). {@code alocacaoId} é gerado pela aplicação
+ * <p>{@code status} tem 2 valores possíveis: {@code "ATIVA"} (criado por
+ * {@code ConfirmarAlocacao}) e, desde a Story 3-4b1, {@code "LIBERADA"} --
+ * transição única e terminal ({@code ATIVA -> LIBERADA}), aplicada por
+ * {@code LiberarRecurso} via {@code AlocacaoRepositorio#liberar} (update
+ * condicional idempotente). {@code alocacaoId} é gerado pela aplicação
  * (UUID v4) antes da persistência; ao contrário de {@link Recurso}, não há
  * "candidato descartado": um INSERT ou cria a linha com este id, ou falha
  * inteiro por violação de um dos 2 índices únicos parciais (Boundaries da
@@ -20,6 +22,14 @@ import java.util.UUID;
 public final class Alocacao {
 
     public static final String STATUS_ATIVA = "ATIVA";
+
+    /**
+     * Estado terminal atingido por {@code LiberarRecurso} (Story 3-4b1) --
+     * transição {@code ATIVA -> LIBERADA} via
+     * {@code AlocacaoRepositorio#liberar}, update condicional idempotente
+     * (nunca a partir de outro estado que não {@code ATIVA}).
+     */
+    public static final String STATUS_LIBERADA = "LIBERADA";
 
     private final UUID alocacaoId;
     private final UUID recursoId;
