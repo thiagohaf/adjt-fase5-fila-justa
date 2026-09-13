@@ -1,8 +1,16 @@
 package com.filajusta.matching.application.query;
 
+import com.filajusta.matching.application.command.EventoOutboxRepositorio;
+import com.filajusta.matching.application.command.UltimaSugestaoRegistradaRepositorio;
+import com.filajusta.matching.domain.EventoOutbox;
 import com.filajusta.matching.domain.Recurso;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -47,21 +55,62 @@ import java.util.UUID;
  * capturada aqui de propósito, para chegar até {@code infrastructure/web} e
  * virar {@code 404} RFC 7807 (mesmo padrão de {@code ConsultarTriagem},
  * triagem-score-service).
+ *
+ * <p>Desde a Story 3-3c2b2, {@code consultar()} também aplica o rastreamento
+ * AD-10: quando o {@code pacienteIdSugerido} calculado difere do último
+ * registrado em {@link UltimaSugestaoRegistradaRepositorio}, grava o novo
+ * valor e publica {@code SugestaoGerada} via outbox -- mesmo molde de
+ * {@code RecusarSugestao}/{@code ConfirmarAlocacao}. {@code
+ * @Transactional} vive aqui, NÃO {@code readOnly}: propagação {@code
+ * REQUIRED} precisa aceitar a escrita de bootstrap de {@link
+ * ConsultarFilaPriorizada#consultar()} ({@code
+ * ScoreReplicaRepositorioAdapter#upsertSeMaisRecente}, {@code @Transactional}
+ * simples) quando ela participa desta mesma transação -- {@code
+ * readOnly=true} faria o Postgres rejeitar essa escrita (mesmo risco
+ * documentado em {@code FilaRepositorioAdapter}).
+ *
+ * <p>{@link UltimaSugestaoRegistradaRepositorio#registrar} é chamado direto,
+ * SEM pré-ler {@code pacienteIdRegistrado} antes: desde a Story 3-3c2b2,
+ * {@code registrar} é um compare-and-set atômico no próprio SQL (upsert
+ * nativo com {@code WHERE paciente_id <> excluded.paciente_id}), fechando a
+ * corrida de escrita concorrente identificada em revisão de código: 2
+ * requisições simultâneas que calculam a mesma nova sugestão liam o mesmo
+ * valor antigo e publicavam 2 eventos duplicados antes desta correção --
+ * comportamento sob concorrência real (não só chamadas sequenciais)
+ * verificado em {@code
+ * UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest#registrosConcorrentesParaOMesmoValorNovoApenasUmDelesRetornaTrue}.
+ * Só quando {@code registrar} retorna {@code true} (linha realmente
+ * inserida/alterada) é que {@code SugestaoGerada} é publicado -- quando
+ * {@code pacienteIdSugerido} é {@code null} (fila esgotada/Recurso
+ * indisponível), nenhuma chamada a {@code registrar} nem evento, mesmo
+ * havendo um registro anterior diferente.
  */
 public class ConsultarSugestaoRecurso {
+
+    private static final int VERSAO_INICIAL_EVENTO = 1;
 
     private final RecursoConsultaRepositorio recursoConsultaRepositorio;
     private final ConsultarFilaPriorizada consultarFilaPriorizada;
     private final SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio;
+    private final UltimaSugestaoRegistradaRepositorio ultimaSugestaoRegistradaRepositorio;
+    private final EventoOutboxRepositorio eventoOutboxRepositorio;
+    private final Clock clock;
 
     public ConsultarSugestaoRecurso(RecursoConsultaRepositorio recursoConsultaRepositorio,
                                      ConsultarFilaPriorizada consultarFilaPriorizada,
-                                     SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio) {
+                                     SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio,
+                                     UltimaSugestaoRegistradaRepositorio ultimaSugestaoRegistradaRepositorio,
+                                     EventoOutboxRepositorio eventoOutboxRepositorio,
+                                     Clock clock) {
         this.recursoConsultaRepositorio = recursoConsultaRepositorio;
         this.consultarFilaPriorizada = consultarFilaPriorizada;
         this.sugestaoRecusadaConsultaRepositorio = sugestaoRecusadaConsultaRepositorio;
+        this.ultimaSugestaoRegistradaRepositorio = ultimaSugestaoRegistradaRepositorio;
+        this.eventoOutboxRepositorio = eventoOutboxRepositorio;
+        this.clock = clock;
     }
 
+    @Transactional
     public Resultado consultar(UUID recursoId) {
         Recurso recurso = recursoConsultaRepositorio.buscarPorId(recursoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(recursoId));
@@ -86,7 +135,32 @@ public class ConsultarSugestaoRecurso {
             }
         }
 
+        if (pacienteIdSugerido != null) {
+            registrarERastrear(recursoId, pacienteIdSugerido);
+        }
+
         return new Resultado(recursoId, pacienteIdSugerido);
+    }
+
+    private void registrarERastrear(UUID recursoId, long pacienteIdSugerido) {
+        Instant agora = clock.instant();
+
+        boolean mudou = ultimaSugestaoRegistradaRepositorio.registrar(recursoId, pacienteIdSugerido, agora);
+
+        if (mudou) {
+            EventoOutbox evento = new EventoOutbox(
+                    null, UUID.randomUUID(), "SugestaoGerada", agora, VERSAO_INICIAL_EVENTO,
+                    UUID.randomUUID().toString(), payloadSugestaoGerada(recursoId, pacienteIdSugerido, agora));
+            eventoOutboxRepositorio.salvar(evento);
+        }
+    }
+
+    private static Map<String, Object> payloadSugestaoGerada(UUID recursoId, long pacienteId, Instant sugeridoEm) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("recursoId", recursoId);
+        payload.put("pacienteId", pacienteId);
+        payload.put("sugeridoEm", sugeridoEm);
+        return payload;
     }
 
     /**

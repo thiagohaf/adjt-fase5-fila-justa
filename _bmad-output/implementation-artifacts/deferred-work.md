@@ -499,3 +499,37 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b1-porto-ultima-sugestao-registrada.md`
   summary: Nenhum teste verifica o valor de `registrado_em` persistido/atualizado pelo upsert -- os testes de integracao so verificam `pacienteIdRegistrado` (via `Optional<Long>`) e a contagem de linhas, nunca o timestamp em si.
   evidence: Achado pelo blind-hunter. Baixo risco (o upsert nativo atribui `:registradoEm` diretamente, sem logica condicional que possa corromper o valor) -- mas a coluna existe sem nenhuma prova automatizada de que e escrita/atualizada corretamente.
+
+## Deferred from: bmad-build step-04 code review da Story 3-3c2b2 (2026-09-13, 2 rodadas)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: A entrada acima (linhas 496-497) sobre `UltimaSugestaoRegistradaJpaRepository#upsert` sem `clearAutomatically` ficou desatualizada -- a Story 3-3c2b2 (apos o loopback de concorrencia) removeu a pre-leitura de `pacienteIdRegistrado` em `ConsultarSugestaoRecurso` (agora chama `registrar` direto, sem ler antes, para fechar a corrida de eventos duplicados). O risco de leitura desatualizada pos-upsert continua nao se materializando no uso atual (nenhum consumidor le a entidade via JPA na mesma transacao apos o upsert), mas pelo motivo oposto ao registrado antes.
+  evidence: Nao modificar a entrada original (preserva o historico da decisao da 3-3c2b1); esta entrada substitui a premissa desatualizada para quem ler o arquivo de cima para baixo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: `GET /v1/recursos/{id}/sugestao` deixou de ser resiliente a falhas de escrita -- se `UltimaSugestaoRegistradaRepositorio#registrar` ou `EventoOutboxRepositorio#salvar` lancarem (ex.: erro transitorio de conexao), a transacao inteira faz rollback e a requisicao GET retorna erro, mesmo que o calculo da sugestao em si tenha funcionado.
+  evidence: Achado convergente do blind-hunter e do edge-case-hunter (independentemente). Consequencia direta e ja aceita do design do AD-10 (escrever dentro do fluxo de um GET, decisao tomada e revalidada em 3 specs consecutivas: 3-3c2b, 3-3c2b1, 3-3c2b2) -- nao ha requisito de resiliencia/retry nas Boundaries de nenhuma dessas specs.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: Upsert em `ultima_sugestao_registrada` para um `recursoId` "quente" (muito consultado concorrentemente) agora disputa lock de linha do Postgres -- risco de contencao que nao existia neste endpoint quando ele era leitura pura.
+  evidence: Achado convergente do blind-hunter e do edge-case-hunter (independentemente). Risco baixo no volume esperado (consultas de sugestao de recurso, nao trafego de alta frequencia); mesma classe de tradeoff ja aceita ao aprovar o design AD-10 nesta e nas 2 specs anteriores da cascata.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: O compare-and-set atomico (`WHERE paciente_id <> excluded.paciente_id`) fecha a duplicacao de evento quando 2 requisicoes concorrentes calculam o MESMO `pacienteIdSugerido`, mas nao garante ordem quando calculam valores DIFERENTES (A e B) -- a que vence a corrida no Postgres pode nao ser a que leu o estado mais recente da fila.
+  evidence: Achado pelo blind-hunter. Auto-corrige na proxima consulta (o calculo e sempre refeito do zero, sem cache -- Boundaries da spec 3.2b3), entao o registro fica no maximo 1 consulta atrasado; mesma classe de janela estreita ja aceita no epico (ex. Story 3-3c2a, leituras nao-transacionais combinadas).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: Os novos testes E2E de `RecursoSugestaoControllerIntegrationTest` (transicao A->B, repeticao, fila esgotada, bootstrap a frio) truncam `score_replica` antes/depois de si mesmos para isolamento, enquanto os testes HAPPY_PATH/pulo-de-recusados pre-existentes da mesma classe dependem da tabela acumulada (nunca truncada) e de scores sempre crescentes -- acoplamento fragil a mudanca de ordem/paralelizacao do JUnit.
+  evidence: Achado pelo blind-hunter. Padrao de acoplamento ja pre-existente nesta classe de teste (introduzido em Story 3.2b3, mantido em 3-3c2a) -- os 4 novos testes apenas adicionam mitigacao (truncate before/after) sem alterar o padrao de fundo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: Nenhum teste prova que, se `EventoOutboxRepositorio#salvar` lancar excecao APOS `UltimaSugestaoRegistradaRepositorio#registrar` ja ter sido chamado na mesma transacao, o rollback desfaz tambem a escrita em `ultima_sugestao_registrada`.
+  evidence: Achado pelo blind-hunter. Mesma classe de atomicidade nao testada ja aceita para `RecusarSugestao`/`ConfirmarAlocacao` (nenhuma story anterior deste epico testa rollback de outbox); a garantia vem do `@Transactional` do Spring/JPA, nao de logica propria.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: Nenhum log estruturado no novo caminho de registro/publicacao de `SugestaoGerada` dentro de `ConsultarSugestaoRecurso` -- dificulta diagnosticar em producao duplicacoes, falhas de publicacao ou volume inesperado de eventos.
+  evidence: Achado pelo blind-hunter. Nenhuma story anterior deste epico adiciona logging estruturado em caminhos de escrita/outbox -- gap sistemico pre-existente, nao introduzido especificamente por esta story.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3c2b2-rastreamento-ad10-sugestao-gerada.md`
+  summary: `ConsultarSugestaoRecurso.consultar()` (`@Transactional`, nao `readOnly`) agora envolve a chamada HTTP sincrona de bootstrap de `ConsultarFilaPriorizada#consultar` (quando a replica esta vazia) dentro de uma transacao JPA/Postgres, sem timeout explicito -- uma dependencia externa lenta/travada poderia manter uma conexao do pool aberta indefinidamente.
+  evidence: Achado pelo edge-case-hunter (nao convergente com outros reviewers desta rodada). Risco tangencial ao fix de concorrencia desta story -- o `@Transactional` nao-`readOnly` em si ja tinha sido aprovado na spec original (antes do loopback), sem nenhum reviewer sinalizar esse ponto na 1a rodada.
