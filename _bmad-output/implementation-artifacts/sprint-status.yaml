@@ -157,7 +157,9 @@ development_status:
   # multi-agente com 1 achado corrigido (LiberarRecurso não era bean Spring,
   # @Transactional inerte). Ver deferred-work.md para achados de baixo risco
   # remanescentes.
-  3-4b1-liberacao-real-recurso: review
+  # 2026-09-13: 3-4b1 -> done (PR #43 confirmado mergeado em develop pelo
+  # usuário).
+  3-4b1-liberacao-real-recurso: done
   epic-3-retrospective: optional
 
   epic-4: backlog
