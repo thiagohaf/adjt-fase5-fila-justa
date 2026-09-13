@@ -4,10 +4,13 @@ import com.filajusta.matching.application.query.RecursoConsultaRepositorio;
 import com.filajusta.matching.application.query.RecursoNaoEncontradoException;
 import com.filajusta.matching.domain.Alocacao;
 import com.filajusta.matching.domain.EventoOutbox;
+import com.filajusta.matching.domain.LiberacaoAgendada;
 import com.filajusta.matching.domain.Recurso;
+import com.filajusta.matching.infrastructure.config.LiberacaoDuracaoProperties;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,9 +26,15 @@ import java.util.UUID;
  *
  * <p>{@code @Transactional} vive aqui (não em {@code domain/}, framework-
  * agnóstico) porque este é o único ponto que precisa da atomicidade entre
- * as 3 escritas: {@link AlocacaoRepositorio#confirmar} (índice único decide
- * {@code 409}), {@link RecursoRepositorio#marcarIndisponivel} e
- * {@link EventoOutboxRepositorio#salvar}.
+ * as 4 escritas: {@link AlocacaoRepositorio#confirmar} (índice único decide
+ * {@code 409}), {@link RecursoRepositorio#marcarIndisponivel},
+ * {@link EventoOutboxRepositorio#salvar} e, desde a Story 3-4a1,
+ * {@link LiberacaoAgendadaRepositorio#salvar} -- agenda a volta do Recurso
+ * ao pool depois de {@code delaySegundos}, calculado por
+ * {@link LiberacaoDuracaoProperties#duracaoParaRank(int)} a partir do
+ * {@code especificidadeRank} do Recurso já carregado acima; nenhuma
+ * publicação real acontece nesta story (Boundaries da spec 3-4a1), só a
+ * escrita local, atômica com as demais.
  *
  * <p>{@code correlationId} (mesma validação de {@code RegistrarTriagem}):
  * propagado do header {@code X-Correlation-Id} ou gerado localmente (UUID
@@ -59,17 +68,23 @@ public class ConfirmarAlocacao {
     private final RecursoRepositorio recursoRepositorio;
     private final RecursoConsultaRepositorio recursoConsultaRepositorio;
     private final EventoOutboxRepositorio eventoOutboxRepositorio;
+    private final LiberacaoAgendadaRepositorio liberacaoAgendadaRepositorio;
+    private final LiberacaoDuracaoProperties liberacaoDuracaoProperties;
     private final Clock clock;
 
     public ConfirmarAlocacao(AlocacaoRepositorio alocacaoRepositorio,
                               RecursoRepositorio recursoRepositorio,
                               RecursoConsultaRepositorio recursoConsultaRepositorio,
                               EventoOutboxRepositorio eventoOutboxRepositorio,
+                              LiberacaoAgendadaRepositorio liberacaoAgendadaRepositorio,
+                              LiberacaoDuracaoProperties liberacaoDuracaoProperties,
                               Clock clock) {
         this.alocacaoRepositorio = alocacaoRepositorio;
         this.recursoRepositorio = recursoRepositorio;
         this.recursoConsultaRepositorio = recursoConsultaRepositorio;
         this.eventoOutboxRepositorio = eventoOutboxRepositorio;
+        this.liberacaoAgendadaRepositorio = liberacaoAgendadaRepositorio;
+        this.liberacaoDuracaoProperties = liberacaoDuracaoProperties;
         this.clock = clock;
     }
 
@@ -95,6 +110,12 @@ public class ConfirmarAlocacao {
                 null, UUID.randomUUID(), "AlocacaoConfirmada", agora, VERSAO_INICIAL_EVENTO,
                 correlationIdEfetivo, payloadAlocacaoConfirmada(confirmada));
         eventoOutboxRepositorio.salvar(evento);
+
+        Duration duracaoLiberacao = liberacaoDuracaoProperties.duracaoParaRank(recurso.getEspecificidadeRank());
+        LiberacaoAgendada liberacaoAgendada = new LiberacaoAgendada(
+                confirmada.getAlocacaoId(), recursoId, correlationIdEfetivo,
+                (int) duracaoLiberacao.toSeconds(), agora, null);
+        liberacaoAgendadaRepositorio.salvar(liberacaoAgendada);
 
         return confirmada;
     }
