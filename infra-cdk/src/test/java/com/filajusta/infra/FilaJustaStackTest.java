@@ -407,4 +407,77 @@ class FilaJustaStackTest {
                                 "Effect", "Allow",
                                 "Resource", Match.objectLike(Map.of("Ref", topicoLogicalId)))))))))));
     }
+
+    @Test
+    void liberacaoAgendadaQueueIsStandardWithDeadLetterQueue() {
+        // Story 3-4a2 (Code Map): fila SQS STANDARD (nao FIFO -- ordem entre
+        // Recursos diferentes nao importa) + DLQ com maxReceiveCount=5
+        // (mesma convencao das demais filas do projeto).
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "liberacao-agendada")));
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "liberacao-agendada-dlq")));
+
+        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "liberacao-agendada")))));
+        assertThat(filas).hasSize(1);
+        // Standard, nao FIFO (Boundaries da spec 3-4a2): findResources com
+        // este Match.objectLike NAO acharia a fila se o synth tivesse
+        // gerado FifoQueue=true, pois o nome logico das duas filas FIFO do
+        // projeto sempre carrega o sufixo ".fifo" -- aqui a QueueName real e
+        // exatamente "liberacao-agendada", sem sufixo.
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "liberacao-agendada",
+                "FifoQueue", Match.absent())));
+
+        Map<String, Map<String, Object>> dlqs = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "liberacao-agendada-dlq")))));
+        assertThat(dlqs).hasSize(1);
+        String dlqLogicalId = dlqs.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "liberacao-agendada",
+                "RedrivePolicy", Match.objectLike(Map.of(
+                        "deadLetterTargetArn", Match.objectLike(Map.of(
+                                "Fn::GetAtt", Match.arrayWith(java.util.List.of(dlqLogicalId, "Arn")))),
+                        "maxReceiveCount", 5)))));
+
+        // Achado do code review: 60s (nao o default do SQS de 30s) -- trava
+        // regressao futura desse valor, mesma convencao de
+        // scoreCalculadoConsumerQueueIsFifoWithDeadLetterQueue.
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "liberacao-agendada",
+                "VisibilityTimeout", 60)));
+    }
+
+    @Test
+    void matchingAlocacaoServiceTaskRoleCanSendMessagesToLiberacaoAgendadaQueue() {
+        // Deploy ECS do matching-alocacao-service continua deferido -- mas a
+        // policy de publish na fila de liberacao agendada ja precisa existir
+        // (Code Map da spec 3-4a2), presa a MESMA MatchingAlocacaoServiceTaskRole
+        // ja usada pelo consumo/outbox acima (mesmo raciocinio dos testes
+        // analogos ja existentes).
+        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "liberacao-agendada")))));
+        assertThat(filas).hasSize(1);
+        String filaLogicalId = filas.keySet().iterator().next();
+
+        Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
+        assertThat(roles).hasSize(1);
+        String roleLogicalId = roles.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
+                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
+                "PolicyDocument", Match.objectLike(Map.of(
+                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                "Action", Match.arrayWith(java.util.List.of("sqs:SendMessage")),
+                                "Effect", "Allow",
+                                "Resource", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(
+                                        java.util.List.of(filaLogicalId, "Arn")))))))))))));
+    }
 }

@@ -95,6 +95,17 @@ import java.time.Duration;
  * {@link LiberacaoAgendadaRepositorio} e este bean para agendar a
  * liberação do Recurso na mesma transação da confirmação (nenhuma
  * publicação real ainda -- escopo das Stories 3-4a2/3-4b).
+ *
+ * <p>Story 3-4a2: {@code LiberacaoAgendadaRelayJob}/
+ * {@code LiberacaoAgendadaSqsClientConfig} (infrastructure/relay) publicam
+ * a mensagem de delay de {@code liberacao_agendada} numa fila SQS standard
+ * própria -- {@code @Component}/{@code @Configuration} registrados via
+ * component scan, mesmo padrão de {@code RelaySnsPublisherJob} (Story 3-3a):
+ * sem {@code @Bean} explícito aqui, porque nenhum caso de uso deste serviço
+ * consome {@link LiberacaoAgendadaRepositorio} além de
+ * {@link ConfirmarAlocacao} (já conectado acima). {@code @EnableScheduling}
+ * (já presente desde a Story 3.1b) também habilita o {@code @Scheduled}
+ * deste novo job -- nenhuma anotação nova necessária aqui.
  */
 @SpringBootApplication
 @EnableScheduling

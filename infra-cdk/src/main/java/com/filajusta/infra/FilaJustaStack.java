@@ -92,7 +92,12 @@ import java.util.Map;
  * ({@code matching-alocacao-eventos.fifo}, relay outbox daquele servico) --
  * publish concedido a mesma {@code MatchingAlocacaoServiceTaskRole} acima
  * (nao cria outra role); nenhuma fila assinante ainda (fora de escopo,
- * Epic 4/auditoria-service assina depois).
+ * Epic 4/auditoria-service assina depois). Story 3-4a2 acrescenta a fila SQS
+ * STANDARD (nao FIFO) {@code liberacao-agendada} + DLQ
+ * ({@code maxReceiveCount=5}) que {@code LiberacaoAgendadaRelayJob}
+ * (matching-alocacao-service) publica -- {@code grantSendMessages} concedido a
+ * mesma {@code MatchingAlocacaoServiceTaskRole}; nenhum consumidor real ainda
+ * (Story 3-4b, deferida).
  */
 public class FilaJustaStack extends Stack {
 
@@ -236,6 +241,14 @@ public class FilaJustaStack extends Stack {
         Topic matchingAlocacaoEventosTopic = buildMatchingAlocacaoEventosTopic();
         matchingAlocacaoEventosTopic.grantPublish(matchingAlocacaoServiceTaskRole);
 
+        // --- Relay de publicacao da liberacao agendada (Story 3-4a2) -------
+        // Fila SQS standard (nao FIFO -- ordem entre Recursos nao importa,
+        // Boundaries da spec 3-4a2) + DLQ que LiberacaoAgendadaRelayJob
+        // publica; reusa a MESMA MatchingAlocacaoServiceTaskRole (nao cria
+        // outra), so acrescenta grantSendMessages.
+        Queue liberacaoAgendadaQueue = buildLiberacaoAgendadaQueue();
+        liberacaoAgendadaQueue.grantSendMessages(matchingAlocacaoServiceTaskRole);
+
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
         CfnOutput.Builder.create(this, "GatewayServiceName").value(gatewayService.getServiceName()).build();
@@ -247,6 +260,9 @@ public class FilaJustaStack extends Stack {
                 .build();
         CfnOutput.Builder.create(this, "MatchingAlocacaoEventosTopicArn")
                 .value(matchingAlocacaoEventosTopic.getTopicArn())
+                .build();
+        CfnOutput.Builder.create(this, "LiberacaoAgendadaQueueUrl")
+                .value(liberacaoAgendadaQueue.getQueueUrl())
                 .build();
     }
 
@@ -339,6 +355,36 @@ public class FilaJustaStack extends Stack {
                 .topicName("matching-alocacao-eventos.fifo")
                 .fifo(true)
                 .contentBasedDeduplication(false)
+                .build();
+    }
+
+    private Queue buildLiberacaoAgendadaQueue() {
+        // DLQ com maxReceiveCount=5 (mesma convencao das demais filas do
+        // projeto -- ver buildScoreCalculadoConsumerQueue). Standard (nao
+        // FIFO -- ordem entre Recursos diferentes nao importa aqui,
+        // Boundaries da spec 3-4a2): diferente das filas FIFO de
+        // ScoreCalculado/MatchingAlocacaoEventos, esta fila so carrega
+        // {alocacaoId, recursoId, correlationId} com DelaySeconds =
+        // liberacao.delaySegundos -- nenhum consumidor real ainda (Story
+        // 3-4b, deferida).
+        Queue dlq = Queue.Builder.create(this, "LiberacaoAgendadaDlq")
+                .queueName("liberacao-agendada-dlq")
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        return Queue.Builder.create(this, "LiberacaoAgendadaQueue")
+                .queueName("liberacao-agendada")
+                .deadLetterQueue(DeadLetterQueue.builder()
+                        .queue(dlq)
+                        .maxReceiveCount(5)
+                        .build())
+                // 60s (nao o default do SQS, que e 30s) -- mesmo valor efetivo
+                // de buildScoreCalculadoConsumerQueue, so como referencia de
+                // comparacao: nenhum consumidor real ainda existe aqui (Story
+                // 3-4b, deferida), mas o valor fica consistente com as demais
+                // filas do projeto desde ja.
+                .visibilityTimeout(Duration.seconds(60))
+                .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
     }
 

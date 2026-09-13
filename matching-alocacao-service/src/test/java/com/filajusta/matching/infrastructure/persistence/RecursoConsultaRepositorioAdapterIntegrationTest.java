@@ -46,7 +46,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 // teste so cobre persistencia, sem depender de LocalStack/SQS/SNS.
 @TestPropertySource(properties = {
         "filajusta.matching.relay.enabled=false",
-        "filajusta.matching.outbox-relay.enabled=false"
+        "filajusta.matching.outbox-relay.enabled=false",
+        "filajusta.matching.liberacao-agendada-relay.enabled=false"
 })
 class RecursoConsultaRepositorioAdapterIntegrationTest {
 

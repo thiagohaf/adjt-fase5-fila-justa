@@ -137,6 +137,12 @@ development_status:
   # 2026-09-13: 3-4a1 -> done (PR #39 confirmado mergeado em develop pelo
   # usuário).
   3-4a1-persistencia-liberacao-agendada: done
+  # Story 3-4a2 (publicação de fato da liberação agendada) implementada em
+  # 2026-09-13 via bmad-build (spec-3-4a2-publicacao-liberacao-agendada.md,
+  # status done) -- LiberacaoAgendadaRelayJob + fila SQS standard/DLQ no CDK +
+  # LiberacaoAgendadaSqsClientConfig; code review multi-agente com 4 achados
+  # corrigidos. Ver deferred-work.md para achados de baixo risco remanescentes.
+  3-4a2-publicacao-liberacao-agendada: review
   epic-3-retrospective: optional
 
   epic-4: backlog
