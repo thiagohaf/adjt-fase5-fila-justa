@@ -142,7 +142,9 @@ development_status:
   # status done) -- LiberacaoAgendadaRelayJob + fila SQS standard/DLQ no CDK +
   # LiberacaoAgendadaSqsClientConfig; code review multi-agente com 4 achados
   # corrigidos. Ver deferred-work.md para achados de baixo risco remanescentes.
-  3-4a2-publicacao-liberacao-agendada: review
+  # 2026-09-13: 3-4a2 -> done (PR #41 confirmado mergeado em develop pelo
+  # usuário).
+  3-4a2-publicacao-liberacao-agendada: done
   # Story 3-4b (consumo+liberação real do Recurso) dividida em 2 sub-stories
   # em 2026-09-13 -- spec único (comando+persistência+consumidor SQS+CDK)
   # mediu ~3171 tokens (alvo 900-1600); decisão do usuário no checkpoint de
