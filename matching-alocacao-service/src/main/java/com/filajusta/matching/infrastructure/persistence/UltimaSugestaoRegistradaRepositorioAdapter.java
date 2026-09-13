@@ -15,6 +15,11 @@ import java.util.UUID;
  * direto ao upsert nativo ({@link
  * UltimaSugestaoRegistradaJpaRepository#upsert}) -- mesmo padrão de {@code
  * SugestaoRecusadaRepositorioAdapter}: não há releitura pós-insert.
+ *
+ * <p>Desde a Story 3-3c2b2, {@link #registrar} devolve {@code true}/{@code
+ * false} conforme o número de linhas afetadas pelo upsert nativo (0 quando o
+ * {@code WHERE} condicional bloqueia a escrita por valor repetido) -- ver
+ * Javadoc da porta.
  */
 @Component
 class UltimaSugestaoRegistradaRepositorioAdapter implements UltimaSugestaoRegistradaRepositorio {
@@ -33,7 +38,7 @@ class UltimaSugestaoRegistradaRepositorioAdapter implements UltimaSugestaoRegist
 
     @Override
     @Transactional
-    public void registrar(UUID recursoId, long pacienteId, Instant registradoEm) {
-        jpaRepository.upsert(recursoId, pacienteId, registradoEm);
+    public boolean registrar(UUID recursoId, long pacienteId, Instant registradoEm) {
+        return jpaRepository.upsert(recursoId, pacienteId, registradoEm) > 0;
     }
 }

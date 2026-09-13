@@ -8,6 +8,7 @@ import com.filajusta.matching.application.command.RecursoRepositorio;
 import com.filajusta.matching.application.command.RecusarSugestao;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
 import com.filajusta.matching.application.command.SugestaoRecusadaRepositorio;
+import com.filajusta.matching.application.command.UltimaSugestaoRegistradaRepositorio;
 import com.filajusta.matching.application.command.UpsertRecurso;
 import com.filajusta.matching.application.query.AlocacaoConsultaRepositorio;
 import com.filajusta.matching.application.query.ConsultarFilaPriorizada;
@@ -57,7 +58,10 @@ import java.time.Clock;
  * conecta as portas {@link RecursoConsultaRepositorio} e
  * {@link ConsultarFilaPriorizada} (reutilizada sem duplicar o cálculo de
  * Prioridade Efetiva) -- atende {@code GET /v1/recursos/{id}/sugestao}
- * (infrastructure/web).
+ * (infrastructure/web). Desde a Story 3-3c2b2, também conecta
+ * {@link UltimaSugestaoRegistradaRepositorio} e {@link EventoOutboxRepositorio}
+ * para o rastreamento AD-10 ({@code SugestaoGerada} só quando a sugestão
+ * muda).
  *
  * <p>Story 3-3a: infraestrutura outbox própria deste serviço (AD-3) --
  * {@code EventoOutboxRepositorioAdapter} (infrastructure/persistence) e
@@ -119,9 +123,13 @@ public class MatchingAlocacaoServiceApplication {
     @Bean
     ConsultarSugestaoRecurso consultarSugestaoRecurso(RecursoConsultaRepositorio recursoConsultaRepositorio,
                                                         ConsultarFilaPriorizada consultarFilaPriorizada,
-                                                        SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio) {
+                                                        SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio,
+                                                        UltimaSugestaoRegistradaRepositorio ultimaSugestaoRegistradaRepositorio,
+                                                        EventoOutboxRepositorio eventoOutboxRepositorio,
+                                                        Clock clock) {
         return new ConsultarSugestaoRecurso(
-                recursoConsultaRepositorio, consultarFilaPriorizada, sugestaoRecusadaConsultaRepositorio);
+                recursoConsultaRepositorio, consultarFilaPriorizada, sugestaoRecusadaConsultaRepositorio,
+                ultimaSugestaoRegistradaRepositorio, eventoOutboxRepositorio, clock);
     }
 
     @Bean

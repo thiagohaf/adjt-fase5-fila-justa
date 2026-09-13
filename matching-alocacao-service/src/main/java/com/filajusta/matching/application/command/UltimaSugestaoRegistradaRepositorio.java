@@ -24,10 +24,27 @@ import java.util.UUID;
  * sobrescrita), contra a PK composta {@code (recurso_id, paciente_id)} de
  * {@code sugestao_recusada}, onde vários Pacientes recusados coexistem para
  * o mesmo Recurso.
+ *
+ * <p>Desde a Story 3-3c2b2, {@link #registrar} é um compare-and-set atômico
+ * no próprio SQL ({@code WHERE paciente_id <> excluded.paciente_id} no
+ * upsert nativo, ver {@code UltimaSugestaoRegistradaJpaRepository}): retorna
+ * {@code true} somente quando a linha foi de fato inserida/alterada (não
+ * havia registro, OU havia com {@code pacienteId} diferente), {@code false}
+ * quando o valor já era o mesmo (nenhuma escrita ocorre). Isso fecha, sem
+ * pré-leitura nem lock explícito, a corrida de 2 requisições concorrentes
+ * lendo o mesmo valor antigo e publicando 2 eventos {@code SugestaoGerada}
+ * duplicados -- {@link com.filajusta.matching.application.query.ConsultarSugestaoRecurso}
+ * chama {@link #registrar} direto, sem consultar {@link #pacienteIdRegistrado}
+ * antes.
  */
 public interface UltimaSugestaoRegistradaRepositorio {
 
     Optional<Long> pacienteIdRegistrado(UUID recursoId);
 
-    void registrar(UUID recursoId, long pacienteId, Instant registradoEm);
+    /**
+     * @return {@code true} quando a linha foi inserida ou teve {@code
+     *     pacienteId} efetivamente alterado; {@code false} quando o valor já
+     *     era o mesmo (nenhuma escrita ocorreu).
+     */
+    boolean registrar(UUID recursoId, long pacienteId, Instant registradoEm);
 }
