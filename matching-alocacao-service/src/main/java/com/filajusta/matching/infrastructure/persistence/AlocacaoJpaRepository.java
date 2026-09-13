@@ -36,4 +36,19 @@ interface AlocacaoJpaRepository extends JpaRepository<AlocacaoJpaEntity, UUID> {
     @Query(value = "SELECT paciente_id FROM matching_alocacao.alocacao WHERE status = :status",
             nativeQuery = true)
     Set<Long> pacientesComAlocacaoAtiva(@Param("status") String status);
+
+    // Story 3-4b1 (LiberarRecurso): UPDATE condicional idempotente
+    // ATIVA -> LIBERADA -- mesmo padrao 100% nativo dos demais metodos deste
+    // repositorio. Retorna o numero de linhas afetadas: 1 quando a Alocacao
+    // estava ATIVA (transicao aplicada), 0 quando ja estava LIBERADA ou
+    // alocacaoId nao existe -- os 2 casos sao indistinguiveis de proposito
+    // (Design Notes da spec 3-4b1). Sem lock otimista: o proprio WHERE
+    // condicional do banco decide, sob concorrencia real, qual chamada (no
+    // maximo 1) efetivamente atualiza a linha.
+    @Modifying
+    @Query(value = "UPDATE matching_alocacao.alocacao "
+            + "SET status = 'LIBERADA' "
+            + "WHERE alocacao_id = :alocacaoId AND status = 'ATIVA'",
+            nativeQuery = true)
+    int liberar(@Param("alocacaoId") UUID alocacaoId);
 }

@@ -38,4 +38,15 @@ public interface RecursoRepositorio {
      * falha, apenas não altera nada.
      */
     void marcarIndisponivel(UUID recursoId);
+
+    /**
+     * Marca o Recurso disponível de novo (Story 3-4b1, {@code
+     * LiberarRecurso}) -- espelho exato de {@link #marcarIndisponivel(UUID)},
+     * chamado dentro da mesma transação só depois de
+     * {@code AlocacaoRepositorio#liberar} confirmar a transição
+     * {@code ATIVA -> LIBERADA}. Idempotente: uma segunda chamada para o
+     * mesmo {@code recursoId} já disponível não falha, apenas não altera
+     * nada.
+     */
+    void marcarDisponivel(UUID recursoId);
 }

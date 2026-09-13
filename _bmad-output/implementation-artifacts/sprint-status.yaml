@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-13-2026 10:00
+last_updated: 09-13-2026 14:00
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -143,6 +143,19 @@ development_status:
   # LiberacaoAgendadaSqsClientConfig; code review multi-agente com 4 achados
   # corrigidos. Ver deferred-work.md para achados de baixo risco remanescentes.
   3-4a2-publicacao-liberacao-agendada: review
+  # Story 3-4b (consumo+liberação real do Recurso) dividida em 2 sub-stories
+  # em 2026-09-13 -- spec único (comando+persistência+consumidor SQS+CDK)
+  # mediu ~3171 tokens (alvo 900-1600); decisão do usuário no checkpoint de
+  # token count do bmad-build (step-02), mesmo padrão das Stories
+  # 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c/3-3c2/3-3c2b/3-4a. Ver deferred-work.md.
+  # 2026-09-13: 3-4b1 implementada via bmad-build
+  # (spec-3-4b1-liberacao-real-recurso.md, status done) -- Alocacao.liberar +
+  # RecursoRepositorio#marcarDisponivel + comando LiberarRecurso (bean Spring,
+  # @Transactional real) + evento RecursoLiberado via outbox; code review
+  # multi-agente com 1 achado corrigido (LiberarRecurso não era bean Spring,
+  # @Transactional inerte). Ver deferred-work.md para achados de baixo risco
+  # remanescentes.
+  3-4b1-liberacao-real-recurso: review
   epic-3-retrospective: optional
 
   epic-4: backlog

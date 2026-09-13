@@ -5,6 +5,7 @@ import com.filajusta.matching.application.command.AtualizarScoreReplica;
 import com.filajusta.matching.application.command.ConfirmarAlocacao;
 import com.filajusta.matching.application.command.EventoOutboxRepositorio;
 import com.filajusta.matching.application.command.LiberacaoAgendadaRepositorio;
+import com.filajusta.matching.application.command.LiberarRecurso;
 import com.filajusta.matching.application.command.RecursoRepositorio;
 import com.filajusta.matching.application.command.RecusarSugestao;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
@@ -106,6 +107,18 @@ import java.time.Duration;
  * {@link ConfirmarAlocacao} (já conectado acima). {@code @EnableScheduling}
  * (já presente desde a Story 3.1b) também habilita o {@code @Scheduled}
  * deste novo job -- nenhuma anotação nova necessária aqui.
+ *
+ * <p>Story 3-4b1: {@link LiberarRecurso} precisa de {@code @Bean} explícito
+ * aqui (diferente do padrão "sem @Bean" de outros comandos desta classe)
+ * porque seu método {@code liberar} é {@code @Transactional} -- essa
+ * anotação só produz um proxy AOP real em cima de um bean gerenciado pelo
+ * container; instanciado via {@code new} (como nos testes) ela fica inerte
+ * e as 3 escritas (Alocacao, Recurso, outbox) rodariam cada uma na sua
+ * própria transação, quebrando a atomicidade exigida pela spec (mesmo
+ * motivo pelo qual {@link ConfirmarAlocacao}, acima, também é {@code @Bean}
+ * explícito). Ainda sem consumidor real conectado (Story 3-4b2, deferida,
+ * é quem vai injetar este bean a partir do consumidor SQS da liberação
+ * agendada).
  */
 @SpringBootApplication
 @EnableScheduling
@@ -176,6 +189,14 @@ public class MatchingAlocacaoServiceApplication {
         return new ConfirmarAlocacao(
                 alocacaoRepositorio, recursoRepositorio, recursoConsultaRepositorio, eventoOutboxRepositorio,
                 liberacaoAgendadaRepositorio, liberacaoDuracaoProperties, clock);
+    }
+
+    @Bean
+    LiberarRecurso liberarRecurso(AlocacaoRepositorio alocacaoRepositorio,
+                                    RecursoRepositorio recursoRepositorio,
+                                    EventoOutboxRepositorio eventoOutboxRepositorio,
+                                    Clock clock) {
+        return new LiberarRecurso(alocacaoRepositorio, recursoRepositorio, eventoOutboxRepositorio, clock);
     }
 
     @Bean
