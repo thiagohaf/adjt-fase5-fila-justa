@@ -99,6 +99,24 @@ filajusta:
     k: 1.1111111111111112
     teto: 20
 
+  # Duracao de LiberacaoAgendada por especificidadeRank do Recurso (Story
+  # 3-4a1) -- ConfirmarAlocacao grava, na mesma transacao da confirmacao,
+  # quanto tempo (simulado) o Recurso leva para voltar ao pool. Os 4 ranks
+  # (1-4, unicos valores que Recurso.especificidadeRank assume hoje, seed do
+  # Epic 5) sao obrigatorios: LiberacaoDuracaoProperties falha o boot se
+  # algum faltar ou exceder o limite fisico de 15min do DelaySeconds do SQS
+  # (Boundaries da spec 3-4a1, respeitado ja aqui mesmo sem publicar nada
+  # ainda, para nao exigir revalidacao em 3-4a2). Valores crescentes com o
+  # rank (recurso mais generico primeiro, mais especifico por ultimo) --
+  # nenhuma regra de negocio alem de "calibravel", apenas uma progressao
+  # razoavel para a simulacao.
+  liberacao:
+    duracao:
+      rank-1: PT2M
+      rank-2: PT4M
+      rank-3: PT6M
+      rank-4: PT8M
+
 logging:
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"matching-alocacao-service","logger":"%c","message":"%m"}%n'

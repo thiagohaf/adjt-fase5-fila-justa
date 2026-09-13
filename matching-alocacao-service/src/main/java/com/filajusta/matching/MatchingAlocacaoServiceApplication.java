@@ -4,6 +4,7 @@ import com.filajusta.matching.application.command.AlocacaoRepositorio;
 import com.filajusta.matching.application.command.AtualizarScoreReplica;
 import com.filajusta.matching.application.command.ConfirmarAlocacao;
 import com.filajusta.matching.application.command.EventoOutboxRepositorio;
+import com.filajusta.matching.application.command.LiberacaoAgendadaRepositorio;
 import com.filajusta.matching.application.command.RecursoRepositorio;
 import com.filajusta.matching.application.command.RecusarSugestao;
 import com.filajusta.matching.application.command.ScoreReplicaRepositorio;
@@ -18,6 +19,7 @@ import com.filajusta.matching.application.query.RecursoConsultaRepositorio;
 import com.filajusta.matching.application.query.ScoreBootstrap;
 import com.filajusta.matching.application.query.SugestaoRecusadaConsultaRepositorio;
 import com.filajusta.matching.domain.PrioridadeEfetiva;
+import com.filajusta.matching.infrastructure.config.LiberacaoDuracaoProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -25,6 +27,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.Clock;
+import java.time.Duration;
 
 /**
  * Ponto de entrada do matching-alocacao-service (Story 3.1b, primeiro
@@ -82,6 +85,16 @@ import java.time.Clock;
  * infrastructure.persistence}) -- atende {@code POST
  * /v1/recursos/{id}/alocacoes/recusa} (infrastructure/web), mesmo molde de
  * {@link ConfirmarAlocacao}.
+ *
+ * <p>{@link LiberacaoDuracaoProperties} (Story 3-4a1) é montada aqui a
+ * partir de {@code filajusta.liberacao.duracao.rank-{1..4}}
+ * (application.yml) -- mesmo padrão de {@code @Value} de
+ * {@link PrioridadeEfetiva} (fail-fast: qualquer rank ausente do YAML já
+ * quebra a resolução do placeholder no boot, antes mesmo da validação
+ * extra do próprio bean). {@link ConfirmarAlocacao} passa a conectar também
+ * {@link LiberacaoAgendadaRepositorio} e este bean para agendar a
+ * liberação do Recurso na mesma transação da confirmação (nenhuma
+ * publicação real ainda -- escopo das Stories 3-4a2/3-4b).
  */
 @SpringBootApplication
 @EnableScheduling
@@ -133,13 +146,25 @@ public class MatchingAlocacaoServiceApplication {
     }
 
     @Bean
+    LiberacaoDuracaoProperties liberacaoDuracaoProperties(
+            @Value("${filajusta.liberacao.duracao.rank-1}") Duration rank1,
+            @Value("${filajusta.liberacao.duracao.rank-2}") Duration rank2,
+            @Value("${filajusta.liberacao.duracao.rank-3}") Duration rank3,
+            @Value("${filajusta.liberacao.duracao.rank-4}") Duration rank4) {
+        return new LiberacaoDuracaoProperties(rank1, rank2, rank3, rank4);
+    }
+
+    @Bean
     ConfirmarAlocacao confirmarAlocacao(AlocacaoRepositorio alocacaoRepositorio,
                                          RecursoRepositorio recursoRepositorio,
                                          RecursoConsultaRepositorio recursoConsultaRepositorio,
                                          EventoOutboxRepositorio eventoOutboxRepositorio,
+                                         LiberacaoAgendadaRepositorio liberacaoAgendadaRepositorio,
+                                         LiberacaoDuracaoProperties liberacaoDuracaoProperties,
                                          Clock clock) {
         return new ConfirmarAlocacao(
-                alocacaoRepositorio, recursoRepositorio, recursoConsultaRepositorio, eventoOutboxRepositorio, clock);
+                alocacaoRepositorio, recursoRepositorio, recursoConsultaRepositorio, eventoOutboxRepositorio,
+                liberacaoAgendadaRepositorio, liberacaoDuracaoProperties, clock);
     }
 
     @Bean
