@@ -1,0 +1,431 @@
+<title>ConfirmaSUS</title>
+<style>
+  :root{
+    --ink:#16221E; --ground:#EEF2EF; --surface:#FFFFFF; --surface-2:#E4E9E6;
+    --line:rgba(22,34,30,.14); --line-strong:rgba(22,34,30,.28);
+    --teal:#1B6F63; --teal-ink:#0F4A42; --teal-tint:rgba(27,111,99,.10);
+    --coral:#C85A24; --coral-tint:rgba(200,90,36,.12);
+    --mut:rgba(22,34,30,.62);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#E7EFEA; --ground:#0E1613; --surface:#16211D; --surface-2:#1C2823;
+      --line:rgba(231,239,234,.14); --line-strong:rgba(231,239,234,.26);
+      --teal:#59B0A2; --teal-ink:#8FD1C5; --teal-tint:rgba(89,176,162,.14);
+      --coral:#EC8A52; --coral-tint:rgba(236,138,82,.16);
+      --mut:rgba(231,239,234,.62);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#E7EFEA; --ground:#0E1613; --surface:#16211D; --surface-2:#1C2823;
+    --line:rgba(231,239,234,.14); --line-strong:rgba(231,239,234,.26);
+    --teal:#59B0A2; --teal-ink:#8FD1C5; --teal-tint:rgba(89,176,162,.14);
+    --coral:#EC8A52; --coral-tint:rgba(236,138,82,.16);
+    --mut:rgba(231,239,234,.62);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--ground); color:var(--ink); margin:0;
+    font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:16px; line-height:1.55;
+  }
+  h1,h2,h3{font-family:"IBM Plex Serif",Georgia,serif; text-wrap:balance; margin:0 0 .4em;}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  a{color:var(--teal-ink);}
+
+  .rail{
+    position:fixed; top:0; left:0; right:0; height:3px; z-index:50;
+    background:var(--line);
+  }
+  .rail-fill{height:100%; width:0%; background:var(--coral); transition:width .1s linear;}
+
+  .nav{
+    position:fixed; top:14px; right:14px; z-index:50;
+    display:flex; gap:6px; background:var(--surface); border:1px solid var(--line);
+    border-radius:999px; padding:6px; box-shadow:0 2px 10px rgba(0,0,0,.08);
+  }
+  .nav button{
+    width:9px; height:9px; border-radius:50%; border:none; padding:0; cursor:pointer;
+    background:var(--line-strong);
+  }
+  .nav button.active{background:var(--coral);}
+  .nav button:focus-visible{outline:2px solid var(--teal); outline-offset:3px;}
+
+  section{
+    min-height:auto; padding:76px 24px; max-width:920px; margin:0 auto;
+    border-bottom:1px solid var(--line);
+    scroll-margin-top:20px;
+  }
+  section:last-of-type{border-bottom:none;}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; letter-spacing:.09em;
+    text-transform:uppercase; color:var(--coral); margin:0 0 14px; font-weight:600;
+  }
+  .lede{font-size:1.18rem; color:var(--mut); max-width:65ch;}
+  p{max-width:65ch;}
+  figure{margin:32px 0 0;}
+  figcaption{font-size:.88rem; color:var(--mut); margin-top:10px; max-width:65ch;}
+  svg{max-width:100%; height:auto; display:block;}
+  svg text{fill:currentColor; font-family:"IBM Plex Sans",sans-serif;}
+  svg .lbl-mono{font-family:"IBM Plex Mono",monospace;}
+  .accent-teal{color:var(--teal-ink);}
+  .accent-coral{color:var(--coral);}
+
+  /* Cover */
+  .cover{padding-top:120px; padding-bottom:88px;}
+  .cover .kicker{font-family:"IBM Plex Mono",monospace; font-size:13px; letter-spacing:.08em; color:var(--mut); text-transform:uppercase;}
+  .cover h1{font-size:clamp(2.4rem,6vw,4rem); margin-top:10px; letter-spacing:-.01em;}
+  .cover .tag{font-size:1.3rem; color:var(--teal-ink); margin-top:6px; font-family:"IBM Plex Serif",serif; font-style:italic;}
+  .cover .meta{
+    display:flex; gap:22px; flex-wrap:wrap; margin-top:44px; font-size:.92rem; color:var(--mut);
+    border-top:1px solid var(--line); padding-top:20px;
+  }
+  .cover .meta strong{color:var(--ink); display:block; font-family:"IBM Plex Mono",monospace; font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:3px; font-weight:600;}
+
+  /* Stat row */
+  .stats{display:flex; gap:0; margin-top:36px; flex-wrap:wrap; border-top:1px solid var(--line); border-left:1px solid var(--line);}
+  .stat{flex:1 1 200px; padding:20px 22px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .stat .n{font-family:"IBM Plex Serif",serif; font-size:2.1rem; color:var(--coral); line-height:1;}
+  .stat .d{font-size:.86rem; color:var(--mut); margin-top:8px;}
+
+  /* Two-column compare */
+  .compare{display:grid; grid-template-columns:1fr 1fr; gap:0; margin-top:36px; border:1px solid var(--line); border-radius:4px; overflow:hidden;}
+  .compare > div{padding:22px 24px;}
+  .compare .old{background:var(--surface-2);}
+  .compare .new{background:var(--teal-tint);}
+  .compare h3{font-size:1rem; font-family:"IBM Plex Mono",monospace; text-transform:uppercase; letter-spacing:.05em;}
+  .compare .old h3{color:var(--mut);}
+  .compare .new h3{color:var(--teal-ink);}
+  .compare ul{margin:0; padding-left:1.1em; font-size:.95rem;}
+  .compare li{margin-bottom:6px;}
+  @media (max-width:640px){ .compare{grid-template-columns:1fr;} }
+
+  /* Cards */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); margin-top:32px;}
+  .card{background:var(--surface); padding:20px 22px;}
+  .card h4{font-family:"IBM Plex Mono",monospace; font-size:.82rem; text-transform:uppercase; letter-spacing:.05em; color:var(--teal-ink); margin:0 0 10px;}
+  .card p{font-size:.92rem; margin:0; max-width:none;}
+  .card .keep{color:var(--teal-ink); font-size:.86rem;}
+  .card .drop{color:var(--mut); font-size:.86rem; text-decoration:line-through; text-decoration-color:var(--line-strong);}
+
+  /* Criteria bars */
+  .crit{margin-top:32px; display:flex; flex-direction:column; gap:14px;}
+  .crit-row{display:grid; grid-template-columns:190px 1fr 48px; align-items:center; gap:14px;}
+  .crit-row .label{font-size:.92rem;}
+  .crit-row .track{height:10px; background:var(--surface-2); border-radius:5px; overflow:hidden; border:1px solid var(--line);}
+  .crit-row .fill{height:100%; background:var(--teal);}
+  .crit-row.hi .fill{background:var(--coral);}
+  .crit-row .pct{font-family:"IBM Plex Mono",monospace; font-size:.86rem; text-align:right; color:var(--mut);}
+
+  /* Timeline */
+  .tl{margin-top:32px; border-left:2px solid var(--line-strong); padding-left:24px; display:flex; flex-direction:column; gap:26px;}
+  .tl-item{position:relative;}
+  .tl-item::before{content:""; position:absolute; left:-30px; top:5px; width:10px; height:10px; border-radius:50%; background:var(--coral);}
+  .tl-item .who{font-family:"IBM Plex Mono",monospace; font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; color:var(--mut);}
+  .tl-item h4{margin:2px 0 4px; font-family:"IBM Plex Serif",serif; font-size:1.05rem;}
+  .tl-item p{font-size:.92rem; margin:0;}
+
+  code.k{font-family:"IBM Plex Mono",monospace; font-size:.88em; background:var(--surface-2); padding:1px 5px; border-radius:3px;}
+
+  footer{max-width:920px; margin:0 auto; padding:40px 24px 90px; color:var(--mut); font-size:.86rem;}
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<div class="rail" aria-hidden="true"><div class="rail-fill" id="railFill"></div></div>
+<nav class="nav" id="dotNav" aria-label="Seções do deck"></nav>
+
+<section class="cover" id="s-cover">
+  <div class="kicker">Arquitetura · Hackathon FIAP Pós-Tech · Fase 5</div>
+  <h1>ConfirmaSUS</h1>
+  <div class="tag">Fechar o ciclo da vaga ociosa — do lembrete à decisão humana registrada.</div>
+  <p class="lede" style="margin-top:22px;">Este deck acompanha a Architecture Spine (<code class="k">ARCHITECTURE-SPINE.md</code>) que a banca pode auditar linha a linha. Aqui está o porquê de cada decisão.</p>
+  <div class="meta">
+    <div><strong>Autor</strong>Thiago Henrique Alves Ferreira · RM369442 · turma 11ADJT</div>
+    <div><strong>Origem</strong>PRD final <span class="mono">prd-Fase5-2026-09-16</span></div>
+    <div><strong>Status</strong>Pivô do FilaJusta por restrição legal — arquitetura fechada em 2026-09-17</div>
+  </div>
+</section>
+
+<section id="s-problema">
+  <p class="eyebrow">01 · O problema</p>
+  <h2>A vaga não é perdida — ela é abandonada em silêncio.</h2>
+  <p class="lede">Toda vaga de consulta ou exame do SUS tem uma segunda vida possível: repassá-la a quem está esperando. Isso só não acontece porque ninguém avisa a tempo.</p>
+  <div class="stats">
+    <div class="stat"><div class="n">25–38,6%</div><div class="d">das consultas e exames especializados são perdidos por falta do paciente, sem aviso (Beltrame et al., 2019/2020)</div></div>
+    <div class="stat"><div class="n">R$ 18,5 mi</div><div class="d">desperdiçados em 3 anos só no Espírito Santo (2014–2016), um único levantamento regional</div></div>
+    <div class="stat"><div class="n">~19%</div><div class="d">de redução de absenteísmo que o Ceará já obteve em 2025 só com lembrete por WhatsApp</div></div>
+  </div>
+  <p style="margin-top:22px; font-size:.94rem; color:var(--mut);">O lembrete isolado não é novidade — Cochrane já documentou o ganho de SMS. O que fica em aberto é <strong class="accent-teal">fechar o ciclo</strong>: transformar a ausência detectada numa oferta ativa, auditável, para quem está na fila.</p>
+</section>
+
+<section id="s-pivo">
+  <p class="eyebrow">02 · Por que este é o segundo projeto, não uma v2</p>
+  <h2>A versão anterior decidia quem merecia a vaga. A lei diz que isso não pode ser automatizado.</h2>
+  <p class="lede">O FilaJusta calculava um <em>Score de Prioridade Clínica</em> e sugeria matching automático por gravidade. Levantamos, ao planejar a Fase 5, que decisão automatizada de triagem/priorização clínica é vedada — então o produto pivotou, não só o código.</p>
+  <div class="compare">
+    <div class="old">
+      <h3>Descartado — FilaJusta</h3>
+      <ul>
+        <li>Score de gravidade calculado a partir de sinais vitais</li>
+        <li>Matching automático por especificidade + desempate por urgência</li>
+        <li>Sistema decide sozinho quem recebe o recurso</li>
+      </ul>
+    </div>
+    <div class="new">
+      <h3>ConfirmaSUS</h3>
+      <ul>
+        <li>Fila por <strong>ordem de chegada</strong> — nunca por gravidade percebida</li>
+        <li>Sistema <strong>sugere</strong>, nunca decide</li>
+        <li>Repasse só existe após confirmação humana explícita do Gestor</li>
+      </ul>
+    </div>
+  </div>
+  <p style="margin-top:20px; font-size:.9rem; color:var(--mut);">Entre as direções cogitadas no brainstorming (41 ideias), esta foi a que minimiza risco legal residual — não a que maximiza reaproveitamento de código. A alternativa mais próxima do domínio antigo dependia de uma leitura mais permissiva da legislação.</p>
+</section>
+
+<section id="s-ciclo">
+  <p class="eyebrow">03 · O ciclo</p>
+  <h2>Um agendamento tem exatamente dois destinos.</h2>
+  <p class="lede">Confirmado, ou liberado — e nunca por omissão do sistema.</p>
+  <figure>
+    <svg viewBox="0 0 880 260" role="img" aria-label="Fluxo do Agendamento: da carga do seed até o Log Auditável, passando por notificação, confirmação ou recusa/expiração, liberação, sugestão de repasse e decisão do Gestor.">
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <!-- nodes -->
+      <g class="lbl-mono" font-size="11.5">
+        <rect x="10" y="90" width="108" height="46" rx="4" fill="none" stroke="currentColor" opacity=".55"/>
+        <text x="64" y="118" text-anchor="middle">Agendamento</text>
+
+        <rect x="168" y="90" width="118" height="46" rx="4" fill="none" stroke="currentColor" opacity=".55"/>
+        <text x="227" y="112" text-anchor="middle">Janela de</text>
+        <text x="227" y="126" text-anchor="middle">Confirmação</text>
+      </g>
+
+      <!-- branch confirmado -->
+      <path d="M286,105 L 420,42" fill="none" stroke="currentColor" marker-end="url(#arw)"/>
+      <rect x="422" y="20" width="120" height="44" rx="4" fill="var(--teal-tint)" stroke="var(--teal)"/>
+      <text x="482" y="47" text-anchor="middle" font-size="11.5" class="lbl-mono">CONFIRMADO</text>
+
+      <!-- branch liberado -->
+      <path d="M286,125 L 420,178" fill="none" stroke="currentColor" marker-end="url(#arw)"/>
+      <text x="330" y="158" font-size="10.5" class="lbl-mono" fill="currentColor" opacity=".7">recusa / expiração 48h</text>
+      <rect x="422" y="156" width="120" height="44" rx="4" fill="var(--coral-tint)" stroke="var(--coral)"/>
+      <text x="482" y="183" text-anchor="middle" font-size="11.5" class="lbl-mono">LIBERADO</text>
+
+      <path d="M542,178 L 610,178" fill="none" stroke="currentColor" marker-end="url(#arw)"/>
+      <g class="lbl-mono" font-size="11.5">
+        <rect x="612" y="156" width="120" height="44" rx="4" fill="none" stroke="currentColor" opacity=".55"/>
+        <text x="672" y="174" text-anchor="middle">Sugestão de</text>
+        <text x="672" y="188" text-anchor="middle">Repasse</text>
+      </g>
+
+      <path d="M732,178 L 795,178" fill="none" stroke="currentColor" marker-end="url(#arw)"/>
+      <rect x="797" y="156" width="76" height="44" rx="4" fill="none" stroke="currentColor" opacity=".55"/>
+      <text x="835" y="174" text-anchor="middle" font-size="11" class="lbl-mono">Gestor</text>
+      <text x="835" y="188" text-anchor="middle" font-size="11" class="lbl-mono">decide</text>
+
+      <!-- log auditavel spanning bottom -->
+      <line x1="64" y1="146" x2="64" y2="238" stroke="currentColor" opacity=".35" stroke-dasharray="3,3"/>
+      <line x1="482" y1="64" x2="482" y2="238" stroke="currentColor" opacity=".35" stroke-dasharray="3,3"/>
+      <line x1="482" y1="200" x2="482" y2="238" stroke="currentColor" opacity=".35" stroke-dasharray="3,3"/>
+      <line x1="672" y1="200" x2="672" y2="238" stroke="currentColor" opacity=".35" stroke-dasharray="3,3"/>
+      <line x1="835" y1="200" x2="835" y2="238" stroke="currentColor" opacity=".35" stroke-dasharray="3,3"/>
+      <rect x="10" y="238" width="862" height="1" fill="none"/>
+      <text x="10" y="255" font-size="10.5" class="lbl-mono" fill="var(--coral)">Log Auditável — cada seta acima também é uma linha aqui, com motivo e timestamp</text>
+    </svg>
+    <figcaption>Todo caminho — Confirmação, Recusa, Não Confirmado, Liberação, Sugestão, decisão do Gestor — publica um evento; nenhum é opcional (FR-12). "Liberado" não é um estado novo: é o próprio Agendamento, motivo registrado.</figcaption>
+  </figure>
+</section>
+
+<section id="s-topologia">
+  <p class="eyebrow">04 · Arquitetura</p>
+  <h2>Três serviços de domínio. Cada um dono de um pedaço só seu.</h2>
+  <p class="lede">Microsserviços por bounded context, Clean Architecture dentro de cada um, eventos de domínio como único jeito de um serviço saber o que aconteceu no outro.</p>
+  <figure>
+    <svg viewBox="0 0 860 320" role="img" aria-label="Topologia: gateway-service na frente de agendamento-confirmacao-service e liberacao-repasse-service, que trocam eventos VagaLiberada via SNS/SQS FIFO; auditoria-service consome eventos de ambos; auth-service emite token; seed-adapter carrega dados via gateway.">
+      <defs>
+        <marker id="arw2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g class="lbl-mono" font-size="11.5">
+        <!-- gateway -->
+        <rect x="360" y="14" width="140" height="40" rx="4" fill="var(--surface-2)" stroke="currentColor" opacity=".8"/>
+        <text x="430" y="39" text-anchor="middle" opacity="1" fill="currentColor">gateway-service</text>
+
+        <!-- auth -->
+        <rect x="600" y="14" width="120" height="40" rx="4" fill="none" stroke="currentColor" opacity=".55"/>
+        <text x="660" y="39" text-anchor="middle">auth-service</text>
+
+        <!-- AC -->
+        <rect x="120" y="120" width="190" height="52" rx="4" fill="var(--teal-tint)" stroke="var(--teal)"/>
+        <text x="215" y="142" text-anchor="middle" font-weight="600">agendamento-</text>
+        <text x="215" y="158" text-anchor="middle" font-weight="600">confirmacao-service</text>
+
+        <!-- LR -->
+        <rect x="440" y="120" width="180" height="52" rx="4" fill="var(--teal-tint)" stroke="var(--teal)"/>
+        <text x="530" y="142" text-anchor="middle" font-weight="600">liberacao-</text>
+        <text x="530" y="158" text-anchor="middle" font-weight="600">repasse-service</text>
+
+        <!-- AUD -->
+        <rect x="670" y="120" width="160" height="52" rx="4" fill="var(--coral-tint)" stroke="var(--coral)"/>
+        <text x="750" y="142" text-anchor="middle" font-weight="600">auditoria-</text>
+        <text x="750" y="158" text-anchor="middle" font-weight="600">service</text>
+
+        <!-- seed adapter -->
+        <rect x="20" y="14" width="130" height="40" rx="4" fill="none" stroke="currentColor" opacity=".55" stroke-dasharray="4,3"/>
+        <text x="85" y="39" text-anchor="middle">seed-adapter</text>
+      </g>
+
+      <!-- gateway -> services -->
+      <path d="M410,54 L 240,120" fill="none" stroke="currentColor" opacity=".7" marker-end="url(#arw2)"/>
+      <path d="M450,54 L 500,120" fill="none" stroke="currentColor" opacity=".7" marker-end="url(#arw2)"/>
+      <path d="M85,54 L 380,28" fill="none" stroke="currentColor" opacity=".45" marker-end="url(#arw2)"/>
+      <text x="150" y="70" font-size="10" class="lbl-mono" opacity=".7">entra como qualquer cliente</text>
+
+      <!-- AC -> LR event -->
+      <path d="M310,150 L 438,150" fill="none" stroke="var(--coral)" stroke-width="1.6" marker-end="url(#arw2)"/>
+      <text x="374" y="140" text-anchor="middle" font-size="10.5" class="lbl-mono" fill="var(--coral)">VagaLiberada</text>
+
+      <!-- LR -> AC grpc -->
+      <path d="M440,168 L 312,168" fill="none" stroke="currentColor" opacity=".6" stroke-dasharray="3,3" marker-end="url(#arw2)"/>
+      <text x="374" y="186" text-anchor="middle" font-size="10" class="lbl-mono" opacity=".75">gRPC ResolverOuCriarPaciente (só seed)</text>
+
+      <!-- AC/LR -> AUD -->
+      <path d="M280,172 C 350,230 620,230 690,172" fill="none" stroke="currentColor" opacity=".55" marker-end="url(#arw2)"/>
+      <path d="M560,172 L 700,172" fill="none" stroke="currentColor" opacity=".55" marker-end="url(#arw2)"/>
+      <text x="480" y="248" text-anchor="middle" font-size="10.5" class="lbl-mono" opacity=".8">eventos (SNS FIFO → SQS por consumidor) — nunca chamada síncrona</text>
+
+      <!-- outbox note -->
+      <rect x="120" y="270" width="710" height="34" rx="4" fill="none" stroke="currentColor" stroke-dasharray="2,3" opacity=".4"/>
+      <text x="475" y="291" text-anchor="middle" font-size="10.5" class="lbl-mono" opacity=".75">outbox na mesma transação do comando → relay → SNS FIFO → fila SQS FIFO dedicada por consumidor + DLQ</text>
+    </svg>
+    <figcaption>Um serviço nunca lê o banco do outro. gRPC é a única chamada síncrona entre serviços de domínio, e só acontece na carga do seed — em runtime, tudo é evento.</figcaption>
+  </figure>
+</section>
+
+<section id="s-poller">
+  <p class="eyebrow">05 · A decisão técnica que não veio de graça</p>
+  <h2>O mecanismo antigo de "esperar e liberar" não aguenta 48 horas.</h2>
+  <p class="lede">O produto anterior liberava um recurso com uma mensagem SQS atrasada — funcionava porque a espera era de minutos. A Janela de Confirmação do ConfirmaSUS é de <strong class="accent-coral">48h</strong>. O SQS não permite.</p>
+  <div class="compare">
+    <div class="old">
+      <h3>Fila SQS com delay — descartado</h3>
+      <ul>
+        <li><span class="mono">DelaySeconds</span> tem teto de <strong>15 minutos</strong>, limite físico do protocolo</li>
+        <li>Funcionava no domínio antigo (2–5 min de "atendimento simulado")</li>
+        <li>48h exigiria encadear ~192 mensagens — não é arquitetura, é gambiarra</li>
+      </ul>
+    </div>
+    <div class="new">
+      <h3>Poller <span class="mono">@Scheduled</span> — adotado</h3>
+      <ul>
+        <li>Consulta Agendamentos com <span class="mono">janelaExpiraEm ≤ now()</span>, sem teto de duração</li>
+        <li>Mesmo molde dos relays de outbox que já existem no código</li>
+        <li>Escrita condicional (<span class="mono">UPDATE … WHERE status = esperado</span>) — idempotente mesmo com várias tasks ECS rodando o mesmo poller</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="s-reuso">
+  <p class="eyebrow">06 · Custo de construir isso num hackathon solo</p>
+  <h2>Reaproveitar sem carregar o domínio que sobra.</h2>
+  <p class="lede">Os dois serviços do FilaJusta são renomeados e podados, não descartados — mas nada do domínio clínico atravessa a renomeação.</p>
+  <div class="grid">
+    <div class="card">
+      <h4>triagem-score-service → agendamento-confirmacao-service</h4>
+      <p class="keep">✓ mantém Paciente / Cpf / resolução de identidade</p>
+      <p class="drop">✗ descarta Triagem, Score, GravidadePercebida, SinaisVitais</p>
+    </div>
+    <div class="card">
+      <h4>matching-alocacao-service → liberacao-repasse-service</h4>
+      <p class="keep">✓ mantém a máquina de estados de Confirmar/Recusar, renomeada</p>
+      <p class="drop">✗ descarta Recurso com tiers de especificidade e desempate por score</p>
+    </div>
+    <div class="card">
+      <h4>auditoria-service — novo</h4>
+      <p class="keep">✓ desenho já existia na arquitetura anterior (nunca implementado)</p>
+      <p style="margin-top:8px; font-size:.86rem; color:var(--mut);">Log Auditável é trabalho novo de qualquer forma, pivô ou não.</p>
+    </div>
+    <div class="card">
+      <h4>auth-service, gateway-service, infra-cdk</h4>
+      <p class="keep">✓ reaproveitados sem alteração de comportamento</p>
+      <p style="margin-top:8px; font-size:.86rem; color:var(--mut);">Os construtos CDK dos 3 serviços de domínio ainda são trabalho novo de build.</p>
+    </div>
+  </div>
+</section>
+
+<section id="s-criterios">
+  <p class="eyebrow">07 · De volta ao edital</p>
+  <h2>Cada decisão desta arquitetura aponta para um critério de avaliação.</h2>
+  <div class="crit">
+    <div class="crit-row hi"><div class="label">Funcionalidade do MVP</div><div class="track"><div class="fill" style="width:100%"></div></div><div class="pct">30%</div></div>
+    <div class="crit-row hi"><div class="label">Problema / Impacto</div><div class="track"><div class="fill" style="width:66%"></div></div><div class="pct">20%</div></div>
+    <div class="crit-row hi"><div class="label">Inovação</div><div class="track"><div class="fill" style="width:66%"></div></div><div class="pct">20%</div></div>
+    <div class="crit-row"><div class="label">Apresentação</div><div class="track"><div class="fill" style="width:66%"></div></div><div class="pct">20%</div></div>
+    <div class="crit-row"><div class="label">Documentação</div><div class="track"><div class="fill" style="width:33%"></div></div><div class="pct">10%</div></div>
+  </div>
+  <p style="margin-top:22px; font-size:.92rem; color:var(--mut);">Inovação aqui não é o lembrete — o Ceará já provou isso em produção. É fechar o ciclo: transformar a ociosidade detectada numa oferta auditável, sem nunca automatizar a parte que a lei reserva a um humano.</p>
+</section>
+
+<section id="s-proximos">
+  <p class="eyebrow">08 · Depois deste deck</p>
+  <h2>Da espinha à primeira story.</h2>
+  <div class="tl">
+    <div class="tl-item">
+      <div class="who">Fechado nesta sessão</div>
+      <h4>Architecture Spine — <span class="mono">status: final</span></h4>
+      <p>13 Architecture Decisions, Reviewer Gate rodado (lint + reconciliação + 2 lentes independentes), todos os achados corrigidos inline.</p>
+    </div>
+    <div class="tl-item">
+      <div class="who">Próximo</div>
+      <h4>bmad-create-epics-and-stories</h4>
+      <p>Quebrar os 14 FRs em epics e stories executáveis, na mesma cadência de divisão por orçamento de tokens já usada no FilaJusta.</p>
+    </div>
+    <div class="tl-item">
+      <div class="who">Depois</div>
+      <h4>bmad-build, story a story</h4>
+      <p>Spec → checkpoint → implementação → revisão multi-agente → commit — mesmo fluxo já validado em 9 stories do domínio anterior.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Deck gerado a partir de <span class="mono">ARCHITECTURE-SPINE.md</span> (<span class="mono">architecture-Fase5-2026-09-17</span>) e do PRD <span class="mono">prd-Fase5-2026-09-16</span>. Todos os números de contexto (absenteísmo, custo, Ceará) vêm do brief do produto, seção Vision.
+</footer>
+
+<script>
+(function(){
+  var sections = Array.prototype.slice.call(document.querySelectorAll('section'));
+  var nav = document.getElementById('dotNav');
+  var fill = document.getElementById('railFill');
+  sections.forEach(function(s, i){
+    var b = document.createElement('button');
+    b.setAttribute('aria-label', s.id.replace('s-',''));
+    b.addEventListener('click', function(){ s.scrollIntoView({behavior:'smooth'}); });
+    nav.appendChild(b);
+  });
+  var dots = Array.prototype.slice.call(nav.children);
+
+  function onScroll(){
+    var doc = document.documentElement;
+    var pct = (doc.scrollTop) / (doc.scrollHeight - doc.clientHeight || 1) * 100;
+    fill.style.width = Math.min(100, Math.max(0,pct)) + '%';
+
+    var mid = window.scrollY + window.innerHeight * 0.35;
+    var activeIdx = 0;
+    sections.forEach(function(s, i){
+      if (s.offsetTop <= mid) activeIdx = i;
+    });
+    dots.forEach(function(d,i){ d.classList.toggle('active', i===activeIdx); });
+  }
+  document.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+})();
+</script>
