@@ -1,0 +1,42 @@
+server:
+  port: 8082
+
+# Porta de management separada da porta de aplicacao: mesmo raciocinio do
+# auth-service (AD-8/AD-12) -- o security group de health-check libera so
+# essa porta, sem reabrir a porta de aplicacao (so o gateway-service alcanca).
+management:
+  server:
+    port: 8091
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+spring:
+  application:
+    name: agendamento-confirmacao-service
+  # Credenciais (spring.datasource.username/password) vem so de variavel de
+  # ambiente (SPRING_DATASOURCE_USERNAME/PASSWORD, relaxed binding) -- reusa
+  # o secret admin do Postgres compartilhado (mesmo padrao do auth-service).
+  # Host "postgres" (sem sufixo ".filajusta.local", ver auth-service/application.yml).
+  datasource:
+    url: jdbc:postgresql://postgres:5432/filajusta
+  flyway:
+    schemas: agendamento_confirmacao
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway (nao Hibernate) e o dono do schema -- so valida o mapeamento.
+      ddl-auto: validate
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"agendamento-confirmacao-service","logger":"%c","message":"%m"}%n'

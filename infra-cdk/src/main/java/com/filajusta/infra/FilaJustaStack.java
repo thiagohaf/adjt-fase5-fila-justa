@@ -55,34 +55,42 @@ import java.util.Map;
 
 /**
  * Stack unica do FilaJusta -- Story 1.1 (Subida do Ambiente com Health-Check
- * Publico) + Story 1.2 (Autenticacao de Usuario via auth-service).
+ * Publico) + Story 1.2 (Autenticacao de Usuario via auth-service) + Story
+ * 1.1 do Epic 1 (registro de Agendamento via agendamento-confirmacao-service).
  *
  * <p>Provisiona: VPC de subnet publica unica, sem NAT Gateway (AD-12);
  * cluster ECS Fargate; Postgres 18 como container Fargate com volume EFS
  * persistente (nao RDS, decisao de custo desta story); tasks/services de
- * {@code gateway-service} e {@code auth-service}, com {@code assignPublicIp
- * = ENABLED} (AD-12); security groups que garantem que so o gateway alcanca
- * a porta de aplicacao do auth-service, com excecao estreita e nomeada para
- * health-check (AD-8/AD-12). Story 1.2 acrescenta: Service Connect do
- * auth-service (DNS interno {@code auth-service:8081} -- dnsName resolvido
- * pelo Envoy como string exata, sem sufixo de namespace), secret
- * {@code JwtSecret} (HS256, AD-14) e as credenciais do Postgres
+ * {@code gateway-service}, {@code auth-service} e
+ * {@code agendamento-confirmacao-service}, com {@code assignPublicIp =
+ * ENABLED} (AD-12); security groups que garantem que so o gateway alcanca a
+ * porta de aplicacao de cada servico de dominio, com excecao estreita e
+ * nomeada para health-check (AD-8/AD-12). Story 1.2 (auth) acrescenta:
+ * Service Connect do auth-service (DNS interno {@code auth-service:8081} --
+ * dnsName resolvido pelo Envoy como string exata, sem sufixo de namespace),
+ * secret {@code JwtSecret} (HS256, AD-14) e as credenciais do Postgres
  * (reusando {@code PostgresSecret}) injetadas como env vars no auth-service.
  * A spec de validacao de JWT no gateway acrescenta o mesmo
  * {@code JwtSecret} tambem como env var {@code FILAJUSTA_JWT_SECRET} do
  * {@code gateway-service} -- consumido pelo {@code JwtAuthenticationFilter}
  * (unico ponto de validacao de assinatura/expiracao, AD-8).
+ * {@code agendamento-confirmacao-service} (Epic 1, Story 1.1) segue o mesmo
+ * molde de {@code buildAuthService} -- Service Connect (DNS interno
+ * {@code agendamento-confirmacao-service:8082}), credenciais do Postgres
+ * reusando {@code PostgresSecret}; sem SG/porta gRPC nesta story (AD-11 --
+ * adiado para Story 2.1, quando {@code liberacao-repasse-service} existir).
  *
- * <p>Os 3 servicos de dominio deferidos (ver deferred-work.md) nao entram
- * aqui -- seguirao o mesmo padrao (task/service + par de security groups
- * app/health) quando suas stories comecarem. Story 3.0 (relay real do
+ * <p>Os demais servicos de dominio deferidos (ver deferred-work.md) nao
+ * entram aqui -- seguirao o mesmo padrao (task/service + par de security
+ * groups app/health) quando suas stories comecarem. Story 3.0 (relay real do
  * evento {@code ScoreCalculado}) e a primeira excecao parcial: declara o
- * topico SNS FIFO {@code score-calculado.fifo} (AD-3) e a IAM role de
- * publish de {@code triagem-score-service} antes do proprio deploy ECS
- * daquele servico continuar deferido -- quando a
- * {@code FargateTaskDefinition} real for criada, ela deve reusar
- * {@code TriagemScoreServiceTaskRole} (nao criar outra), para que esta
- * policy de publish ja valha para a task. Story 3.1b acrescenta o mesmo
+ * topico SNS FIFO {@code score-calculado.fifo} (AD-3) para que
+ * {@code matching-alocacao-service} (Story 3.1b, abaixo) ja tenha uma fila
+ * assinante -- o publisher real deste topico (a IAM role de publish que
+ * existia como {@code TriagemScoreServiceTaskRole}, do extinto
+ * triagem-score-service) foi removido na Story 1.1 do Epic 1 (AD-1, sem
+ * substituto: nenhum outbox/publisher existe ainda em
+ * agendamento-confirmacao-service, entra na Story 1.2). Story 3.1b acrescenta o mesmo
  * padrao do lado consumidor: fila SQS FIFO assinante do topico (+ DLQ,
  * {@code maxReceiveCount=5}) e a IAM role de consumo de
  * {@code matching-alocacao-service} -- deploy ECS daquele servico tambem
@@ -148,6 +156,31 @@ public class FilaJustaStack extends Stack {
         sgAuthHealth.addIngressRule(Peer.anyIpv4(), Port.tcp(8090),
                 "Excecao estreita de health-check por servico, nao reabre a porta de aplicacao (AD-12)");
 
+        // agendamento-confirmacao-service (Story 1.1, Epic 1) -- mesmo molde
+        // de sgAuthApp/sgAuthHealth acima: SG de app so alcancavel pelo
+        // gateway-service, SG de health-check publico estreito. Sem SG/porta
+        // gRPC nesta story (AD-11 -- gRPC ResolverOuCriarPaciente adiado
+        // para Story 2.1, quando liberacao-repasse-service existir).
+        SecurityGroup sgAgendamentoConfirmacaoApp = SecurityGroup.Builder.create(this, "AgendamentoConfirmacaoAppSg")
+                .vpc(vpc)
+                .description("agendamento-confirmacao-service -- porta de aplicacao, "
+                        + "so alcancavel pelo gateway-service (AD-12)")
+                .allowAllOutbound(true)
+                .build();
+        sgAgendamentoConfirmacaoApp.addIngressRule(sgGatewayApp, Port.tcp(8082),
+                "Somente o security group do gateway-service alcanca a porta de aplicacao "
+                        + "do agendamento-confirmacao-service -- bloqueia bypass direto (AD-12)");
+
+        SecurityGroup sgAgendamentoConfirmacaoHealth =
+                SecurityGroup.Builder.create(this, "AgendamentoConfirmacaoHealthSg")
+                        .vpc(vpc)
+                        .description("agendamento-confirmacao-service -- excecao estreita e nomeada, "
+                                + "so a porta de health-check (AD-8/AD-12)")
+                        .allowAllOutbound(true)
+                        .build();
+        sgAgendamentoConfirmacaoHealth.addIngressRule(Peer.anyIpv4(), Port.tcp(8091),
+                "Excecao estreita de health-check por servico, nao reabre a porta de aplicacao (AD-12)");
+
         SecurityGroup sgPostgres = SecurityGroup.Builder.create(this, "PostgresSg")
                 .vpc(vpc)
                 .description("Postgres 18 (container ECS Fargate) -- so alcancavel pelos servicos donos de schema (AD-9)")
@@ -155,6 +188,9 @@ public class FilaJustaStack extends Stack {
                 .build();
         sgPostgres.addIngressRule(sgAuthApp, Port.tcp(5432),
                 "auth-service acessa seu proprio schema (auth) no cluster Postgres (AD-9)");
+        sgPostgres.addIngressRule(sgAgendamentoConfirmacaoApp, Port.tcp(5432),
+                "agendamento-confirmacao-service acessa seu proprio schema "
+                        + "(agendamento_confirmacao) no cluster Postgres (AD-9)");
 
         SecurityGroup sgPostgresEfs = SecurityGroup.Builder.create(this, "PostgresEfsSg")
                 .vpc(vpc)
@@ -218,11 +254,27 @@ public class FilaJustaStack extends Stack {
             authService.getNode().addDependency(cloudMapNamespace);
         }
 
-        // --- Relay do evento ScoreCalculado (Story 3.0, AD-3) --------------
-        // So o topico + a role de publish -- deploy do triagem-score-service
-        // no ECS continua deferido (deferred-work.md, ver javadoc da classe).
+        // --- agendamento-confirmacao-service (task/service, Story 1.1) ----
+        FargateService agendamentoConfirmacaoService = buildAgendamentoConfirmacaoService(
+                cluster, vpc, sgAgendamentoConfirmacaoApp, sgAgendamentoConfirmacaoHealth, dbSecret);
+
+        // Conecta ao Postgres via JDBC -- mesma corrida do namespace Cloud
+        // Map do Service Connect ja documentada para postgresService/authService acima.
+        agendamentoConfirmacaoService.getNode().addDependency(postgresService);
+        if (cloudMapNamespace != null) {
+            agendamentoConfirmacaoService.getNode().addDependency(cloudMapNamespace);
+        }
+
+        // --- Topico do evento ScoreCalculado (Epic 3, AD-3) ----------------
+        // So o topico -- a role de publish do extinto triagem-score-service
+        // (TriagemScoreServiceTaskRole) foi removida nesta story (Story 1.1,
+        // AD-1): nenhum publisher outbox existe ainda em
+        // agendamento-confirmacao-service (entra na Story 1.2), e recriar a
+        // role sem uso seria uma role fantasma. O topico continua existindo
+        // so porque buildScoreCalculadoConsumerQueue (Story 3.1b, abaixo)
+        // ja assina nele -- quando o outbox real deste servico existir, a
+        // role/publish sera adicionada de volta na story correspondente.
         Topic scoreCalculadoTopic = buildScoreCalculadoTopic();
-        buildTriagemScoreServiceTaskRole(scoreCalculadoTopic);
 
         // --- Consumidor do evento ScoreCalculado (Story 3.1b) --------------
         // Fila SQS FIFO assinante do topico acima + DLQ + a role de consumo
@@ -253,6 +305,9 @@ public class FilaJustaStack extends Stack {
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
         CfnOutput.Builder.create(this, "GatewayServiceName").value(gatewayService.getServiceName()).build();
         CfnOutput.Builder.create(this, "AuthServiceName").value(authService.getServiceName()).build();
+        CfnOutput.Builder.create(this, "AgendamentoConfirmacaoServiceName")
+                .value(agendamentoConfirmacaoService.getServiceName())
+                .build();
         CfnOutput.Builder.create(this, "PostgresServiceName").value(postgresService.getServiceName()).build();
         CfnOutput.Builder.create(this, "ScoreCalculadoTopicArn").value(scoreCalculadoTopic.getTopicArn()).build();
         CfnOutput.Builder.create(this, "ScoreCalculadoConsumerQueueUrl")
@@ -277,18 +332,6 @@ public class FilaJustaStack extends Stack {
                 .fifo(true)
                 .contentBasedDeduplication(false)
                 .build();
-    }
-
-    private Role buildTriagemScoreServiceTaskRole(final Topic scoreCalculadoTopic) {
-        Role role = Role.Builder.create(this, "TriagemScoreServiceTaskRole")
-                .assumedBy(new ServicePrincipal("ecs-tasks.amazonaws.com"))
-                .description("Task role de triagem-score-service (Story 3.0, RelaySnsPublisherJob) -- criada "
-                        + "antes do deploy ECS daquele servico (deferred-work.md) so para a policy de publish "
-                        + "no topico SNS FIFO ja existir; reusar esta role (nao criar outra) quando a "
-                        + "FargateTaskDefinition for adicionada.")
-                .build();
-        scoreCalculadoTopic.grantPublish(role);
-        return role;
     }
 
     private Queue buildScoreCalculadoConsumerQueue(final Topic scoreCalculadoTopic) {
@@ -668,6 +711,75 @@ public class FilaJustaStack extends Stack {
                                 .portMappingName("auth-service")
                                 .dnsName("auth-service")
                                 .port(8081)
+                                .build()))
+                        .build())
+                .build();
+    }
+
+    private FargateService buildAgendamentoConfirmacaoService(final Cluster cluster, final IVpc vpc,
+                                                                final SecurityGroup sgAgendamentoConfirmacaoApp,
+                                                                final SecurityGroup sgAgendamentoConfirmacaoHealth,
+                                                                final Secret dbSecret) {
+        LogGroup logGroup = LogGroup.Builder.create(this, "AgendamentoConfirmacaoLogGroup")
+                .logGroupName("/filajusta/agendamento-confirmacao-service")
+                .retention(RetentionDays.THREE_DAYS)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        FargateTaskDefinition taskDef = FargateTaskDefinition.Builder.create(this, "AgendamentoConfirmacaoTaskDef")
+                .cpu(256)
+                .memoryLimitMiB(512)
+                .runtimePlatform(arm64Platform())
+                .build();
+
+        taskDef.addContainer("agendamento-confirmacao-service", ContainerDefinitionOptions.builder()
+                .image(ContainerImage.fromAsset("..", AssetImageProps.builder()
+                        .file("agendamento-confirmacao-service/Dockerfile")
+                        .build()))
+                .containerName("agendamento-confirmacao-service")
+                .logging(LogDriver.awsLogs(software.amazon.awscdk.services.ecs.AwsLogDriverProps.builder()
+                        .streamPrefix("agendamento-confirmacao-service")
+                        .logGroup(logGroup)
+                        .build()))
+                .portMappings(List.of(
+                        // Nome exigido pelo Service Connect (portMappingName abaixo);
+                        // a porta de health-check (8091) nao precisa de DNS interno.
+                        PortMapping.builder().name("agendamento-confirmacao-service").containerPort(8082).build(),
+                        PortMapping.builder().containerPort(8091).build()))
+                // Credenciais do Postgres reusam o secret admin da Story 1.1
+                // (mesmo padrao de buildAuthService) -- nunca no repositorio
+                // (NFR-6). Sem segredo gRPC/SNS nesta story (AD-1 -- nenhum
+                // dos dois entra no escopo da Story 1.1).
+                .secrets(Map.of(
+                        "SPRING_DATASOURCE_USERNAME",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "username"),
+                        "SPRING_DATASOURCE_PASSWORD",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "password")))
+                .build());
+
+        return FargateService.Builder.create(this, "AgendamentoConfirmacaoService")
+                .cluster(cluster)
+                .taskDefinition(taskDef)
+                .desiredCount(1)
+                .assignPublicIp(true)
+                .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
+                // Duas SGs: app (so gateway) + health (excecao publica estreita) -- AD-8/AD-12.
+                // Sem terceira SG/porta gRPC nesta story (AD-11 -- adiado
+                // para Story 2.1, quando liberacao-repasse-service existir).
+                .securityGroups(List.of(sgAgendamentoConfirmacaoApp, sgAgendamentoConfirmacaoHealth))
+                .circuitBreaker(DeploymentCircuitBreaker.builder().rollback(true).build())
+                .minHealthyPercent(50)
+                .maxHealthyPercent(200)
+                // DNS interno "agendamento-confirmacao-service:8082" (SEM
+                // sufixo de namespace, mesmo padrao de buildAuthService) --
+                // e como o gateway-service alcanca POST /v1/agendamentos
+                // (rota nova em gateway-service/application.yml).
+                .serviceConnectConfiguration(ServiceConnectProps.builder()
+                        .namespace(NAMESPACE)
+                        .services(List.of(ServiceConnectService.builder()
+                                .portMappingName("agendamento-confirmacao-service")
+                                .dnsName("agendamento-confirmacao-service")
+                                .port(8082)
                                 .build()))
                         .build())
                 .build();
