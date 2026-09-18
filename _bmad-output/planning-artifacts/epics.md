@@ -1,423 +1,424 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
-  - _bmad-output/planning-artifacts/prds/prd-Fase5-2026-09-05/prd.md
-  - _bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-06/ARCHITECTURE-SPINE.md
-  - _bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-06/solution-design.md
+  - _bmad-output/planning-artifacts/prds/prd-Fase5-2026-09-16/prd.md
+  - _bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-17/ARCHITECTURE-SPINE.md
+  - _bmad-output/specs/spec-confirmasus/SPEC.md
 ---
 
-# FilaJusta - Epic Breakdown
+# ConfirmaSUS - Epic Breakdown
 
 ## Overview
 
-Este documento decompõe o PRD (`prd-Fase5-2026-09-05`) e a Arquitetura final (`ARCHITECTURE-SPINE.md`, 13 ADs) do FilaJusta em epics e stories implementáveis. Não há documento de UX — o MVP é backend-only (Swagger/Postman), conforme Non-Goals do PRD §5.
+Este documento decompõe o PRD (`prd-Fase5-2026-09-16`), a Arquitetura final (`ARCHITECTURE-SPINE.md`, 13 ADs) e o SPEC distilado (`spec-confirmasus/SPEC.md`, CAP-1..14) do ConfirmaSUS em epics e stories implementáveis. Não há documento de UX — o MVP é backend-only (Swagger/Postman), conforme Non-Goals do PRD §5. Este documento **substitui** `epics-filajusta-2026-09-05.md` (arquivado), do produto anterior descontinuado por restrição legal.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR-1: Um Profissional de Triagem pode submeter, via API, uma Triagem estruturada (CPF, sintomas, sinais vitais, gravidade percebida); retorna `201` com Score já calculado; sinais vitais ausentes/fora de faixa ou CPF inválido retornam `400`.
-FR-2: O sistema associa a Triagem a um Paciente existente pelo CPF ou cria um registro mínimo, gerando/reutilizando um ID interno; CPF nunca propaga além desse ponto.
-FR-3: O sistema calcula o Score de Prioridade Clínica de forma síncrona na resposta da Triagem, sem bloquear por propagação a Matching/Auditoria.
-FR-4: O algoritmo de Score é determinístico e versionado (mesmas entradas → mesmo Score).
-FR-5: O sistema sugere, para um Recurso disponível, o Paciente elegível de maior Prioridade Efetiva compatível, com regras de desempate por especificidade/ociosidade (Recursos) e price-time priority (Pacientes); nunca aloca automaticamente.
-FR-6: Um Regulador pode consultar a fila atual ordenada por Prioridade Efetiva e a Sugestão de Matching para um Recurso específico.
-FR-7: O sistema ajusta a Prioridade Efetiva por Urgência Acumulada (Aging) linear com teto (`score + min(k × tempo_espera, teto)`), teto = 20% da amplitude do Score, atingido em 12–24h simuladas.
-FR-8: Toda decisão (Score calculado, Sugestão gerada, confirmação/recusa, Liberação) gera um registro append-only no Log Auditável com fatores, timestamp e IDs internos.
-FR-9: Um Auditor pode consultar o histórico completo de decisões por Paciente/Recurso (por CPF mascarado ou ID interno), com justificativa legível.
-FR-10: O sistema carrega dados sintéticos (unidades, leitos, especialistas) via seed reproduzível através de uma Camada Adaptadora que simula SISREG/DATASUS.
-FR-11: Um usuário sintético pré-cadastrado autentica-se via `POST /login` (usuário/senha mockados) contra um serviço de autenticação dedicado e recebe um token assinado; a API exige esse token para qualquer endpoint não público/de login; sem distinção de papéis nesta fase.
-FR-12: Um Regulador pode confirmar a Sugestão de Matching (cria Alocação) ou recusá-la com motivo obrigatório (Recurso permanece disponível, próxima sugestão é recalculada).
-FR-13: Um Recurso alocado retorna automaticamente ao pool após tempo de atendimento simulado, tornando-se elegível para nova Sugestão de Matching.
+FR-1: O sistema carrega, via seed, um conjunto de Agendamentos sintéticos (Paciente por CPF, Recurso/especialidade, unidade, data/hora), simulando uma Camada Adaptadora sobre sistemas oficiais do SUS.
+FR-2: O CPF recebido na carga do Agendamento é resolvido para um ID de Paciente interno (gerado ou reaproveitado pelo sistema); CPF com formato/checksum inválido rejeita o registro de seed correspondente.
+FR-3: Ao entrar na Janela de Confirmação de um Agendamento, o sistema publica uma notificação (mock) pedindo a confirmação de presença do Paciente, exatamente uma vez por Agendamento por abertura de janela.
+FR-4: Um Paciente confirma presença em um Agendamento dentro da Janela de Confirmação, via API; confirmação é idempotente e impede liberação da vaga mesmo que o prazo expire depois.
+FR-5: Um Paciente recusa presença em um Agendamento dentro da Janela de Confirmação, via API; a Recusa dispara a liberação da vaga imediatamente.
+FR-6: Se a Janela de Confirmação expira sem Confirmação nem Recusa, o sistema marca o Agendamento como Não Confirmado automaticamente, sem intervenção manual.
+FR-7: Um Agendamento com Recusa ou Não Confirmado tem sua Vaga marcada como Liberada, disparando a consulta à Lista de Espera e a geração da Sugestão de Repasse.
+FR-8: Qualquer usuário autenticado pode consultar a Lista de Espera de um tipo de Recurso, ordenada exclusivamente por ordem de chegada da solicitação — nunca por gravidade ou critério clínico.
+FR-9: Ao liberar uma vaga, o sistema gera automaticamente uma Sugestão de Repasse apontando o próximo Paciente da Lista de Espera daquele Recurso, e notifica (mock) o Gestor de Agenda responsável.
+FR-10: Um Gestor de Agenda confirma uma Sugestão de Repasse, criando um Repasse Confirmado, definitivo; tentar confirmar uma sugestão já resolvida retorna erro de conflito.
+FR-11: Um Gestor de Agenda recusa uma Sugestão de Repasse; o sistema gera uma nova Sugestão para o próximo Paciente da Lista de Espera, pulando os recusados.
+FR-12: Toda notificação, Confirmação, Recusa, transição para Não Confirmado, Liberação, Sugestão de Repasse e decisão de repasse é registrada no Log Auditável (append-only) com timestamp e motivo.
+FR-13: Um Auditor consulta o histórico completo do Log Auditável de um Paciente ou de um Agendamento específico, ordenado cronologicamente.
+FR-14: Um usuário sintético pré-cadastrado autentica-se via `POST /v1/auth/login` contra o `auth-service` já implementado, recebendo um JWT validado pelo `gateway-service`; sem RBAC aplicado nesta fase.
 
 ### NonFunctional Requirements
 
-NFR-1 (Continuidade sob falha parcial): Triagem continua aceitando e pontuando mesmo se Matching/Auditoria estiverem indisponíveis; propagação processada quando o serviço voltar (não perdida).
-NFR-2 (Observabilidade mínima): logs estruturados e health-check por serviço.
-NFR-3 (Reprodutibilidade): todo o sistema (serviços + seed) sobe com um único comando, sem passos manuais.
-NFR-4 (Contratos versionados): comunicação entre serviços usa contratos versionados (REST/proto/evento), evitando quebras silenciosas.
-NFR-5 (Testes automatizados): cobertura de linha ≥90% (JaCoCo) na camada de domínio por serviço + teste de mutação (PIT) na mesma camada + testes de integração dos contratos entre serviços/Camada Adaptadora + testes de aceitação BDD (Cucumber-JVM) cobrindo o fluxo ponta a ponta.
-NFR-6 (Segredos fora do código): credenciais/segredos não versionados no repositório.
-NFR-7 (Custo): privilegiar baixo custo e fácil desligamento (Free Tier, recursos pausáveis/destruíveis); evitar serviços gerenciados caros de operação contínua (ex.: NAT Gateway 24/7); manter padrão de scripts `deploy/pause/destroy`.
-NFR-8 (Privacidade/LGPD by design): dados de Pacientes sintéticos; CPF e dados clínicos tratados por minimização e limitação de propagação; CPF não transita além da fronteira de ingestão; toda resposta de API usa ID interno como identificador primário, CPF mascarado quando exibido.
+NFR-1 (Continuidade sob falha parcial): o fluxo de Confirmação/Recusa continua aceitando respostas do Paciente mesmo se o `auditoria-service` estiver temporariamente indisponível; a propagação para auditoria é processada quando ele voltar, nunca perdida.
+NFR-2 (Observabilidade mínima): logs estruturados e health-check por serviço, com `X-Correlation-Id` propagado ponta a ponta (herdado do `gateway-service`).
+NFR-3 (Reprodutibilidade): todo o sistema (5 serviços + `seed-adapter` + banco + mensageria) sobe com um único comando (`cdk deploy`), sem passos manuais.
+NFR-4 (Contratos versionados): comunicação entre serviços usa contratos versionados — schema de evento versionado (aditivo dentro de major version, `version` incompatível vai para DLQ) e versionamento de path nos endpoints REST (`/v1/`) e de pacote proto (`vN`).
+NFR-5 (Testes automatizados): cobertura de linha ≥90% (JaCoCo) na camada de domínio de cada microsserviço + teste de mutação (PIT) na mesma camada + testes de integração cobrindo os contratos entre serviços + testes de aceitação BDD (Cucumber-JVM) cobrindo o ciclo único ponta a ponta.
+NFR-6 (Segredos fora do código): credenciais e segredos de configuração não ficam versionados no repositório (env/AWS Secrets Manager).
+
+**Definition of Done por story (NFR-5, aplica-se a todas as stories abaixo, não repetido AC a AC):** cobertura ≥90% (JaCoCo) + PIT na camada de domínio do serviço tocado + teste de integração do contrato exercitado + cenário Cucumber/BDD quando a story participa do ciclo ponta a ponta demonstrado em vídeo.
 
 ### Additional Requirements
 
-- **Sem starter template** de framework citado na Arquitetura — a estrutura de pastas de cada serviço (`domain/application/infrastructure`, Clean Architecture) está definida no Structural Seed da spine e deve ser seguida desde a Epic 1 Story 1 de cada serviço.
-- 3 serviços de runtime de domínio (`triagem-score-service`, `matching-alocacao-service`, `auditoria-service`) + `gateway-service` + `auth-service` (serviço de suporte transversal) + job `seed-adapter` (Lambda/Quarkus) — decomposição fixada em AD-1.
-- `auth-service` (Spring Boot) tem schema próprio (`auth`), usuários sintéticos pré-cadastrados via migration (não via `seed-adapter`), expõe `POST /v1/auth/login` e emite JWT assinado (segredo compartilhado com o gateway, mesmo padrão do AD-7); `gateway-service` valida a assinatura/expiração do JWT em vez de comparar um bearer estático; claim de `role` só informativo, sem RBAC aplicado — AD-14.
-- `seed-adapter` autentica-se com um usuário técnico pré-cadastrado em `auth-service` para obter seu próprio token antes de chamar o gateway (AD-1/AD-14).
-- Clean Architecture (`domain/` sem framework → `application/command|query/` → `infrastructure/`) e CQRS lógico por serviço — AD-2.
-- Propagação de eventos de domínio via Outbox + tópico SNS FIFO + fila SQS FIFO por consumidor + DLQ (`maxReceiveCount=5`) — AD-3.
-- Fila SQS **standard** separada e dedicada para o delay da Liberação de Recurso (FIFO não suporta delay por mensagem) — AD-3/AD-6.
-- Score ∈ [0,100], dono exclusivo `triagem-score-service`; réplica somente-leitura em `matching-alocacao-service` via upsert idempotente (last-write-wins por `occurredAt`, desempate por `eventId`); bootstrap REST síncrono em boot a frio de réplica vazia — AD-4.
-- Fórmula de Aging fixada: `teto=20`, `k≈1,111 pontos/hora` (18h) — AD-4.
-- `especificidadeRank` de Recurso fixado no seed: 1=leito comum, 2=leito UTI, 3=leito UTI especializado, 4=especialista; desempates determinísticos por `recursoId`/sequência de Triagem — AD-5.
-- Ciclo de vida do Recurso: constraint única de banco `(recursoId, status=ativa)`; delay de Liberação via SQS standard (2–5 min por tipo, ≤15 min); consumidor idempotente por `alocacaoId`; `LiberarRecurso` não exposto via API — AD-6.
-- CPF confinado a `triagem-score-service`; dois endpoints gRPC internos exclusivos (`ResolveCpfParaId`, `ObterCpfMascarado`) protegidos por segredo compartilhado em metadata gRPC além de isolamento de rede; máscara `123.***.***-09` — AD-7.
-- `gateway-service` (Spring Cloud Gateway) é o único ponto de validação de token; health-check público via exceção estreita de security group — AD-8.
-- Um único cluster PostgreSQL 18, schema e usuário próprios por serviço (`triagem_score`, `matching_alocacao`, `auditoria`, `auth`), `REVOKE` cross-schema, regra ArchUnit em CI, migrations versionadas por serviço, snapshot diário (retenção 1–3 dias) — AD-9.
-- `auditoria-service` append-only, dedup por `eventId`; `SugestaoGerada` só registrado quando o Paciente sugerido muda (rastreamento "última sugestão" mantido por `matching-alocacao-service`, tabela `ultima_sugestao_registrada`) — AD-10.
-- Faixas fisiológicas de Triagem fixadas: FC 40–200 bpm, PAS 60–260 mmHg, PAD 30–150 mmHg, SpO2 50–100%, FR 5–60 irpm, Temp 30–42°C, todos obrigatórios, PAS > PAD — AD-11.
-- Topologia de rede: VPC subnet pública única (2 AZs, sem NAT Gateway), ECS Fargate `assignPublicIp=ENABLED`, isolamento por security group (gateway → serviços; health-check estreito; gRPC auditoria↔triagem liberado explicitamente) — AD-12.
-- Runtime misto deliberado: Spring Boot 4.1.1/Spring Cloud 2025.1.2+ para os 5 serviços principais (incluindo `auth-service`); Quarkus só para `seed-adapter` (Lambda) — AD-13.
-- Convenções: eventos em PascalCase passado; IDs = UUID v4; datas ISO-8601 UTC; envelope de evento `{eventId, eventType, occurredAt, version, correlationId, payload}`; schema companion JSON Schema versionado; mudanças de schema só aditivas (versão incompatível → DLQ); erros REST em RFC 7807; gRPC com status codes padrão; contratos versionados (`/v1/`, proto `vN`).
-- `correlationId` gerado no gateway por requisição, propagado em HTTP/gRPC/evento, para rastreio ponta a ponta sem tracing distribuído completo.
-- `seed-adapter` faz upsert de Recursos por `codigoRecurso` (idempotente a redeploy); entra pelo gateway como qualquer cliente (mesmo token mockado).
-- Deferred/fora de escopo de arquitetura (não gerar stories para calibração fina além de deixá-los configuráveis): calibração fina de k/teto e duração de Liberação (já centralizados em `application.yml`), RDS gerenciado vs. Postgres em container (decisão de custo, cabe a uma story de infra), estratégia de migration (Flyway vs. Liquibase), HA full-produção, tracing distribuído completo (X-Ray).
+| AD | Decisão | Onde se aplica |
+| --- | --- | --- |
+| AD-1 | Não é greenfield para 2 dos 3 serviços de domínio: `triagem-score-service`→`agendamento-confirmacao-service` e `matching-alocacao-service`→`liberacao-repasse-service` são renomeados e podados (não recriados); `auditoria-service` é novo; `seed-adapter` entra só pelo gateway e faz upsert idempotente nesta ordem: catálogo de Recurso → Agendamentos → Lista de Espera | Preparação das Stories 1.1 e 2.1; ordem de execução do Epic 4 |
+| AD-2 | Clean Architecture (`domain/` sem framework → `application/command\|query/` → `infrastructure/`) e CQRS lógico por serviço, mesmo banco sem read-model separado | Todos os serviços de domínio |
+| AD-3 | Outbox (mesma transação do comando) + relay poller + SNS FIFO + SQS FIFO dedicada por consumidor + DLQ (`maxReceiveCount=5`, investigada manualmente — sem story dedicada, fora do escopo do MVP); `MessageGroupId` por agregado (`agendamentoId`/`recursoId`), `MessageDeduplicationId=eventId` | Todo evento publicado pelos Epics 1–3 |
+| AD-4/AD-5 | Abertura/expiração da Janela de Confirmação via dois pollers `@Scheduled` com escrita condicional (`UPDATE ... WHERE status = <esperado>`) — não fila de delay; cadência exata do poller é `[Deferred]` para `bmad-build` | Stories 1.2, 1.5 |
+| AD-7 | `auditoria-service`: só leitura + consumidor de eventos via SQS FIFO, nunca chamado de forma síncrona | Epic 3 |
+| AD-8 | gRPC interno `ResolverOuCriarPaciente(cpf) -> pacienteId`, exclusivo `liberacao-repasse-service`→`agendamento-confirmacao-service`, chamado pelo `seed-adapter` em tempo de deploy (timeout curto, sem retry); CPF nunca persistido fora de `agendamento-confirmacao-service` | Stories 1.1, 2.1 |
+| AD-9/AD-13 | Emissão de JWT (HS256) via `auth-service`, validação só no `gateway-service`; claim `role` puramente informativo, sem RBAC aplicado | FR-14, cross-cutting (explícito nas Stories 2.2 e 3.2) |
+| AD-10 | Isolamento por schema num único cluster PostgreSQL 18 (`agendamento_confirmacao`, `liberacao_repasse`, `auditoria`, `auth`), `REVOKE` cross-schema, enforcement via ArchUnit obrigatório no CI | CDK/schema de cada serviço (Stories 1.1, 2.1, 3.1) |
+| AD-11 | VPC subnet pública única (2 AZs, sem NAT Gateway), Fargate `assignPublicIp=ENABLED`, security group por serviço — só o SG do `gateway-service` alcança as portas HTTP de app; gRPC liberado só entre os SGs de `liberacao-repasse-service` e `agendamento-confirmacao-service` | CDK de cada serviço (Stories 1.1, 2.1, 3.1) |
+| AD-12 | Runtime misto deliberado: Spring Boot/Spring Cloud nos 5 serviços de aplicação; Quarkus só no `seed-adapter` (cold-start otimizado) | Todo o sistema |
+| — | Stack fixada: Java 25, Spring Boot 4.1.1, Spring Cloud 2025.1.3, Spring gRPC 1.1.1, PostgreSQL 18, JaCoCo ≥0.8.14, PIT ≥1.30.0, Cucumber-JVM, Testcontainers — ver Architecture Spine para versões completas | Todo o sistema |
+| — | Convenção de erro (cross-cutting, sustenta NFR-4): `409` + `{error, motivo}` para conflito de estado; `422` para entrada inválida (CPF, IDs inexistentes); `404` só para recurso/rota inexistente — nunca para "sem histórico"/"sem candidatos", que são respostas de sucesso vazias | Toda API REST dos 4 serviços |
 
 ### UX Design Requirements
 
-Não aplicável — o MVP é backend-only (Swagger/Postman), sem frontend (PRD §5 Non-Goals). Nenhum documento de UX foi encontrado ou é esperado.
+Não aplicável — nenhum documento de UX encontrado; entrega é backend-only (Non-Goal explícito do PRD §5, demonstrável via Swagger/Postman).
 
 ### FR Coverage Map
 
-FR-1: Epic 2 - Registro de Triagem
-FR-2: Epic 2 - Identificação mínima do Paciente
-FR-3: Epic 2 - Cálculo do Score
-FR-4: Epic 2 - Determinismo do Score
-FR-5: Epic 3 - Sugestão de Matching
-FR-6: Epic 3 - Consulta da fila e sugestões
-FR-7: Epic 3 - Aging da Prioridade Efetiva
-FR-8: Epic 4 - Registro de decisão (Log Auditável)
-FR-9: Epic 4 - Consulta de auditoria
-FR-10: Epic 5 - Carga de dados sintéticos
-FR-11: Epic 1 - Autenticação via auth-service dedicado
-FR-12: Epic 3 - Confirmação/recusa da sugestão
-FR-13: Epic 3 - Liberação de Recurso
+FR-1: Epic 4 — orquestração completa da carga sintética (catálogo de Recurso → Agendamentos → Lista de Espera); endpoints de escrita subjacentes entregues como base pelos Epics 1 e 2.
+FR-2: Epic 1 — resolução de CPF para ID de Paciente interno.
+FR-3: Epic 1 — notificação (mock) ao abrir a Janela de Confirmação.
+FR-4: Epic 1 — Confirmação de Presença.
+FR-5: Epic 1 — Recusa Ativa.
+FR-6: Epic 1 — Expiração por Não-Resposta.
+FR-7: Epic 1 — Liberação da Vaga.
+FR-8: Epic 2 — Consulta da Lista de Espera.
+FR-9: Epic 2 — Sugestão de Repasse automática.
+FR-10: Epic 2 — Confirmação do Repasse.
+FR-11: Epic 2 — Recusa do Repasse.
+FR-12: Epic 3 — Registro em Log Auditável.
+FR-13: Epic 3 — Consulta de Auditoria.
+FR-14: Cross-cutting — já implementado (`auth-service`/`gateway-service` reaproveitados sem alteração); validado como critério de aceite em todo endpoint de todos os epics, sem epic dedicado.
+
+### NFR Coverage Map
+
+NFR-1: Stories 1.3–1.5, 2.3–2.5 publicam via outbox independentemente do `auditoria-service` estar no ar (Epic 3 nunca é chamado de forma síncrona, AD-7).
+NFR-2: ACs de provisionamento CDK (Stories 1.1, 2.1, 3.1) — health-check público e `X-Correlation-Id` propagado.
+NFR-3: Epic 4 completo — dataset de demonstração sobe via `cdk deploy` único comando.
+NFR-4: Convenção de erro + versionamento de evento/endpoint (tabela de Additional Requirements).
+NFR-5: Definition of Done por story (nota acima, Requirements Inventory).
+NFR-6: ACs de provisionamento CDK (Secrets Manager, Stories 1.1, 2.1, 3.1).
 
 ## Epic List
 
-### Epic 1: Fundação da Plataforma — Autenticação Dedicada
-Sobe o sistema completo (gateway + `auth-service` + serviços de domínio + Postgres + mensageria) com um único comando. Usuários sintéticos pré-cadastrados (Regulador, Profissional de Triagem, Auditor) autenticam-se via `POST /login` contra o `auth-service` dedicado e recebem um JWT validado pelo gateway em cada chamada.
-**FRs covered:** FR-11
-**Also addresses:** NFR-2, NFR-3, NFR-4, NFR-6, NFR-7; AD-1, AD-8, AD-9, AD-12, AD-13, AD-14
+1. **Epic 1: Confirmação Ativa de Presença** — FR-2–FR-7 (+ base de FR-1) — `agendamento-confirmacao-service`
+2. **Epic 2: Liberação e Repasse de Vaga** — FR-8–FR-11 (+ base de FR-1) — `liberacao-repasse-service`
+3. **Epic 3: Log Auditável e Consulta de Auditoria** — FR-12, FR-13 — `auditoria-service`
+4. **Epic 4: Carga de Dados Sintéticos (Camada Adaptadora)** — FR-1 completa — `seed-adapter`
 
-### Epic 2: Triagem Estruturada e Score de Prioridade Clínica
-Profissional de Triagem registra dados clínicos e recebe, na mesma resposta, o Score já calculado e explicado por fatores contribuintes.
-**FRs covered:** FR-1, FR-2, FR-3, FR-4
-**Also addresses:** NFR-1, NFR-5, NFR-8; AD-2, AD-3, AD-4, AD-7, AD-11
+## Epic 1: Confirmação Ativa de Presença
 
-### Epic 3: Matching, Alocação e Liberação de Recursos
-Regulador consulta a fila priorizada, recebe sugestão justificada para um Recurso, confirma/recusa, e o Recurso volta automaticamente ao pool após o atendimento — fechando sugestão → confirmação → uso → liberação, com Aging garantindo que ninguém fique represado.
-**FRs covered:** FR-5, FR-6, FR-7, FR-12, FR-13
-**Also addresses:** NFR-1, NFR-5; AD-3, AD-4, AD-5, AD-6
+Paciente é identificado por CPF, notificado ao abrir a Janela de Confirmação, e pode confirmar/recusar presença — ou ter a ausência registrada automaticamente, liberando a vaga. Serviço: `agendamento-confirmacao-service` (renomeado/podado de `triagem-score-service`, AD-1). FRs: FR-2, FR-3, FR-4, FR-5, FR-6, FR-7 (+ base de escrita para FR-1).
 
-### Epic 4: Log Auditável e Explicabilidade
-Auditor consulta o histórico completo e legível de toda decisão (score, sugestão, confirmação, recusa, liberação) para qualquer Paciente/Recurso.
-**FRs covered:** FR-8, FR-9
-**Also addresses:** NFR-5, NFR-8; AD-3, AD-7, AD-10
+### Story 1.1: Registrar Agendamento e Resolver Paciente por CPF
 
-### Epic 5: Camada Adaptadora — Carga de Dados Sintéticos
-O `seed-adapter` carrega automaticamente, num único comando de deploy, um dataset sintético de unidades de saúde, leitos e especialistas via Triagem/Recurso — dando ao Regulador, ao Profissional de Triagem e ao Auditor um ambiente de demonstração pronto para uso, sem passos manuais. Depende de `auth-service` (Epic 1, para o seed se autenticar), `triagem-score-service` (Epic 2, API de Paciente/Triagem) e `matching-alocacao-service` (Epic 3, API de Recurso) já existirem — por isso vem por último, mesmo sendo uma FR "de fundação" no PRD.
-**FRs covered:** FR-10
-**Also addresses:** NFR-3, NFR-7; AD-1, AD-13
+Como sistema de ingestão (seed-adapter),
+quero registrar um Agendamento associando-o a um Paciente resolvido por CPF,
+para que o Agendamento exista pronto para a Janela de Confirmação, sem o CPF circular além deste ponto.
 
-**Dependências:** Epic 1 é pré-requisito de todos. Epic 2 é independente após Epic 1. Epic 3 consome eventos de Score do Epic 2. Epic 4 consome eventos de Score (Epic 2) e de Matching/Alocação/Liberação (Epic 3). Epic 5 depende de Epic 1 (auth), Epic 2 (API de Triagem/Paciente) e Epic 3 (API de Recurso) — é o único epic sequenciado por uma dependência técnica dura, não por valor incremental; ainda assim não bloqueia nenhum dos anteriores (cada um funciona e é demonstrável sem o seed, só com dados inseridos manualmente via API).
-
-## Epic 1: Fundação da Plataforma — Autenticação Dedicada
-
-Sobe o sistema completo (gateway + `auth-service` + serviços de domínio + Postgres + mensageria) com um único comando. Usuários sintéticos pré-cadastrados (Regulador, Profissional de Triagem, Auditor) autenticam-se via `POST /login` contra o `auth-service` dedicado e recebem um JWT validado pelo gateway em cada chamada.
-
-### Story 1.1: Subida do Ambiente com Health-Check Público
-
-As a operador do sistema (Regulador/Auditor/equipe técnica),
-I want subir toda a infraestrutura base (VPC, cluster ECS Fargate, cluster Postgres, mensageria) com um único comando,
-So that eu possa confirmar que a plataforma está no ar antes de qualquer outra operação, sem passos manuais.
+**Preparação do serviço** (pré-requisito de implementação, fora do escopo de teste BDD): `triagem-score-service` é renomeado para `agendamento-confirmacao-service`, mantendo `Paciente`/`Cpf`/`ResolverOuCriarPaciente` e descartando por completo `Triagem`/`Score`/`GravidadePercebida`/`SinaisVitais`/`CalculadorDeScore` (sem migração de dado, sem endpoint remanescente) — AD-1. Definition of Done desta etapa: build verde, sem classe/endpoint do domínio antigo remanescente.
 
 **Acceptance Criteria:**
 
-**Given** o ambiente não está provisionado
-**When** executo o script de deploy
-**Then** a VPC (subnet pública única, 2 AZs, sem NAT Gateway), o cluster Postgres 18 e as tasks ECS Fargate sobem sem intervenção manual adicional (NFR-3, AD-12)
+**Given** um CPF com formato/checksum válido e dados de Recurso/data-hora referenciando um Recurso existente
+**When** um Agendamento é registrado
+**Then** um Paciente é criado ou reaproveitado (ID interno) e o Agendamento é persistido com `pacienteId`, `recursoId`, `dataHoraAgendamento`, estado inicial `AGUARDANDO_JANELA`
+**And** nenhum componente persiste o CPF fora deste serviço — apenas o `pacienteId` circula em eventos e consultas
 
-**Given** o ambiente está no ar
-**When** faço `GET /actuator/health` em `gateway-service`
-**Then** recebo `200` sem precisar de token (rota pública, AD-8/AD-12)
+**Given** um CPF com formato/checksum inválido
+**When** o registro do Agendamento é tentado
+**Then** o registro é rejeitado com erro `422`, sem criar Paciente nem Agendamento
 
-**Given** os security groups configurados
-**When** uma requisição tenta alcançar a porta de aplicação de um serviço por trás do gateway diretamente (bypass)
-**Then** a conexão é recusada — só o security group do gateway e a exceção de health-check têm acesso (AD-12)
-**And** os scripts `pause`/`destroy` (herdados da Fase 4) escalam as tasks a 0 ou destroem o ambiente sem deixar recursos órfãos cobrando fora da janela de demo (NFR-7)
+**Given** um `recursoId` inexistente ou uma `dataHoraAgendamento` inválida/no passado
+**When** o registro do Agendamento é tentado
+**Then** o registro é rejeitado com erro `422`, sem persistir o Agendamento
 
-### Story 1.2: Autenticação de Usuário via auth-service
+**Given** o construto CDK ainda inexistente para este serviço
+**When** o deploy é executado
+**Then** `agendamento-confirmacao-service` sobe em Fargate com schema próprio `agendamento_confirmacao` (AD-10), security group liberando só o SG do `gateway-service` na porta HTTP e o SG do `liberacao-repasse-service` na porta gRPC (AD-11), rota registrada no gateway, health-check público, e segredos via variável de ambiente/Secrets Manager (NFR-2/NFR-6)
 
-As a Regulador, Profissional de Triagem ou Auditor,
-I want autenticar-me com usuário e senha mockados e usar o token recebido nas chamadas seguintes,
-So that eu acesse os endpoints protegidos da API sem depender de um valor fixo compartilhado manualmente.
+### Story 1.2: Abertura da Janela de Confirmação e Notificação
 
-**Acceptance Criteria:**
-
-**Given** um usuário sintético pré-cadastrado (via migration em `auth-service`)
-**When** faço `POST /v1/auth/login` com usuário e senha corretos
-**Then** recebo `200` com um JWT assinado (AD-14)
-
-**Given** credenciais inválidas
-**When** faço `POST /v1/auth/login`
-**Then** recebo `401`
-
-**Given** um JWT válido emitido por `auth-service`
-**When** chamo qualquer endpoint protegido através do gateway
-**Then** a requisição é encaminhada normalmente — gateway valida assinatura e expiração (AD-8)
-
-**Given** nenhum token, um token expirado, ou um token com assinatura inválida
-**When** chamo um endpoint protegido
-**Then** recebo `401`
-**And** o claim de `role` no JWT não bloqueia nem libera nenhum endpoint adicional — qualquer token válido acessa qualquer endpoint protegido (sem RBAC aplicado, Non-Goal do PRD)
-
-## Epic 2: Triagem Estruturada e Score de Prioridade Clínica
-
-Profissional de Triagem registra dados clínicos e recebe, na mesma resposta, o Score já calculado e explicado por fatores contribuintes.
-
-### Story 2.1: Registro de Triagem com Score de Prioridade Calculado
-
-As a Profissional de Triagem,
-I want submeter os dados clínicos de um Paciente (CPF, sintomas, sinais vitais, gravidade percebida) e receber imediatamente o Score de prioridade calculado,
-So that eu não precise calcular ou justificar a prioridade manualmente nem fazer uma segunda chamada.
+Como Paciente com Agendamento marcado,
+quero ser notificado quando a Janela de Confirmação abre,
+para que eu saiba que preciso confirmar ou recusar presença dentro do prazo.
 
 **Acceptance Criteria:**
 
-**Given** um CPF válido (formato/checksum) e todos os sinais vitais obrigatórios dentro das faixas fisiológicas plausíveis (FC 40–200 bpm, PAS 60–260, PAD 30–150 e PAS>PAD, SpO2 50–100%, FR 5–60 irpm, Temp 30–42°C — AD-11)
-**When** faço `POST /v1/triagens`
-**Then** recebo `201` com o identificador da Triagem e o Score já calculado, detalhado por fator contribuinte (FR-1, FR-3)
+**Given** um Agendamento em `AGUARDANDO_JANELA` cujo horário de abertura da janela já chegou
+**When** o poller de abertura roda
+**Then** o Agendamento transiciona para `AGUARDANDO_CONFIRMACAO` e um evento `NotificacaoConfirmacaoPublicada` é publicado via outbox na mesma transação
+**And** o reprocessamento do poller sobre o mesmo Agendamento não gera uma segunda notificação (escrita condicional `WHERE status = 'AGUARDANDO_JANELA'`)
 
-**Given** um CPF já usado em uma Triagem anterior
-**When** registro uma nova Triagem para o mesmo CPF
-**Then** o sistema reutiliza o mesmo Paciente/ID interno — nunca cria um segundo Paciente ou um segundo ID (FR-2, idempotência por CPF)
+### Story 1.3: Confirmação de Presença
 
-**Given** um CPF inexistente até então
-**When** registro a primeira Triagem para ele
-**Then** o sistema cria um registro mínimo de Paciente (CPF + dados demográficos mockados) implicitamente, sem cadastro separado (FR-2)
-
-**Given** um sinal vital obrigatório ausente ou fora da faixa fisiológica plausível (ex.: PAS ≤ PAD)
-**When** faço `POST /v1/triagens`
-**Then** recebo `400` indicando o campo inválido, antes de qualquer cálculo de Score (FR-1, AD-11)
-
-**Given** um CPF com formato ou checksum inválido
-**When** faço `POST /v1/triagens`
-**Then** recebo `400` antes de qualquer cálculo de Score (FR-1)
-
-**Given** duas Triagens com entradas idênticas e a mesma versão do algoritmo
-**When** o Score é calculado para ambas
-**Then** o valor resultante é sempre o mesmo, e a versão do algoritmo fica registrada junto ao Score (FR-4)
-
-**Given** `matching-alocacao-service` ou `auditoria-service` temporariamente indisponíveis
-**When** registro uma Triagem
-**Then** a resposta `201` com Score ainda é retornada imediatamente — a propagação do evento `ScoreCalculado` ocorre via outbox de forma assíncrona e não bloqueia nem atrasa a resposta (NFR-1, AD-3)
-**And** nenhum registro gerado a partir dessa chamada expõe o CPF fora de `triagem-score-service` — a resposta referencia o Paciente pelo ID interno (AD-7)
-
-### Story 2.2: Consulta de Triagem com Score e Fatores Contribuintes
-
-As a Profissional de Triagem ou Regulador,
-I want consultar uma Triagem já registrada e ver o Score com o detalhamento dos fatores que o compõem,
-So that eu entenda por que aquele Paciente recebeu aquela prioridade, sem recalcular nada manualmente.
+Como Paciente notificado dentro da Janela de Confirmação,
+quero confirmar minha presença via API,
+para que minha vaga não seja liberada.
 
 **Acceptance Criteria:**
 
-**Given** uma Triagem já registrada
-**When** faço `GET /v1/triagens/{id}`
-**Then** recebo o Score final e a lista de fatores contribuintes que o compõem, não apenas o número final (FR-3)
+**Given** um Agendamento em `AGUARDANDO_CONFIRMACAO`
+**When** o Paciente confirma presença via API
+**Then** o Agendamento transiciona para `CONFIRMADO` (terminal) via escrita condicional (`UPDATE ... WHERE status = 'AGUARDANDO_CONFIRMACAO'`) e um evento `ConfirmacaoRegistrada` é publicado
+**And** a mesma confirmação repetida para o mesmo `agendamentoId` retorna sucesso silencioso, sem novo registro (idempotência)
 
-**Given** um ID de Triagem inexistente
-**When** faço `GET /v1/triagens/{id}`
-**Then** recebo `404`
-**And** a consulta nunca expõe o CPF em texto claro — referencia o Paciente pelo ID interno (AD-7)
+**Given** um Agendamento fora da Janela (ainda `AGUARDANDO_JANELA`, ou já `LIBERADO`)
+**When** uma tentativa de confirmação é feita
+**Then** a API retorna erro `409` explicando o motivo (janela ainda não aberta, ou vaga já liberada) — nunca aceita silenciosamente
 
-## Epic 3: Matching, Alocação e Liberação de Recursos
+**Given** Confirmação (esta story) e Recusa (Story 1.4) chegando concorrentemente para o mesmo Agendamento em `AGUARDANDO_CONFIRMACAO`
+**When** ambas competem pela mesma transição de estado
+**Then** a escrita condicional garante que só uma vence; a perdedora recebe o erro `409` acima, nunca as duas committam
 
-Regulador consulta a fila priorizada, recebe sugestão justificada para um Recurso, confirma/recusa, e o Recurso volta automaticamente ao pool após o atendimento — fechando sugestão → confirmação → uso → liberação, com Aging garantindo que ninguém fique represado.
+### Story 1.4: Recusa Ativa e Liberação Imediata da Vaga
 
-### Story 3.1: Consulta da Fila Priorizada com Urgência Acumulada
-
-As a Regulador,
-I want consultar a fila atual de Pacientes ordenada pela Prioridade Efetiva (Score + Urgência Acumulada),
-So that eu saiba, a qualquer momento, quem deveria ser atendido a seguir, sem represamento de casos moderados.
-
-**Acceptance Criteria:**
-
-**Given** Pacientes com Scores distintos já triados (réplica consumida de `triagem-score-service`)
-**When** faço `GET /v1/fila`
-**Then** recebo a lista ordenada por Prioridade Efetiva decrescente (FR-6)
-
-**Given** dois Pacientes com Score inicial idêntico e tempos de espera diferentes
-**When** consulto a fila
-**Then** o que espera há mais tempo tem Prioridade Efetiva igual ou maior, nunca menor (FR-7)
-
-**Given** um Paciente que atinge 18h de espera simulada
-**When** consulto a fila
-**Then** a Prioridade Efetiva dele não ultrapassa Score + 20% da amplitude do Score — o teto foi atingido, não superado (FR-7, AD-4: teto=20, k≈1,111/h)
-
-**Given** uma nova Triagem inserida ou um Recurso liberado
-**When** consulto a fila em seguida
-**Then** o resultado já reflete a mudança sem reprocessamento manual (FR-6, SM-1)
-
-**Given** a réplica local de Score vazia num boot a frio
-**When** o serviço recebe a primeira consulta
-**Then** busca os Scores atuais via bootstrap REST síncrono em `triagem-score-service` antes de responder, em vez de retornar uma fila incompleta silenciosamente (AD-4)
-**And** a Prioridade Efetiva nunca é negativa nem menor que o Score por defasagem de relógio entre serviços — `horas_espera` é sempre ≥0 (AD-4)
-
-### Story 3.2: Sugestão de Matching para um Recurso com Desempates
-
-As a Regulador,
-I want consultar a sugestão de matching para um Recurso disponível específico,
-So that eu saiba qual Paciente oferecer, com justificativa objetiva.
+Como Paciente que não poderá comparecer,
+quero recusar minha presença via API dentro da Janela de Confirmação,
+para que minha vaga seja liberada imediatamente e possa ajudar outro paciente.
 
 **Acceptance Criteria:**
 
-**Given** um Recurso disponível e a fila com prioridades distintas
-**When** faço `GET /v1/recursos/{id}/sugestao`
-**Then** recebo o Paciente elegível de maior Prioridade Efetiva compatível, com justificativa (Score, tempo de espera, critério de desempate) (FR-5)
+**Given** um Agendamento em `AGUARDANDO_CONFIRMACAO`
+**When** o Paciente recusa presença via API
+**Then** o Agendamento transiciona para `LIBERADO` com `motivoLiberacao = RECUSA` via escrita condicional (`UPDATE ... WHERE status = 'AGUARDANDO_CONFIRMACAO'`), sem esperar o fim da Janela
+**And** os eventos `RecusaRegistrada` e `VagaLiberada` são publicados via outbox na mesma transação
 
-**Given** dois Pacientes com Prioridade Efetiva idêntica para o mesmo Recurso
-**When** consulto a sugestão
-**Then** vence o de Triagem mais antiga; em empate residual de timestamp, desempata pelo número de sequência da Triagem (FR-5, AD-5)
+**Given** um Agendamento ainda `AGUARDANDO_JANELA` (janela não aberta)
+**When** uma tentativa de recusa é feita
+**Then** a API retorna erro `409` (janela ainda não aberta), sem alterar o Agendamento
 
-**Given** um Paciente elegível simultaneamente para um Recurso genérico e um mais específico, ambos livres
-**When** consulto a sugestão
-**Then** o sistema nunca sugere o específico se o genérico resolve o caso — prefere o menor `especificidadeRank` suficiente (FR-5, AD-5)
+**Given** um Agendamento já `CONFIRMADO`, ou já `LIBERADO` com `motivoLiberacao = NAO_CONFIRMADO`
+**When** uma tentativa de recusa é feita
+**Then** a API retorna erro `409` de estado inválido, sem alterar o Agendamento
 
-**Given** dois Recursos de mesmo rank elegíveis para o mesmo Paciente
-**When** consulto a sugestão
-**Then** prefere o ocioso há mais tempo; em empate residual, desempate final determinístico por `recursoId` (AD-5)
+**Given** a mesma Recusa reenviada (retry de rede) para um Agendamento já `LIBERADO` com `motivoLiberacao = RECUSA` pela própria recusa
+**When** a tentativa repetida chega
+**Then** a API retorna sucesso silencioso (idempotência), não erro de conflito
 
-**Given** nenhum Paciente elegível para aquele Recurso
-**When** faço `GET /v1/recursos/{id}/sugestao`
-**Then** recebo uma resposta indicando ausência de sugestão, sem erro (FR-6)
-**And** a sugestão é recalculada a cada consulta e não reserva o Paciente — o mesmo Paciente pode aparecer sugerido para mais de um Recurso simultaneamente até uma confirmação consumi-lo (FR-5)
+### Story 1.5: Expiração da Janela e Liberação Automática
 
-### Story 3.3: Confirmação ou Recusa da Sugestão de Matching
-
-As a Regulador,
-I want confirmar a sugestão como está, ou recusá-la informando um motivo,
-So that eu decida com um clique, sem selecionar manualmente um Paciente fora da ordem objetiva do sistema.
+Como sistema,
+quero marcar automaticamente um Agendamento como Não Confirmado quando a Janela expira sem resposta,
+para que a vaga não fique presa indefinidamente por ausência de ação do Paciente.
 
 **Acceptance Criteria:**
 
-**Given** uma sugestão vigente para um Recurso
-**When** faço `POST /v1/recursos/{id}/alocacoes` confirmando
-**Then** o Recurso é removido do pool, uma Alocação é criada e um registro é gerado para o Log Auditável (FR-12)
+**Given** um Agendamento em `AGUARDANDO_CONFIRMACAO` cujo prazo de expiração já passou
+**When** o poller de expiração roda
+**Then** o Agendamento transiciona para `LIBERADO` com `motivoLiberacao = NAO_CONFIRMADO`, e os eventos `AgendamentoNaoConfirmado` e `VagaLiberada` são publicados na mesma transação
+**And** sob múltiplas instâncias do poller rodando concorrentemente, a escrita condicional garante que apenas uma transição ocorre por Agendamento (sem lock distribuído explícito)
 
-**Given** duas confirmações concorrentes para o mesmo Recurso
-**When** a segunda chega
-**Then** é rejeitada com `409` pela constraint única de banco `(recursoId, status=ativa)` (AD-6)
+## Epic 2: Liberação e Repasse de Vaga
 
-**Given** uma tentativa de confirmar uma Alocação para um Paciente já alocado a outro Recurso
-**When** a confirmação chega
-**Then** é rejeitada com `409` e o sistema recalcula automaticamente a próxima sugestão elegível para aquele Recurso (FR-5, FR-12)
+Consulta à Lista de Espera por ordem de chegada, geração automática de Sugestão de Repasse ao liberar uma vaga, e decisão humana (confirmar/recusar) pelo Gestor de Agenda. Serviço: `liberacao-repasse-service` (renomeado/podado de `matching-alocacao-service`, AD-1). Depende do evento `VagaLiberada` do Epic 1. FRs: FR-8, FR-9, FR-10, FR-11 (+ base de escrita para FR-1).
 
-**Given** uma recusa sem motivo informado
-**When** faço `POST .../recusa`
-**Then** recebo `400` (FR-12)
+### Story 2.1: Registrar Catálogo de Recurso e Entrada na Lista de Espera
 
-**Given** uma recusa com motivo informado
-**When** é processada
-**Then** o Recurso permanece disponível, o sistema sugere o próximo Paciente elegível, o par (recursoId, pacienteId) recusado nunca é resugerido para aquele Recurso, mas o Paciente segue elegível para qualquer outro Recurso, com a mesma Prioridade Efetiva — sem penalização (FR-12, AD-5)
-**And** tanto a confirmação quanto a recusa publicam um evento (`AlocacaoConfirmada` / `SugestaoRecusada`) via outbox na mesma transação do comando, alimentando o Log Auditável (FR-8, AD-3)
+Como sistema de ingestão (seed-adapter),
+quero registrar o catálogo de Recurso e as entradas de Lista de Espera (resolvendo o Paciente via gRPC),
+para que a Lista de Espera exista, ordenada por chegada, pronta para consulta e geração de sugestões.
 
-### Story 3.4: Liberação Automática de Recurso
-
-As a Regulador (beneficiário indireto — processo automático),
-I want que um Recurso alocado retorne ao pool após o tempo de atendimento simulado,
-So that ele fique elegível para nova sugestão sem liberação manual.
+**Preparação do serviço** (pré-requisito de implementação, fora do escopo de teste BDD): `matching-alocacao-service` é renomeado para `liberacao-repasse-service`, reaproveitando `Alocacao`/`ConfirmarAlocacao`/`RecusarSugestao` como molde estrutural renomeado para o domínio de Repasse (`RepasseConfirmado`/`ConfirmarRepasse`/`RecusarSugestaoRepasse`/`SugestaoRepasseRecusada`), e descartando por completo a infraestrutura de réplica de Score (`ScoreReplica`, `ScoreBootstrapService`, `TriagemScoreClient`, `ScoreCalculadoConsumerJob`) e o mecanismo antigo de delay (`LiberacaoAgendadaRelayJob`/fila SQS de delay) — AD-1. Definition of Done desta etapa: build verde, sem classe/job do domínio antigo remanescente.
 
 **Acceptance Criteria:**
 
-**Given** uma Alocação confirmada
-**When** ela é criada
-**Then** uma mensagem é agendada numa fila SQS standard dedicada com delay = duração do atendimento simulado (2–5 min por tipo, ≤15 min), carregando o `correlationId` da confirmação original (AD-6)
+**Given** um `codigoRecurso` novo ou já existente
+**When** o catálogo de Recurso é registrado
+**Then** o upsert é idempotente — reexecutar não duplica o Recurso
 
-**Given** o delay expira
-**When** o consumidor processa a mensagem
-**Then** o Recurso volta ao pool com o mesmo `especificidadeRank`, um evento `RecursoLiberado` é publicado via outbox e um registro é gerado no Log Auditável, fechando o ciclo (FR-13)
+**Given** um CPF de Paciente (recebido transientemente do `seed-adapter`, nunca persistido — AD-8) e um `recursoId` de destino
+**When** uma entrada de Lista de Espera é registrada
+**Then** o Paciente é resolvido para `pacienteId` via gRPC `ResolverOuCriarPaciente` e a entrada é criada com `criadoEm` = timestamp de chegada
 
-**Given** uma redelivery da mesma mensagem de delay
-**When** o consumidor processa novamente
-**Then** o Recurso não é liberado duas vezes nem um `RecursoLiberado` duplicado é emitido — idempotente por `alocacaoId` (AD-6)
-**And** não existe endpoint de liberação manual — `LiberarRecurso` só é acionado internamente pelo consumidor da fila de delay (FR-13, Non-Goal do PRD)
+**Given** o mesmo par `pacienteId`+`recursoId` já registrado na Lista de Espera
+**When** o registro é tentado novamente
+**Then** nenhuma entrada duplicada é criada (dedup por par)
 
-## Epic 4: Log Auditável e Explicabilidade
+**Given** o gRPC `ResolverOuCriarPaciente` expira (timeout curto, sem retry — AD-8) ou está indisponível
+**When** a entrada de Lista de Espera é registrada
+**Then** a entrada não é criada e a falha é reportada explicitamente ao chamador
 
-Auditor consulta o histórico completo e legível de toda decisão (score, sugestão, confirmação, recusa, liberação) para qualquer Paciente/Recurso.
+**Given** o construto CDK ainda inexistente para este serviço
+**When** o deploy é executado
+**Then** `liberacao-repasse-service` sobe em Fargate com schema próprio `liberacao_repasse` (AD-10), security group liberando só o SG do `gateway-service` na porta HTTP e permitindo gRPC de saída para o SG do `agendamento-confirmacao-service` (AD-11), rota registrada no gateway, health-check público, e segredos via variável de ambiente/Secrets Manager (NFR-2/NFR-6)
 
-### Story 4.1: Registro Automático de Decisões no Log Auditável
+### Story 2.2: Consulta da Lista de Espera
 
-As a Auditor (beneficiário indireto — o registro é automático),
-I want que toda decisão do sistema (Score calculado, Sugestão gerada, confirmação, recusa, Liberação) seja gravada automaticamente no Log Auditável,
-So that eu tenha, mais tarde, uma trilha completa e confiável para investigar qualquer reclamação.
-
-**Acceptance Criteria:**
-
-**Given** um evento `ScoreCalculado`, `SugestaoGerada`, `AlocacaoConfirmada`, `SugestaoRecusada` ou `RecursoLiberado` publicado pelos serviços produtores
-**When** `auditoria-service` o consome
-**Then** grava um registro append-only com os fatores que levaram à decisão (incluindo o motivo, no caso de recusa), timestamp e IDs internos envolvidos (FR-8)
-
-**Given** uma reentrega do mesmo evento pelo SQS (mesmo `eventId`)
-**When** `auditoria-service` processa novamente
-**Then** nenhum registro duplicado é criado — dedup por `eventId` (FR-8, AD-10)
-
-**Given** que FR-6 recalcula a sugestão a cada consulta (`GET`)
-**When** o Paciente sugerido para um Recurso não muda em relação ao último registro
-**Then** nenhum novo `SugestaoGerada` é publicado nem registrado — só uma mudança real gera um novo registro (AD-10)
-**And** nenhum registro de auditoria é alterado retroativamente — apenas novos registros são adicionados (FR-8, append-only)
-
-### Story 4.2: Consulta de Auditoria por Paciente ou Recurso
-
-As a Auditor,
-I want consultar o histórico completo de decisões para um Paciente ou Recurso específico, com justificativa legível,
-So that eu possa responder, com dados, por que um paciente foi atendido antes de outro.
+Como usuário autenticado (Gestor de Agenda ou Auditor),
+quero consultar a Lista de Espera de um Recurso ordenada por ordem de chegada,
+para que eu veja quem está aguardando sem qualquer viés clínico.
 
 **Acceptance Criteria:**
 
-**Given** decisões já registradas para um Paciente
-**When** faço `GET /v1/auditoria/pacientes/{id}` (ou por CPF)
-**Then** recebo o histórico completo com a justificativa legível de cada decisão (FR-9)
+**Given** um Recurso com entradas na Lista de Espera
+**When** a Lista é consultada
+**Then** os candidatos retornam ordenados exclusivamente por `criadoEm` (ordem de chegada) — nunca por gravidade, especialidade ou qualquer proxy de julgamento clínico
 
-**Given** uma consulta por CPF
-**When** o sistema resolve o CPF para o ID interno via gRPC (`ResolveCpfParaId`)
-**Then** a resposta identifica o Paciente pelo ID interno; se o CPF for exibido, aparece mascarado (`123.***.***-09`), nunca em texto claro (FR-9, AD-7)
+**Given** um `recursoId` existente sem entradas na Lista de Espera
+**When** a Lista é consultada
+**Then** a resposta retorna explicitamente "sem candidatos", nunca um erro
 
-**Given** dois Pacientes distintos
-**When** comparo suas consultas de auditoria
-**Then** consigo identificar, pelos fatores registrados, por que um foi atendido antes do outro (FR-9, UJ-3)
+**Given** um `recursoId` inexistente
+**When** a Lista é consultada
+**Then** a API retorna erro `404`, distinto de "sem candidatos"
 
-**Given** decisões já registradas para um Recurso
-**When** faço `GET /v1/auditoria/recursos/{id}`
-**Then** recebo o histórico completo (sugestões, confirmação/recusa, liberação) daquele Recurso (FR-9)
-**And** 100% das decisões do dataset de demonstração são consultáveis e explicáveis por este endpoint (FR-9, SM-2)
+**Given** qualquer usuário autenticado, independentemente do claim `role`
+**When** a Lista é consultada
+**Then** o acesso é permitido — sem RBAC aplicado nesta fase (FR-14)
 
-## Epic 5: Camada Adaptadora — Carga de Dados Sintéticos
+### Story 2.3: Geração Automática de Sugestão de Repasse
 
-O `seed-adapter` carrega automaticamente, num único comando de deploy, um dataset sintético de unidades de saúde, leitos e especialistas — dando ao Regulador, ao Profissional de Triagem e ao Auditor um ambiente de demonstração pronto para uso, sem passos manuais.
-
-### Story 5.1: Carga de Dados Sintéticos via Camada Adaptadora
-
-As a operador do sistema (Regulador/Profissional de Triagem/Auditor, beneficiários indiretos),
-I want que o job `seed-adapter` carregue automaticamente um dataset sintético completo no primeiro deploy,
-So that eu tenha um ambiente de demonstração pronto para uso, sem inserir dados manualmente.
+Como sistema,
+quero gerar automaticamente uma Sugestão de Repasse ao consumir o evento `VagaLiberada`,
+para que o Gestor de Agenda receba um candidato pronto sem precisar descobrir a vaga vazia por conta própria.
 
 **Acceptance Criteria:**
 
-**Given** o ambiente recém-provisionado (Epic 1) com `triagem-score-service` e `matching-alocacao-service` já disponíveis (Epics 2 e 3)
-**When** o script de deploy dispara o job `seed-adapter`
-**Then** ele se autentica em `auth-service` com um usuário técnico pré-cadastrado e usa o token obtido para chamar o gateway (AD-1, AD-14) — nenhum passo manual adicional é necessário (NFR-3)
+**Given** um evento `VagaLiberada` consumido para um `agendamentoId` ainda sem `SugestaoRepasse`
+**When** a Lista de Espera do `recursoId` correspondente não está vazia
+**Then** uma `SugestaoRepasse` é criada apontando o primeiro candidato elegível por ordem de chegada — excluindo candidatos que já tenham uma `SugestaoRepasse` `PENDENTE` para outra vaga — e `SugestaoRepasseGerada` é publicado (serve também como notificação mock ao Gestor)
 
-**Given** o job `seed-adapter` chamando as APIs de `matching-alocacao-service`
-**When** ele insere Recursos
-**Then** usa upsert por `codigoRecurso` — reexecutar o job após um deploy falho não duplica o catálogo (FR-10, AD-1)
+**Given** o mesmo evento `VagaLiberada` reentregue (redrive de DLQ ou reprocessamento)
+**When** já existe `SugestaoRepasse` para aquele `agendamentoId`
+**Then** a mensagem é descartada sem efeito — garantido por constraint única em `SugestaoRepasse.agendamentoId` (idempotência)
 
-**Given** o job concluído
-**When** consulto o sistema
-**Then** encontro pelo menos 12–15 Pacientes sintéticos cobrindo ao menos 3 níveis de gravidade e 6–8 Recursos (leitos/especialistas) em pelo menos 2 tipos, com escassez deliberada (menos Recursos do que Pacientes elegíveis simultaneamente) (FR-10)
+**Given** dois eventos `VagaLiberada` do mesmo `recursoId` processados concorrentemente
+**When** ambos disputam o mesmo candidato do topo da Lista de Espera
+**Then** a seleção do candidato é uma operação atômica (ex.: leitura com lock de linha) — nunca o mesmo candidato recebe duas `SugestaoRepasse` simultâneas para vagas diferentes
 
-**Given** o dataset carregado
-**When** consulto a fila
-**Then** encontro pelo menos um par de Pacientes com Score empatado (demonstra desempate por Triagem mais antiga) e pelo menos um Paciente elegível simultaneamente para um Recurso genérico e um específico (demonstra desempate best-fit) (FR-10)
+**Given** a Lista de Espera do `recursoId` está vazia no momento da liberação
+**When** o evento é consumido
+**Then** a vaga permanece Liberada sem sugestão pendente, sem repescagem automática retroativa
 
-**Given** os timestamps de Triagem no seed serem retroativos
-**When** consulto a fila logo após o seed
-**Then** a Urgência Acumulada já aparece refletida, sem exigir espera em tempo real (FR-10, FR-7)
+### Story 2.4: Confirmação do Repasse
 
-**Given** pelo menos um Recurso já alocado no momento do seed com tempo de atendimento simulado próximo do fim
-**When** aguardo alguns minutos
-**Then** observo a Liberação e a sugestão seguinte ocorrerem sem intervenção manual, dentro da janela de uma gravação de demo (FR-10, FR-13)
-**And** a interface da Camada Adaptadora é desenhada de forma que uma integração real futura com SISREG/DATASUS possa substituí-la sem alterar a lógica de domínio de Score/Matching/Log (FR-10)
+Como Gestor de Agenda,
+quero confirmar uma Sugestão de Repasse,
+para que a vaga seja definitivamente repassada ao paciente sugerido.
+
+**Acceptance Criteria:**
+
+**Given** uma `SugestaoRepasse` em estado `PENDENTE`
+**When** o Gestor confirma via API
+**Then** a transição é feita por escrita condicional (`UPDATE ... WHERE status = 'PENDENTE'`), criando um `RepasseConfirmado` (definitivo), e a vaga deixa de aparecer como Liberada
+
+**Given** uma `SugestaoRepasse` já resolvida (confirmada ou recusada por outro Gestor)
+**When** uma tentativa de confirmação é feita
+**Then** a escrita condicional afeta zero linhas e a API retorna erro `409` de conflito, sem sobrescrever a decisão já tomada
+
+### Story 2.5: Recusa do Repasse e Nova Sugestão
+
+Como Gestor de Agenda,
+quero recusar uma Sugestão de Repasse,
+para que o próximo candidato da Lista de Espera seja sugerido automaticamente, pulando os já recusados.
+
+**Acceptance Criteria:**
+
+**Given** uma `SugestaoRepasse` em estado `PENDENTE`
+**When** o Gestor recusa via API
+**Then** a transição é feita por escrita condicional (`UPDATE ... WHERE status = 'PENDENTE'`), `SugestaoRepasseRecusada` é registrado (par `recursoId`+`pacienteId`) e uma nova `SugestaoRepasse` é gerada para o próximo candidato elegível, pulando os já recusados para aquela vaga
+
+**Given** uma `SugestaoRepasse` já resolvida (confirmada, ou já recusada por outro Gestor)
+**When** uma tentativa de recusa é feita
+**Then** a escrita condicional afeta zero linhas e a API retorna erro `409` de conflito
+
+**Given** nenhum candidato elegível restante na Lista de Espera após a recusa
+**When** a nova sugestão é calculada
+**Then** a vaga permanece Liberada sem sugestão pendente
+
+## Epic 3: Log Auditável e Consulta de Auditoria
+
+Toda decisão do ciclo (notificação, confirmação/recusa, liberação, sugestão, repasse) fica registrada de forma imutável e consultável por Paciente/Agendamento, com motivo e timestamp. Serviço: `auditoria-service` (novo, desenho retomado do AD-10 do spine antigo). Consome eventos dos Epics 1 e 2 via SQS FIFO, nunca de forma síncrona. FRs: FR-12, FR-13.
+
+### Story 3.1: Registro de Decisão no Log Auditável
+
+Como sistema,
+quero consumir os eventos publicados pelos serviços de domínio e registrar cada decisão no Log Auditável,
+para que toda decisão do ciclo (notificação, confirmação, recusa, liberação, sugestão, repasse) fique explicável com motivo e timestamp.
+
+**Acceptance Criteria:**
+
+**Given** um evento de domínio consumido (`ConfirmacaoRegistrada`, `RecusaRegistrada`, `AgendamentoNaoConfirmado`, `VagaLiberada`, `NotificacaoConfirmacaoPublicada`, `SugestaoRepasseGerada`, `RepasseConfirmado` ou `SugestaoRepasseRecusada`)
+**When** o evento é processado
+**Then** uma entrada append-only é criada com o `eventId` de origem, o campo `motivo` (nulo apenas para `ConfirmacaoRegistrada`/`NotificacaoConfirmacaoPublicada`/`SugestaoRepasseGerada`, preenchido nos demais) e timestamp
+
+**Given** o mesmo `eventId` reentregue (redrive de DLQ ou reprocessamento do consumidor)
+**When** o evento é processado novamente
+**Then** nenhuma entrada duplicada é criada (dedup por `eventId`)
+
+**Given** um evento de `eventType` não reconhecido (evolução aditiva de schema, NFR-4)
+**When** ele chega ao consumidor
+**Then** é registrado genericamente (payload bruto + `eventType`) sem quebrar o consumidor nem bloquear os demais eventos da fila
+
+**Given** uma entrada já registrada
+**When** qualquer tentativa de alteração é feita
+**Then** a entrada permanece imutável — o Log Auditável é append-only
+
+**Given** o construto CDK ainda inexistente para este serviço
+**When** o deploy é executado
+**Then** `auditoria-service` sobe em Fargate com schema próprio `auditoria` (AD-10), security group liberando só o SG do `gateway-service` na porta HTTP e permitindo consumo das filas SQS FIFO dedicadas (sem gRPC-client, nunca resolve CPF — AD-8), rota registrada no gateway para os endpoints de consulta, health-check público, e segredos via variável de ambiente/Secrets Manager (NFR-2/NFR-6)
+
+### Story 3.2: Consulta de Auditoria por Paciente ou Agendamento
+
+Como Auditor,
+quero consultar o histórico completo do Log Auditável de um Paciente ou de um Agendamento específico,
+para que eu possa justificar decisões passadas com dados, não com "confie em nós".
+
+**Acceptance Criteria:**
+
+**Given** um Paciente ou Agendamento com entradas registradas
+**When** o histórico é consultado
+**Then** a linha do tempo completa retorna ordenada cronologicamente, com motivo e timestamp de cada decisão
+
+**Given** um Paciente ou Agendamento sem nenhuma entrada
+**When** o histórico é consultado
+**Then** a resposta retorna explicitamente "sem histórico", nunca um erro
+
+**Given** qualquer usuário autenticado, independentemente do claim `role`
+**When** o histórico é consultado
+**Then** o acesso é permitido — sem RBAC aplicado nesta fase (FR-14)
+
+## Epic 4: Carga de Dados Sintéticos (Camada Adaptadora)
+
+O sistema inteiro é populado com um dataset de demonstração via um job idempotente (catálogo de Recurso → Agendamentos → Lista de Espera, nesta ordem), sem passos manuais — habilita a demonstração ponta a ponta das jornadas do PRD (UJ-1 Paciente confirma presença, UJ-2 Paciente não responde e a vaga é repassada, UJ-3 Gestor decide o repasse, UJ-4 Auditor investiga; detalhadas em `_bmad-output/specs/spec-confirmasus/user-journeys.md`). Serviço: `seed-adapter` (Lambda/Quarkus). Depende dos endpoints de escrita das Stories 1.1 e 2.1. FR: FR-1 completa.
+
+### Story 4.1: Autenticação do seed-adapter e Upsert do Catálogo de Recurso
+
+Como job de seed (seed-adapter),
+quero autenticar-me com um usuário técnico pré-cadastrado e carregar o catálogo de Recurso de forma idempotente,
+para que o catálogo exista antes de qualquer Agendamento ou entrada de Lista de Espera ser carregada.
+
+**Acceptance Criteria:**
+
+**Given** um usuário técnico pré-cadastrado no `auth-service`
+**When** o seed-adapter inicia a execução
+**Then** ele obtém um JWT válido e usa esse token em toda chamada subsequente ao gateway — nunca chama um serviço de domínio diretamente
+
+**Given** falha de autenticação (credencial inválida, ou `auth-service`/`gateway-service` indisponível)
+**When** o seed-adapter tenta obter o JWT
+**Then** a execução aborta com erro claro, sem prosseguir para o upsert do catálogo
+
+**Given** o catálogo de Recurso da carga sintética
+**When** o upsert é executado
+**Then** cada Recurso é criado ou reaproveitado por `codigoRecurso`, e reexecutar a carga não duplica registros
+
+### Story 4.2: Carga Idempotente de Agendamentos Sintéticos
+
+Como job de seed (seed-adapter),
+quero carregar os Agendamentos sintéticos, incluindo os que simulam estados pós-confirmação, após o catálogo de Recurso existir,
+para que o dataset de demonstração tenha Agendamentos prontos para o ciclo de confirmação (UJ-1, UJ-2).
+
+**Acceptance Criteria:**
+
+**Given** o catálogo de Recurso já carregado (Story 4.1)
+**When** o seed-adapter registra um Agendamento via o endpoint da Story 1.1
+**Then** o Agendamento é criado com Paciente, Recurso e horário definidos
+
+**Given** um cenário de demo que exige um estado além de `AGUARDANDO_JANELA` (confirmado, recusado, não confirmado, liberado sem lista de espera, repasse já confirmado, sugestão recusada gerando nova sugestão)
+**When** o seed-adapter monta o dataset
+**Then** ele encadeia, para cada Agendamento, as chamadas de API já entregues pelas Stories 1.3/1.4/1.5/2.4/2.5 (confirmar, recusar, ou retroceder `janelaAbreEm`/`janelaExpiraEm` para o poller processar de imediato) — nenhum estado de demo depende de endpoint ainda não implementado nas epics anteriores
+**And** reexecutar a carga não duplica Agendamentos já criados
+
+### Story 4.3: Carga Idempotente da Lista de Espera
+
+Como job de seed (seed-adapter),
+quero carregar as entradas de Lista de Espera após o catálogo de Recurso existir,
+para que cenários de Vaga Liberada com candidato pendente sejam demonstráveis (UJ-2, UJ-3).
+
+**Acceptance Criteria:**
+
+**Given** o catálogo de Recurso já carregado (Story 4.1) e o `agendamento-confirmacao-service` disponível para resolução de CPF (Story 1.1 implantada)
+**When** o seed-adapter carrega as entradas de Lista de Espera via o endpoint da Story 2.1
+**Then** cada entrada é criada com `criadoEm` = timestamp de chegada, associada ao `recursoId` correto
+**And** reexecutar a carga não duplica entradas já criadas
