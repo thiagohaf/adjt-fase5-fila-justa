@@ -25,6 +25,19 @@ spring:
                 - Path=/v1/auth/login
                 - Method=POST
 
+            # Registro de Agendamento (Story 1.1, Epic 1) -- protegida pelo
+            # JwtAuthenticationFilter (nao entra na allowlist publica, AD-8):
+            # so requests com Bearer token valido alcancam este servico.
+            # Host "agendamento-confirmacao-service" (SEM sufixo de
+            # namespace -- mesmo padrao de "auth-service" acima, resolvido
+            # pelo Envoy do Service Connect pela string exata do dnsName
+            # configurado em FilaJustaStack.buildAgendamentoConfirmacaoService).
+            - id: agendamento-confirmacao-registrar
+              uri: http://agendamento-confirmacao-service:8082
+              predicates:
+                - Path=/v1/agendamentos
+                - Method=POST
+
 # Segredo compartilhado com o auth-service (mesmo par HS256, AD-14) -- so
 # variavel de ambiente/Secrets Manager, nunca no repositorio (NFR-6).
 # Consumido pelo JwtAuthenticationFilter (infrastructure/security) que

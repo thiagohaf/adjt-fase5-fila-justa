@@ -39,9 +39,10 @@ class FilaJustaStackTest {
     }
 
     @Test
-    void threeFargateServicesAreProvisioned() {
-        // postgres, gateway-service, auth-service (os 3 servicos de dominio ficam deferidos)
-        template.resourceCountIs("AWS::ECS::Service", 3);
+    void fourFargateServicesAreProvisioned() {
+        // postgres, gateway-service, auth-service, agendamento-confirmacao-service
+        // (Story 1.1 do Epic 1) -- os demais servicos de dominio ficam deferidos.
+        template.resourceCountIs("AWS::ECS::Service", 4);
     }
 
     @Test
@@ -228,45 +229,19 @@ class FilaJustaStackTest {
     }
 
     @Test
-    void triagemScoreServiceTaskRoleCanPublishToScoreCalculadoTopic() {
-        // Deploy do triagem-score-service no ECS continua deferido -- mas a
-        // policy de publish ja precisa existir (Code Map da spec 3.0) para a
-        // futura FargateTaskDefinition so reusar a role, sem reabrir escopo.
-        //
-        // Achado do code review: uma asserção que só confirma que ALGUMA
-        // policy do stack tem "sns:Publish"/"Allow" passaria mesmo se o
-        // grant estivesse ligado à role ou ao recurso errado (ex.: outra
-        // role publicando em outro tópico) -- resolve os logical IDs reais
-        // do ScoreCalculadoTopic e da TriagemScoreServiceTaskRole e confirma
-        // que É esta policy, presa a ESTA role, que aponta para ESTE tópico.
-        Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "TopicName", "score-calculado.fifo")))));
-        assertThat(topicos).hasSize(1);
-        String topicoLogicalId = topicos.keySet().iterator().next();
-
+    void noTaskRoleWithTriagemScoreServiceDescriptionExistsAnymore() {
+        // Story 1.1 do Epic 1 (AD-1): triagem-score-service foi renomeado
+        // para agendamento-confirmacao-service e a
+        // TriagemScoreServiceTaskRole (Story 3.0) foi removida sem
+        // substituto nesta story -- nenhum outbox/publisher existe ainda em
+        // agendamento-confirmacao-service (entra na Story 1.2). Este teste
+        // documenta a remocao intencional (Boundaries/Design Notes da spec
+        // 1.1: "nao recriar role fantasma sem uso") e evita que ela volte
+        // por engano num merge futuro.
         Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "Description", Match.stringLikeRegexp(".*triagem-score-service.*"))))));
-        assertThat(roles).hasSize(1);
-        String roleLogicalId = roles.keySet().iterator().next();
-
-        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
-                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
-                "PolicyDocument", Match.objectLike(Map.of(
-                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
-                                "Action", "sns:Publish",
-                                "Effect", "Allow",
-                                "Resource", Match.objectLike(Map.of("Ref", topicoLogicalId)))))))))));
-    }
-
-    @Test
-    void triagemScoreServiceStillHasNoFargateServiceDeployed() {
-        // Boundaries da spec 3.0 -- "Never: deploy do triagem-score-service
-        // no ECS/CDK": a stack ganha o topico SNS + a role de publish, mas
-        // nao um 4o ECS::Service. Regressao evitada: continua so postgres +
-        // gateway-service + auth-service.
-        template.resourceCountIs("AWS::ECS::Service", 3);
+        assertThat(roles).isEmpty();
     }
 
     @Test
@@ -324,8 +299,8 @@ class FilaJustaStackTest {
         // Deploy do matching-alocacao-service no ECS continua deferido --
         // mas a policy de consumo ja precisa existir (Code Map da spec
         // 3.1b), presa a ESTA role, apontando para ESTA fila (mesmo
-        // raciocinio de triagemScoreServiceTaskRoleCanPublishToScoreCalculadoTopic
-        // acima).
+        // raciocinio de matchingAlocacaoServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic
+        // abaixo).
         Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "QueueName", "score-calculado-matching.fifo")))));
@@ -358,9 +333,10 @@ class FilaJustaStackTest {
     void matchingAlocacaoServiceStillHasNoFargateServiceDeployed() {
         // Boundaries da spec 3.1b -- "Never: deploy ECS/CDK do servico": a
         // stack ganha a fila consumidora + DLQ + a role de consumo, mas nao
-        // um 4o ECS::Service. Regressao evitada: continua so postgres +
-        // gateway-service + auth-service.
-        template.resourceCountIs("AWS::ECS::Service", 3);
+        // um ECS::Service proprio. Regressao evitada: continua so postgres +
+        // gateway-service + auth-service + agendamento-confirmacao-service
+        // (Story 1.1 do Epic 1, o unico servico de dominio ja deployado).
+        template.resourceCountIs("AWS::ECS::Service", 4);
     }
 
     @Test
@@ -383,10 +359,10 @@ class FilaJustaStackTest {
         // policy de publish no topico outbox proprio ja precisa existir
         // (Code Map da spec 3-3a), presa a MESMA MatchingAlocacaoServiceTaskRole
         // ja usada pelo consumo da fila ScoreCalculado (Story 3.1b), nao uma
-        // role nova (mesmo raciocinio de
-        // triagemScoreServiceTaskRoleCanPublishToScoreCalculadoTopic acima:
-        // resolve os logical IDs reais do topico e da role, confirma que E
-        // esta policy, presa a ESTA role, que aponta para ESTE topico).
+        // role nova: resolve os logical IDs reais do topico e da role,
+        // confirma que E esta policy, presa a ESTA role, que aponta para
+        // ESTE topico (mesmo raciocinio usado nos demais testes de
+        // grant/policy desta classe).
         Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "TopicName", "matching-alocacao-eventos.fifo")))));

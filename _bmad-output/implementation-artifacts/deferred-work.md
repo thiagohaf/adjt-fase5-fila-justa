@@ -589,3 +589,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4b1-liberacao-real-recurso.md`
   summary: `LiberarRecurso` não valida `correlationId` (nulo, em branco, ou acima de 128 caracteres) antes de gravar o evento `RecursoLiberado` no outbox, ao contrário de `ConfirmarAlocacao` (que gera um novo se ausente/branco e valida o limite de tamanho) -- um `correlationId` nulo quebraria a rastreabilidade do evento pelo pipeline outbox/relay.
   evidence: Achado convergente do edge-case-hunter e do blind-hunter; identificado também pelo próprio subagente de implementação no relatório final. Inalcançável hoje (nenhum consumidor real chama `LiberarRecurso` ainda) -- a Story 3-4b2 (consumidor SQS), que vai de fato preencher `correlationId` a partir da mensagem SQS, é quem deve decidir e implementar essa validação.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-1-registrar-agendamento-e-resolver-paciente-por-cpf.md`
+  summary: `RegistrarAgendamento` não é protegido contra envio duplicado — o mesmo `pacienteId`+`recursoId`+`dataHoraAgendamento` reenviado (retry, duplo clique) cria dois Agendamentos distintos em vez de um só.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter + edge-case-hunter) sobre o diff da Story 1.1. Nenhum AC da story exige idempotência de registro (diferente de Confirmação/Recusa, que exigem explicitamente); vale como constraint de unicidade (`paciente_id`+`recurso_id`+`data_hora_agendamento`) ou verificação de duplicata no comando, numa story futura.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-1-registrar-agendamento-e-resolver-paciente-por-cpf.md`
+  summary: Não existe forma de reconsultar um Agendamento após o registro — `POST /v1/agendamentos` não devolve header `Location` nem existe endpoint `GET`.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 1.1. Fora do escopo dos ACs da Story 1.1 (só cobre registro); `application/query/ConsultarAgendamento` já está prevista no Code Map da Architecture Spine para uma story futura.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-1-registrar-agendamento-e-resolver-paciente-por-cpf.md`
+  summary: Falta teste de integração cobrindo `dataHoraAgendamento` em formato malformado (não-ISO8601) via HTTP — só os casos "ausente" e "no passado" têm teste ponta a ponta.
+  evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 1.1. `AgendamentoExceptionHandler` provavelmente já trata `HttpMessageNotReadableException` (padrão herdado de `RecursosExceptionHandler`), mas falta o teste explícito confirmando o comportamento para esse caso específico.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-1-registrar-agendamento-e-resolver-paciente-por-cpf.md`
+  summary: `matching-alocacao-service` (`ScoreBootstrapService`/`TriagemScoreClient`) ainda chama `GET /internal/scores`, endpoint que deixou de existir com a renomeação/poda do `triagem-score-service` nesta story — em produção, esse bootstrap fica permanentemente indisponível (falha tratada, mas sempre falha) até a AD-1 remover essa infraestrutura no próprio `matching-alocacao-service`/`liberacao-repasse-service` (Epic 2, Story 2.1).
+  evidence: Achado pelo review adversarial (bmad-build step-04, edge-case-hunter, deletion check) sobre o diff da Story 1.1. Confirmado que não quebra nenhum teste hoje (`FilaBootstrapIntegrationTest` usa stub, não chamada real) — build de `matching-alocacao-service` continua verde. Risco real só em ambiente implantado entre esta story e a Story 2.1; vale considerar antecipar a remoção desse código morto junto da Story 2.1 em vez de deixar a lacuna aberta por todo o Epic 1.
