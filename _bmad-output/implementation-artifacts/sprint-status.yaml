@@ -29,147 +29,38 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-13-2026 14:00
-project: Fase 5
+last_updated: 09-18-2026 18:46
+project: ConfirmaSUS
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
-  1-1-subida-do-ambiente-com-health-check-público: done
-  1-2-autenticação-de-usuário-via-auth-service: done
+  1-1-registrar-agendamento-e-resolver-paciente-por-cpf: backlog
+  1-2-abertura-da-janela-de-confirmação-e-notificação: backlog
+  1-3-confirmação-de-presença: backlog
+  1-4-recusa-ativa-e-liberação-imediata-da-vaga: backlog
+  1-5-expiração-da-janela-e-liberação-automática: backlog
   epic-1-retrospective: done
 
   epic-2: in-progress
-  2-1-registro-de-triagem-com-score-de-prioridade-calculado: done
-  2-2-consulta-de-triagem-com-score-e-fatores-contribuintes: done
+  2-1-registrar-catálogo-de-recurso-e-entrada-na-lista-de-espera: backlog
+  2-2-consulta-da-lista-de-espera: backlog
+  2-3-geração-automática-de-sugestão-de-repasse: backlog
+  2-4-confirmação-do-repasse: backlog
+  2-5-recusa-do-repasse-e-nova-sugestão: backlog
   epic-2-retrospective: done
 
   epic-3: in-progress
-  3-0-relay-sns-score-calculado: done
-  # Story 3.1 (epics.md) dividida em 3 sub-stories em 2026-09-08 -- spec único
-  # excedia ~2500 tokens (alvo 900-1600) por cruzar 2 serviços; decisão do
-  # usuário via bmad-build/step-02 checkpoint (token count check).
-  # 2026-09-10: 3-1a/3-1b/3-1c -> done (PRs #24/#23/#25 confirmados mergeados
-  # em develop via git log; sprint-status.yaml estava desatualizado).
-  3-1a-listar-scores-atuais: done
-  3-1b-réplica-score-consumidor-sqs-fifo: done
-  3-1c-consulta-fila-priorizada-bootstrap: done
-  # Story 3.2 (epics.md) dividida em 2 sub-stories em 2026-09-10 -- spec único
-  # excedia ~2700-2800 tokens (alvo 900-1600) por cruzar triagem-score-service
-  # e matching-alocacao-service + introduzir o domínio Recurso do zero; decisão
-  # do usuário via bmad-build/step-02 checkpoint (token count check), mesmo
-  # padrão da Story 3.1. Ver deferred-work.md.
-  3-2a-numero-sequencial-triagem-scores: done
-  # 3-2b dividida em 3 sub-stories em cascata em 2026-09-11 -- spec único
-  # cruzava propagação de numeroSequencialTriagem, domínio Recurso novo e
-  # endpoint de sugestão com algoritmo de tiers (~3327 tokens, alvo 900-1600);
-  # decisão do usuário via bmad-build/step-02 checkpoint (token count check),
-  # mesmo padrão da Story 3.1 e da Story 3.2a/3.2b. Ver deferred-work.md.
-  3-2b1-numero-sequencial-triagem-score-replica: done
-  3-2b2-dominio-persistencia-upsert-recurso: done
-  3-2b3-consulta-sugestao-matching-tiers: done
-  # Story 3.3 (epics.md) dividida em 3 sub-stories em cascata em 2026-09-11 --
-  # spec único cruzava infraestrutura outbox nova do serviço, confirmação e
-  # recusa (+ rastreamento pendente de SugestaoGerada, AD-10) -- ~1760-3000
-  # tokens (alvo 900-1600); decisão do usuário via bmad-build/step-02
-  # checkpoint (token count check), mesmo padrão das Stories 3.1/3.2/3.2b.
-  # Ver deferred-work.md.
-  3-3a-infraestrutura-outbox-matching-alocacao: done
-  # Story 3-3b dividida em 2 sub-stories em cascata em 2026-09-11 -- spec
-  # único cruzava domínio Alocacao novo + os 2 índices únicos parciais de
-  # 409 + marcarIndisponivel + evento AlocacaoConfirmada via outbox +
-  # endpoint REST + exception handler + a exclusão de Pacientes alocados
-  # da fila priorizada -- ~2300-2750 tokens (alvo 900-1600); decisão do
-  # usuário no checkpoint de token count do bmad-build (step-02), mesmo
-  # padrão das Stories 3.1/3.2/3.2b/3-3a. Ver deferred-work.md.
-  # 2026-09-11: 3-3b1 -> done (PR #31 confirmado mergeado em develop via
-  # git log/gh pr view; sprint-status.yaml estava desatualizado).
-  3-3b1-confirmacao-alocacao: done
-  # Story 3-3b2 dividida em 2 sub-stories em cascata em 2026-09-11 -- spec
-  # único cruzava a criação do porto de leitura AlocacaoConsultaRepositorio/
-  # adapter/query JPA nova (infraestrutura pura) com a aplicação do filtro
-  # no caso de uso da fila (mudança de comportamento real) -- ~2067 tokens
-  # (alvo 900-1600); decisão do usuário no checkpoint de token count do
-  # bmad-build (step-02), mesmo padrão das Stories 3.1/3.2/3.2b/3-3a/3-3b.
-  # Ver deferred-work.md.
-  # 2026-09-12: 3-3b2a -> done (PR #32 confirmado mergeado em develop via
-  # git log; sprint-status.yaml estava desatualizado).
-  3-3b2a-porto-leitura-alocacoes-ativas: done
-  # 2026-09-12: 3-3b2b -> done (PR #33 confirmado mergeado em develop via
-  # git log; sprint-status.yaml estava desatualizado).
-  3-3b2b-filtro-alocados-fila: done
-  # Story 3-3c dividida em 2 sub-stories em cascata em 2026-09-12 -- spec
-  # único cruzava o comando RecusarSugestao (persistência do par recusado +
-  # evento SugestaoRecusada) com mudança de comportamento real em
-  # ConsultarSugestaoRecurso (pular recusados + rastreamento AD-10 /
-  # SugestaoGerada) -- ~2913 tokens (alvo 900-1600); decisão do usuário no
-  # checkpoint de token count do bmad-build (step-02), mesmo padrão das
-  # Stories 3.1/3.2/3.2b/3-3a/3-3b/3-3b2. Ver deferred-work.md.
-  3-3c1-recusa-sugestao-comando: done
-  # Story 3-3c2 dividida em 2 sub-stories em cascata em 2026-09-12 -- spec
-  # único cruzava o pulo de pacientes recusados em ConsultarSugestaoRecurso
-  # com o rastreamento AD-10 (tabela ultima_sugestao_registrada + evento
-  # SugestaoGerada) -- ~3113 tokens (alvo 900-1600); decisão do usuário no
-  # checkpoint de token count do bmad-build (step-02), mesmo padrão das
-  # Stories 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c. Ver deferred-work.md.
-  3-3c2a-pulo-recusados-sugestao: done
-  # Story 3-3c2b dividida em 2 sub-stories em cascata em 2026-09-12 -- spec
-  # único cruzava a infraestrutura pura de apoio (tabela
-  # ultima_sugestao_registrada + porta UltimaSugestaoRegistradaRepositorio +
-  # adapter, sem mudança de comportamento visível) com a aplicação real do
-  # rastreamento em ConsultarSugestaoRecurso (@Transactional, comparação,
-  # publicação de SugestaoGerada) -- ~2428 tokens (alvo 900-1600); decisão do
-  # usuário no checkpoint de token count do bmad-build (step-02), mesmo
-  # padrão das Stories 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c/3-3c2. Ver
-  # deferred-work.md.
-  3-3c2b1-porto-ultima-sugestao-registrada: done
-  # 2026-09-13: 3-3c2b2 -> done (PR #37 confirmado mergeado em develop pelo
-  # usuário).
-  3-3c2b2-rastreamento-ad10-sugestao-gerada: done
-  # Story 3.4 dividida em 3 sub-stories em cascata em 2026-09-13 -- spec único
-  # cruzava agendamento+publicação (fila SQS standard nova + infra CDK) e
-  # consumo+liberação real do Recurso -- ~3053 tokens (alvo 900-1600); depois
-  # subdividida de novo (3-4a: agendar+publicar ainda ~2622 tokens) até
-  # restar só a persistência (3-4a1); decisão do usuário em 2 checkpoints de
-  # token count do bmad-build (step-02), mesmo padrão das Stories
-  # 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c/3-3c2/3-3c2b. Ver deferred-work.md.
-  # 2026-09-13: 3-4a1 -> done (PR #39 confirmado mergeado em develop pelo
-  # usuário).
-  3-4a1-persistencia-liberacao-agendada: done
-  # Story 3-4a2 (publicação de fato da liberação agendada) implementada em
-  # 2026-09-13 via bmad-build (spec-3-4a2-publicacao-liberacao-agendada.md,
-  # status done) -- LiberacaoAgendadaRelayJob + fila SQS standard/DLQ no CDK +
-  # LiberacaoAgendadaSqsClientConfig; code review multi-agente com 4 achados
-  # corrigidos. Ver deferred-work.md para achados de baixo risco remanescentes.
-  # 2026-09-13: 3-4a2 -> done (PR #41 confirmado mergeado em develop pelo
-  # usuário).
-  3-4a2-publicacao-liberacao-agendada: done
-  # Story 3-4b (consumo+liberação real do Recurso) dividida em 2 sub-stories
-  # em 2026-09-13 -- spec único (comando+persistência+consumidor SQS+CDK)
-  # mediu ~3171 tokens (alvo 900-1600); decisão do usuário no checkpoint de
-  # token count do bmad-build (step-02), mesmo padrão das Stories
-  # 3.1/3.2/3.2b/3-3a/3-3b/3-3b2/3-3c/3-3c2/3-3c2b/3-4a. Ver deferred-work.md.
-  # 2026-09-13: 3-4b1 implementada via bmad-build
-  # (spec-3-4b1-liberacao-real-recurso.md, status done) -- Alocacao.liberar +
-  # RecursoRepositorio#marcarDisponivel + comando LiberarRecurso (bean Spring,
-  # @Transactional real) + evento RecursoLiberado via outbox; code review
-  # multi-agente com 1 achado corrigido (LiberarRecurso não era bean Spring,
-  # @Transactional inerte). Ver deferred-work.md para achados de baixo risco
-  # remanescentes.
-  # 2026-09-13: 3-4b1 -> done (PR #43 confirmado mergeado em develop pelo
-  # usuário).
-  3-4b1-liberacao-real-recurso: done
+  3-1-registro-de-decisão-no-log-auditável: backlog
+  3-2-consulta-de-auditoria-por-paciente-ou-agendamento: backlog
   epic-3-retrospective: optional
 
   epic-4: backlog
-  4-1-registro-automático-de-decisões-no-log-auditável: backlog
-  4-2-consulta-de-auditoria-por-paciente-ou-recurso: backlog
+  4-1-autenticação-do-seed-adapter-e-upsert-do-catálogo-de-recurso: backlog
+  4-2-carga-idempotente-de-agendamentos-sintéticos: backlog
+  4-3-carga-idempotente-da-lista-de-espera: backlog
   epic-4-retrospective: optional
-
-  epic-5: backlog
-  5-1-carga-de-dados-sintéticos-via-camada-adaptadora: backlog
-  epic-5-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-atualizar-package-info-java-desatualizad"
     epic: 1
@@ -212,8 +103,8 @@ action_items:
     action: "Decidir e registrar o destino dos endpoints gRPC internos (ResolveCpfParaId,
       ObterCpfMascarado) declarados no Technical Decisions do epic-2-context.md —
       hoje sem implementação nem registro de adiamento. DECISÃO 2026-09-08: manter
-      a declaração no epic-2-context.md e adiar a implementação até o primeiro
-      consumidor real precisar (Epic 3/4) — registrado em deferred-work.md."
+      a declaração no epic-2-context.md e adiar a implementação até o primeiro consumidor
+      real precisar (Epic 3/4) — registrado em deferred-work.md."
     owner: "ThiagoFerreira"
     status: done
     ref: "_bmad-output/implementation-artifacts/deferred-work.md#deferred-from-retrospectiva-do-epic-2-2026-09-08-epic-2-retro-2026-09-08md"
@@ -228,15 +119,13 @@ action_items:
     epic: 2
     action: "Configurar JaCoCo (≥90% domínio) + PIT no triagem-score-service — já
       apontado como \"antes do fechamento do Epic 2\" na revisão da Story 2.1 e ainda
-      não feito. RESOLVIDO 2026-09-08: jacoco-maven-plugin 0.8.13 (rule BUNDLE
-      restrita a com.filajusta.triagem.domain.*, mínimo 90% LINE) vinculado a
-      test/verify — `mvn verify` confirmado passando (96,6% de cobertura de linha
-      no domínio). pitest-maven 1.30.0 + pitest-junit5-plugin 1.2.2 configurados
-      (targetClasses/targetTests = domain), não vinculados ao lifecycle por custo
-      — rodar sob demanda via
-      `mvn -pl triagem-score-service -am org.pitest:pitest-maven:mutationCoverage`
-      (confirmado rodando: 74% mutation score na 1ª execução, sem threshold
-      mínimo imposto)."
+      não feito. RESOLVIDO 2026-09-08: jacoco-maven-plugin 0.8.13 (rule BUNDLE restrita
+      a com.filajusta.triagem.domain.*, mínimo 90% LINE) vinculado a test/verify —
+      `mvn verify` confirmado passando (96,6% de cobertura de linha no domínio). pitest-maven
+      1.30.0 + pitest-junit5-plugin 1.2.2 configurados (targetClasses/targetTests
+      = domain), não vinculados ao lifecycle por custo — rodar sob demanda via `mvn
+      -pl triagem-score-service -am org.pitest:pitest-maven:mutationCoverage` (confirmado
+      rodando: 74% mutation score na 1ª execução, sem threshold mínimo imposto)."
     owner: "ThiagoFerreira"
     status: done
     ref: "triagem-score-service/pom.xml"
