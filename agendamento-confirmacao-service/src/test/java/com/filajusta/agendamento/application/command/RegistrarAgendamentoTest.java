@@ -41,13 +41,14 @@ class RegistrarAgendamentoTest {
     private static final Instant AGORA = Instant.parse("2026-09-18T12:00:00Z");
     private static final String CPF_VALIDO = "529.982.247-25";
     private static final String RECURSO_ID_VALIDO = "d290f1ee-6c54-4b01-90e6-d701748f0851";
+    private static final Duration JANELA_DURACAO = Duration.ofMinutes(30);
 
     private final PacienteRepositorio pacienteRepositorio = mock(PacienteRepositorio.class);
     private final AgendamentoRepositorio agendamentoRepositorio = mock(AgendamentoRepositorio.class);
     private final Clock clock = Clock.fixed(AGORA, ZoneOffset.UTC);
     private final ResolverOuCriarPaciente resolverOuCriarPaciente = new ResolverOuCriarPaciente(pacienteRepositorio);
     private final RegistrarAgendamento registrarAgendamento =
-            new RegistrarAgendamento(resolverOuCriarPaciente, agendamentoRepositorio, clock);
+            new RegistrarAgendamento(resolverOuCriarPaciente, agendamentoRepositorio, clock, JANELA_DURACAO);
 
     private static Instant dataFutura() {
         return AGORA.plus(Duration.ofDays(1));
@@ -58,7 +59,8 @@ class RegistrarAgendamentoTest {
         when(agendamentoRepositorio.salvar(any())).thenAnswer(invocation -> {
             Agendamento agendamento = invocation.getArgument(0);
             return new Agendamento(99L, agendamento.getPacienteId(), agendamento.getRecursoId(),
-                    agendamento.getDataHoraAgendamento(), agendamento.getStatus(), agendamento.getCriadoEm());
+                    agendamento.getDataHoraAgendamento(), agendamento.getStatus(), agendamento.getCriadoEm(),
+                    agendamento.getJanelaAbreEm(), agendamento.getJanelaExpiraEm());
         });
     }
 
@@ -77,6 +79,9 @@ class RegistrarAgendamentoTest {
         assertThat(agendamento.getDataHoraAgendamento()).isEqualTo(dataFutura());
         assertThat(agendamento.getStatus()).isEqualTo(StatusAgendamento.AGUARDANDO_JANELA);
         assertThat(agendamento.getCriadoEm()).isEqualTo(AGORA);
+        // Spec 1.2, Design Notes: janelaAbreEm = agora + janelaDuracao.
+        assertThat(agendamento.getJanelaAbreEm()).isEqualTo(AGORA.plus(JANELA_DURACAO));
+        assertThat(agendamento.getJanelaExpiraEm()).isNull();
         verify(pacienteRepositorio).salvar(any());
     }
 

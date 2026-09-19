@@ -10,8 +10,21 @@ import java.util.UUID;
  * {@code recursoId} (validado so por formato -- AD-1, sem checagem de
  * existencia contra o catalogo real de Recurso) e uma
  * {@code dataHoraAgendamento} futura. Nasce sempre em
- * {@link StatusAgendamento#AGUARDANDO_JANELA} -- as demais transicoes de
- * estado sao adicionadas pelas proximas stories do Epic 1.
+ * {@link StatusAgendamento#AGUARDANDO_JANELA}.
+ *
+ * <p>{@code janelaAbreEm} (Story 1.2, AD-4) e calculado e persistido no
+ * momento do {@code RegistrarAgendamento} (spec 1.2, Design Notes) -- nunca
+ * nulo. {@code janelaExpiraEm} ja existe como coluna (mesma migration) mas
+ * so passa a ser preenchido pelo poller de expiracao da Story 1.5 (fora de
+ * escopo desta spec) -- pode ser {@code null} ate la.
+ *
+ * <p>{@link #abrirJanela()} (imutavel, mesmo padrao de
+ * {@code EventoOutbox.comId}) transiciona
+ * {@link StatusAgendamento#AGUARDANDO_JANELA} para
+ * {@link StatusAgendamento#AGUARDANDO_CONFIRMACAO} -- so representa a
+ * transicao no dominio; a escrita condicional de fato
+ * ({@code UPDATE ... WHERE status = 'AGUARDANDO_JANELA'}, AD-4) vive no
+ * adapter ({@code AbrirJanelaDeConfirmacao}, application/command).
  *
  * <p>{@code id} e {@code null} antes da primeira persistencia (mesmo padrao
  * de {@link Paciente}).
@@ -24,24 +37,44 @@ public final class Agendamento {
     private final Instant dataHoraAgendamento;
     private final StatusAgendamento status;
     private final Instant criadoEm;
+    private final Instant janelaAbreEm;
+    private final Instant janelaExpiraEm;
 
     public Agendamento(Long id, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
-                        StatusAgendamento status, Instant criadoEm) {
+                        StatusAgendamento status, Instant criadoEm, Instant janelaAbreEm, Instant janelaExpiraEm) {
         this.id = id;
         this.pacienteId = Objects.requireNonNull(pacienteId, "pacienteId");
         this.recursoId = Objects.requireNonNull(recursoId, "recursoId");
         this.dataHoraAgendamento = Objects.requireNonNull(dataHoraAgendamento, "dataHoraAgendamento");
         this.status = Objects.requireNonNull(status, "status");
         this.criadoEm = Objects.requireNonNull(criadoEm, "criadoEm");
+        this.janelaAbreEm = Objects.requireNonNull(janelaAbreEm, "janelaAbreEm");
+        this.janelaExpiraEm = janelaExpiraEm;
     }
 
     /**
      * Fabrica um novo Agendamento ainda nao persistido (Boundaries da spec
      * 1.1: estado inicial sempre {@code AGUARDANDO_JANELA}).
+     * {@code janelaAbreEm} e recebido ja calculado pelo chamador
+     * ({@code RegistrarAgendamento}, spec 1.2 -- duracao da janela e
+     * {@code [ASSUMPTION]} configuravel, ver
+     * {@code filajusta.agendamento.janela.duracao}). {@code janelaExpiraEm}
+     * comeca sempre {@code null} (preenchido so pela Story 1.5).
      */
-    public static Agendamento novo(Long pacienteId, UUID recursoId, Instant dataHoraAgendamento, Instant agora) {
+    public static Agendamento novo(Long pacienteId, UUID recursoId, Instant dataHoraAgendamento, Instant agora,
+                                    Instant janelaAbreEm) {
         return new Agendamento(null, pacienteId, recursoId, dataHoraAgendamento,
-                StatusAgendamento.AGUARDANDO_JANELA, agora);
+                StatusAgendamento.AGUARDANDO_JANELA, agora, janelaAbreEm, null);
+    }
+
+    /**
+     * Retorna uma copia deste Agendamento com {@code status} transicionado
+     * para {@link StatusAgendamento#AGUARDANDO_CONFIRMACAO} (AD-4, spec 1.2)
+     * -- mesmo padrao imutavel de {@code EventoOutbox.comId}.
+     */
+    public Agendamento abrirJanela() {
+        return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
+                StatusAgendamento.AGUARDANDO_CONFIRMACAO, criadoEm, janelaAbreEm, janelaExpiraEm);
     }
 
     public Long getId() {
@@ -66,5 +99,13 @@ public final class Agendamento {
 
     public Instant getCriadoEm() {
         return criadoEm;
+    }
+
+    public Instant getJanelaAbreEm() {
+        return janelaAbreEm;
+    }
+
+    public Instant getJanelaExpiraEm() {
+        return janelaExpiraEm;
     }
 }

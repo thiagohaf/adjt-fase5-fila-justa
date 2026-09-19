@@ -254,9 +254,17 @@ public class FilaJustaStack extends Stack {
             authService.getNode().addDependency(cloudMapNamespace);
         }
 
+        // --- Topico de outbox proprio do agendamento-confirmacao-service (spec 1.2, AD-3) ---
+        // Criado antes do FargateService para poder ser passado ao metodo de
+        // build abaixo, que concede grantPublish diretamente na TaskRole
+        // real do servico (ja deployado, diferente de matching-alocacao-service
+        // -- nao ha necessidade de uma Role standalone pre-criada aqui).
+        Topic agendamentoConfirmacaoEventosTopic = buildAgendamentoConfirmacaoEventosTopic();
+
         // --- agendamento-confirmacao-service (task/service, Story 1.1) ----
         FargateService agendamentoConfirmacaoService = buildAgendamentoConfirmacaoService(
-                cluster, vpc, sgAgendamentoConfirmacaoApp, sgAgendamentoConfirmacaoHealth, dbSecret);
+                cluster, vpc, sgAgendamentoConfirmacaoApp, sgAgendamentoConfirmacaoHealth, dbSecret,
+                agendamentoConfirmacaoEventosTopic);
 
         // Conecta ao Postgres via JDBC -- mesma corrida do namespace Cloud
         // Map do Service Connect ja documentada para postgresService/authService acima.
@@ -318,6 +326,23 @@ public class FilaJustaStack extends Stack {
                 .build();
         CfnOutput.Builder.create(this, "LiberacaoAgendadaQueueUrl")
                 .value(liberacaoAgendadaQueue.getQueueUrl())
+                .build();
+        CfnOutput.Builder.create(this, "AgendamentoConfirmacaoEventosTopicArn")
+                .value(agendamentoConfirmacaoEventosTopic.getTopicArn())
+                .build();
+    }
+
+    private Topic buildAgendamentoConfirmacaoEventosTopic() {
+        // FIFO (nao standard) -- mesmo padrao de buildMatchingAlocacaoEventosTopic():
+        // ordem deterministica por Agendamento via MessageGroupId=agendamentoId
+        // (spec 1.2, AD-3). contentBasedDeduplication=false:
+        // RelaySnsPublisherJob deste servico sempre manda um
+        // MessageDeduplicationId explicito (o eventId do outbox), nunca
+        // depende de deduplicacao por conteudo.
+        return Topic.Builder.create(this, "AgendamentoConfirmacaoEventosTopic")
+                .topicName("agendamento-confirmacao-eventos.fifo")
+                .fifo(true)
+                .contentBasedDeduplication(false)
                 .build();
     }
 
@@ -719,7 +744,8 @@ public class FilaJustaStack extends Stack {
     private FargateService buildAgendamentoConfirmacaoService(final Cluster cluster, final IVpc vpc,
                                                                 final SecurityGroup sgAgendamentoConfirmacaoApp,
                                                                 final SecurityGroup sgAgendamentoConfirmacaoHealth,
-                                                                final Secret dbSecret) {
+                                                                final Secret dbSecret,
+                                                                final Topic agendamentoConfirmacaoEventosTopic) {
         LogGroup logGroup = LogGroup.Builder.create(this, "AgendamentoConfirmacaoLogGroup")
                 .logGroupName("/filajusta/agendamento-confirmacao-service")
                 .retention(RetentionDays.THREE_DAYS)
@@ -731,6 +757,14 @@ public class FilaJustaStack extends Stack {
                 .memoryLimitMiB(512)
                 .runtimePlatform(arm64Platform())
                 .build();
+
+        // Spec 1.2 (AD-3): RelaySnsPublisherJob deste servico publica no
+        // topico proprio -- concede a permissao diretamente na TaskRole real
+        // da task (nao uma Role standalone: diferente de
+        // matching-alocacao-service, este servico ja tem um FargateService
+        // deployado, entao a role de fato usada em runtime e
+        // taskDef.getTaskRole()).
+        agendamentoConfirmacaoEventosTopic.grantPublish(taskDef.getTaskRole());
 
         taskDef.addContainer("agendamento-confirmacao-service", ContainerDefinitionOptions.builder()
                 .image(ContainerImage.fromAsset("..", AssetImageProps.builder()
@@ -748,13 +782,19 @@ public class FilaJustaStack extends Stack {
                         PortMapping.builder().containerPort(8091).build()))
                 // Credenciais do Postgres reusam o secret admin da Story 1.1
                 // (mesmo padrao de buildAuthService) -- nunca no repositorio
-                // (NFR-6). Sem segredo gRPC/SNS nesta story (AD-1 -- nenhum
-                // dos dois entra no escopo da Story 1.1).
+                // (NFR-6). Sem segredo gRPC nesta story (AD-11, adiado).
                 .secrets(Map.of(
                         "SPRING_DATASOURCE_USERNAME",
                         software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "username"),
                         "SPRING_DATASOURCE_PASSWORD",
                         software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "password")))
+                // ARN do topico outbox (spec 1.2) -- nao e segredo (Resource
+                // ARN publico dentro da conta), injetado como variavel de
+                // ambiente comum (mesmo padrao de FILAJUSTA_MATCHING_OUTBOX_RELAY_TOPIC_ARN
+                // em matching-alocacao-service, que tambem nao usa Secret).
+                .environment(Map.of(
+                        "FILAJUSTA_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN",
+                        agendamentoConfirmacaoEventosTopic.getTopicArn()))
                 .build());
 
         return FargateService.Builder.create(this, "AgendamentoConfirmacaoService")

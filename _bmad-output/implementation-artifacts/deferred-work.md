@@ -605,3 +605,21 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-1-registrar-agendamento-e-resolver-paciente-por-cpf.md`
   summary: `matching-alocacao-service` (`ScoreBootstrapService`/`TriagemScoreClient`) ainda chama `GET /internal/scores`, endpoint que deixou de existir com a renomeação/poda do `triagem-score-service` nesta story — em produção, esse bootstrap fica permanentemente indisponível (falha tratada, mas sempre falha) até a AD-1 remover essa infraestrutura no próprio `matching-alocacao-service`/`liberacao-repasse-service` (Epic 2, Story 2.1).
   evidence: Achado pelo review adversarial (bmad-build step-04, edge-case-hunter, deletion check) sobre o diff da Story 1.1. Confirmado que não quebra nenhum teste hoje (`FilaBootstrapIntegrationTest` usa stub, não chamada real) — build de `matching-alocacao-service` continua verde. Risco real só em ambiente implantado entre esta story e a Story 2.1; vale considerar antecipar a remoção desse código morto junto da Story 2.1 em vez de deixar a lacuna aberta por todo o Epic 1.
+
+## Deferred from: bmad-build step-04 code review da Story 1.2 (2026-09-18)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-abertura-da-janela-de-confirmacao-e-notificacao.md`
+  summary: `RegistrarAgendamento` calcula `janelaAbreEm = agora + janelaDuracao` sem validar que o resultado fica antes de `dataHoraAgendamento` — uma `janela.duracao` configurada grande demais (ou um agendamento marcado para daqui a poucos minutos) pode abrir a Janela de Confirmação depois do próprio horário do agendamento.
+  evidence: Achado convergente do blind-hunter e do edge-case-hunter sobre o diff da Story 1.2. Nenhum AC/Boundary da spec exige essa validação cruzada; o PRD também não define a duração exata da janela (já registrada como `[ASSUMPTION]`). Vale como regra de negócio própria (rejeitar o registro, ou pelo menos logar um aviso) numa story futura que revisite a duração da janela.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-abertura-da-janela-de-confirmacao-e-notificacao.md`
+  summary: A migration `V2__add_janela_e_outbox.sql` faz backfill de `janela_abre_em = criado_em` antes de aplicar `NOT NULL`, assumindo implicitamente que a tabela `agendamentos` está vazia nesta fase do projeto — nenhuma checagem (assert de contagem, etc.) protege essa suposição se a migration for aplicada mais tarde contra dado real.
+  evidence: Achado pelo blind-hunter sobre o diff da Story 1.2. Seguro hoje (ambiente de desenvolvimento/MVP acadêmico, sem dado de produção), mas vale documentar ou proteger antes de qualquer ambiente com dado real.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-abertura-da-janela-de-confirmacao-e-notificacao.md`
+  summary: `AgendamentoRepositorioAdapter`/`EventoOutboxRepositorioAdapter` (serialização JSON do payload, mapeamento JPA↔domínio) e `RelaySnsClientConfig` não têm teste unitário dedicado — só são exercitados indiretamente via os testes de integração com Testcontainers/LocalStack. O molde em `matching-alocacao-service` tem `EventoOutboxRepositorioAdapterTest` dedicado (não replicado aqui).
+  evidence: Achado convergente do blind-hunter sobre o diff da Story 1.2. Comportamento já coberto na prática (testes de integração verdes), mas um teste unitário focado no adapter tornaria uma regressão futura de serialização mais fácil de localizar e mais rápida de rodar.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-2-abertura-da-janela-de-confirmacao-e-notificacao.md`
+  summary: `Agendamento.abrirJanela()` (método de domínio imutável) nunca é chamado — a transição de estado de fato acontece só via `UPDATE ... WHERE status = 'AGUARDANDO_JANELA'` direto no adapter (`atualizarStatusSeAtual`), deixando duas fontes da mesma regra de transição (uma delas, o método de domínio, sem guarda contra ser chamado a partir de um estado inválido).
+  evidence: Achado convergente do verification-gap e do edge-case-hunter sobre o diff da Story 1.2. Decisão documentada como intencional no javadoc da classe (a escrita condicional real vive no adapter), mas o método morto/duplicado é um risco de manutenção — vale remover `abrirJanela()` ou efetivamente usá-lo (com guarda de estado) numa iteração futura.

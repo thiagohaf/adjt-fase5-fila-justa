@@ -8,6 +8,7 @@ import com.filajusta.agendamento.domain.RecursoIdInvalidoException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -30,19 +31,29 @@ import java.util.UUID;
  * <p>{@code @Transactional} vive aqui (nao em {@code domain/}, que
  * permanece framework-agnostico por AD-2): resolver/criar o Paciente e
  * persistir o Agendamento precisam ser atomicos.
+ *
+ * <p>{@code janelaDuracao} (spec 1.2, Design Notes) calcula
+ * {@code janelaAbreEm = agora + janelaDuracao} -- {@code [ASSUMPTION]}
+ * valor fixo configuravel ({@code filajusta.agendamento.janela.duracao},
+ * default {@code PT30M}), ja que o PRD nao define o numero exato. O poller
+ * {@code AbrirJanelaDeConfirmacao} le essa coluna para decidir quando abrir
+ * a Janela de Confirmacao.
  */
 public class RegistrarAgendamento {
 
     private final ResolverOuCriarPaciente resolverOuCriarPaciente;
     private final AgendamentoRepositorio agendamentoRepositorio;
     private final Clock clock;
+    private final Duration janelaDuracao;
 
     public RegistrarAgendamento(ResolverOuCriarPaciente resolverOuCriarPaciente,
                                  AgendamentoRepositorio agendamentoRepositorio,
-                                 Clock clock) {
+                                 Clock clock,
+                                 Duration janelaDuracao) {
         this.resolverOuCriarPaciente = resolverOuCriarPaciente;
         this.agendamentoRepositorio = agendamentoRepositorio;
         this.clock = clock;
+        this.janelaDuracao = janelaDuracao;
     }
 
     @Transactional
@@ -56,7 +67,9 @@ public class RegistrarAgendamento {
 
         Paciente paciente = resolverOuCriarPaciente.resolver(cpf);
 
-        Agendamento agendamentoParaSalvar = Agendamento.novo(paciente.getId(), recursoId, dataHoraAgendamento, agora);
+        Instant janelaAbreEm = agora.plus(janelaDuracao);
+        Agendamento agendamentoParaSalvar =
+                Agendamento.novo(paciente.getId(), recursoId, dataHoraAgendamento, agora, janelaAbreEm);
         return agendamentoRepositorio.salvar(agendamentoParaSalvar);
     }
 
