@@ -4,6 +4,7 @@ import com.filajusta.agendamento.domain.Agendamento;
 import com.filajusta.agendamento.domain.StatusAgendamento;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Porta de saida para persistencia de {@link Agendamento}. Implementada em
@@ -42,4 +43,16 @@ public interface AgendamentoRepositorio {
      * processou), sem regravar nada. Nao e um erro.
      */
     boolean atualizarStatusSeAtual(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus);
+
+    /**
+     * Releitura pontual por {@code id} (spec 1.3, {@code ConfirmarPresenca}):
+     * usada apos {@link #atualizarStatusSeAtual} para decidir, quando a
+     * escrita condicional afeta 0 linhas, entre sucesso silencioso (ja
+     * {@code CONFIRMADO}), {@code 409} (qualquer outro estado perdedor) e
+     * {@code 404} ({@code Optional} vazio, id inexistente); tambem usada apos
+     * uma transicao bem-sucedida para montar o payload do evento de outbox
+     * (precisa de {@code pacienteId}, que a escrita condicional sozinha nao
+     * retorna).
+     */
+    Optional<Agendamento> buscarPorId(Long id);
 }

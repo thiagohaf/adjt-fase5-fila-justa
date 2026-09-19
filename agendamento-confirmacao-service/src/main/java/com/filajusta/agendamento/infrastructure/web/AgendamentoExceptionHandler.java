@@ -1,8 +1,11 @@
 package com.filajusta.agendamento.infrastructure.web;
 
+import com.filajusta.agendamento.application.command.AgendamentoForaDaJanelaException;
+import com.filajusta.agendamento.application.command.AgendamentoNaoEncontradoException;
 import com.filajusta.agendamento.domain.CpfInvalidoException;
 import com.filajusta.agendamento.domain.DataHoraAgendamentoInvalidaException;
 import com.filajusta.agendamento.domain.RecursoIdInvalidoException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -10,6 +13,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Traduz as excecoes de {@code POST /v1/agendamentos} para RFC 7807
@@ -72,9 +76,51 @@ class AgendamentoExceptionHandler {
         return problem;
     }
 
+    /**
+     * {@code agendamentoId} sem registro em {@code POST
+     * /v1/agendamentos/{id}/confirmacao} -- {@code 404} (I/O &amp; Edge-Case
+     * Matrix da spec 1.3).
+     */
+    @ExceptionHandler(AgendamentoNaoEncontradoException.class)
+    ProblemDetail handleAgendamentoNaoEncontrado(AgendamentoNaoEncontradoException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Agendamento nao encontrado");
+        return problem;
+    }
+
+    /**
+     * {@code agendamentoId} nao esta em {@code AGUARDANDO_CONFIRMACAO}
+     * (janela ainda nao aberta ou vaga ja liberada) -- {@code 409} (spec 1.3,
+     * Boundaries; molde {@code RecursosExceptionHandler
+     * #handleRecursoJaAlocado}, matching-alocacao-service).
+     */
+    @ExceptionHandler(AgendamentoForaDaJanelaException.class)
+    ProblemDetail handleAgendamentoForaDaJanela(AgendamentoForaDaJanelaException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Agendamento fora da janela de confirmacao");
+        return problem;
+    }
+
+    /**
+     * {@code id} nao numerico em {@code POST
+     * /v1/agendamentos/{id}/confirmacao} (ex.: {@code /v1/agendamentos/abc/confirmacao})
+     * -- o Spring lanca {@link MethodArgumentTypeMismatchException} antes de
+     * chegar no controller; sem este handler cairia no fallback generico e
+     * responderia {@code 500} para uma entrada invalida (achado do code
+     * review adversarial da spec 1.3).
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ProblemDetail handleIdentificadorInvalido(MethodArgumentTypeMismatchException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                "Identificador de agendamento invalido: " + ex.getValue());
+        problem.setTitle("Identificador de agendamento invalido");
+        return problem;
+    }
+
     @ExceptionHandler(Exception.class)
-    ProblemDetail handleErroInesperado(Exception ex) {
-        log.error("Erro inesperado em POST /v1/agendamentos -- respondendo 500", ex);
+    ProblemDetail handleErroInesperado(Exception ex, HttpServletRequest request) {
+        log.error("Erro inesperado em {} {} -- respondendo 500", request.getMethod(), request.getRequestURI(), ex);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno inesperado");
         problem.setTitle("Erro interno");

@@ -623,3 +623,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-abertura-da-janela-de-confirmacao-e-notificacao.md`
   summary: `Agendamento.abrirJanela()` (método de domínio imutável) nunca é chamado — a transição de estado de fato acontece só via `UPDATE ... WHERE status = 'AGUARDANDO_JANELA'` direto no adapter (`atualizarStatusSeAtual`), deixando duas fontes da mesma regra de transição (uma delas, o método de domínio, sem guarda contra ser chamado a partir de um estado inválido).
   evidence: Achado convergente do verification-gap e do edge-case-hunter sobre o diff da Story 1.2. Decisão documentada como intencional no javadoc da classe (a escrita condicional real vive no adapter), mas o método morto/duplicado é um risco de manutenção — vale remover `abrirJanela()` ou efetivamente usá-lo (com guarda de estado) numa iteração futura.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-confirmacao-de-presenca.md`
+  summary: Ausência de log estruturado (sucesso, duplicata, conflito) em `ConfirmarPresenca` e, por precedente, no restante do fluxo de transição de estado do `agendamento-confirmacao-service` — hoje não há como acompanhar taxa de confirmações/conflitos em produção pelos logs.
+  evidence: Achado do blind-hunter sobre o diff da Story 1.3. Não é regressão desta story (o precedente `AbrirJanelaDeConfirmacao` também não loga por transição individual), mas observabilidade real ausente; vale padronizar quando o projeto tratar logging estruturado como prioridade (`epic-1-context.md` já cita "logging estruturado em JSON" como convenção).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-1-3-confirmacao-de-presenca.md`
+  summary: Nenhum evento de domínio do serviço (`NotificacaoConfirmacaoPublicada`, `ConfirmacaoRegistrada`, e os que virão em Recusa/Expiração) tem um JSON Schema companion versionado junto ao produtor, apesar de ser convenção declarada em `ARCHITECTURE-SPINE.md` (Consistency Conventions: "cada eventType tem schema companion (JSON Schema) versionado junto ao produtor").
+  evidence: Achado do blind-hunter sobre o diff da Story 1.3, mas o gap é anterior a esta story (já valia para `NotificacaoConfirmacaoPublicada` na Story 1.2) — convenção do projeto ainda não implementada em nenhum evento, não regressão desta mudança especificamente.

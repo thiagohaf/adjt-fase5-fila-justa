@@ -1,5 +1,6 @@
 package com.filajusta.agendamento;
 
+import com.filajusta.agendamento.domain.StatusAgendamento;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,6 +38,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>recursoId malformado/ausente -&gt; 422 RFC 7807, nada persistido;</li>
  *   <li>dataHoraAgendamento no passado/ausente -&gt; 422 RFC 7807, nada persistido.</li>
  * </ol>
+ *
+ * <p>Cobre tambem, ponta a ponta, o contrato HTTP de {@code POST
+ * /v1/agendamentos/{id}/confirmacao} (I/O &amp; Edge-Case Matrix da spec
+ * 1.3): confirmacao valida (200), confirmacao duplicada (200, sem novo
+ * evento), janela ainda nao aberta (409), vaga ja liberada (409) e
+ * agendamentoId inexistente (404).
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -80,6 +87,42 @@ class AgendamentoControllerIntegrationTest {
 
     private static String novoRecursoId() {
         return java.util.UUID.randomUUID().toString();
+    }
+
+    private HttpResponse<String> confirmarPresenca(long agendamentoId) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/v1/agendamentos/" + agendamentoId + "/confirmacao"))
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    /**
+     * Insere Paciente + Agendamento diretamente via JDBC no {@code status}
+     * pedido -- {@code POST /v1/agendamentos} so alcanca {@code
+     * AGUARDANDO_JANELA} (Story 1.1), entao os demais estados precisam ser
+     * montados direto no banco para exercitar {@code POST
+     * /v1/agendamentos/{id}/confirmacao} (spec 1.3).
+     */
+    private long criarAgendamentoComStatus(StatusAgendamento status) {
+        String cpf = String.format("%011d", Math.abs(System.nanoTime()) % 100_000_000_000L);
+        Long pacienteId = jdbcTemplate.queryForObject(
+                "INSERT INTO agendamento_confirmacao.pacientes (cpf) VALUES (?) RETURNING id",
+                Long.class, cpf);
+
+        Instant agora = Instant.now();
+        // java.time.Instant puro nao tem tipo SQL inferivel pelo driver
+        // Postgres via setObject -- java.sql.Timestamp.from(...) (mesmo
+        // resultado de TIMESTAMPTZ) evita o BadSqlGrammarException.
+        return jdbcTemplate.queryForObject(
+                "INSERT INTO agendamento_confirmacao.agendamentos "
+                        + "(paciente_id, recurso_id, data_hora_agendamento, status, criado_em, janela_abre_em) "
+                        + "VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+                Long.class,
+                pacienteId, java.util.UUID.randomUUID(),
+                java.sql.Timestamp.from(agora.plus(1, ChronoUnit.DAYS)), status.name(),
+                java.sql.Timestamp.from(agora.minus(1, ChronoUnit.HOURS)),
+                java.sql.Timestamp.from(agora.minus(10, ChronoUnit.MINUTES)));
     }
 
     @Test
@@ -209,6 +252,96 @@ class AgendamentoControllerIntegrationTest {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         assertThat(response.statusCode()).isEqualTo(422);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+    }
+
+    @Test
+    void confirmacaoValidaRetorna200ETransicionaParaConfirmadoGravandoEventoNoOutbox() throws Exception {
+        long agendamentoId = criarAgendamentoComStatus(StatusAgendamento.AGUARDANDO_CONFIRMACAO);
+
+        HttpResponse<String> response = confirmarPresenca(agendamentoId);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        String status = jdbcTemplate.queryForObject(
+                "SELECT status FROM agendamento_confirmacao.agendamentos WHERE id = ?",
+                String.class, agendamentoId);
+        assertThat(status).isEqualTo("CONFIRMADO");
+
+        Integer eventosGravados = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agendamento_confirmacao.eventos_outbox "
+                        + "WHERE event_type = 'ConfirmacaoRegistrada' AND payload ->> 'agendamentoId' = ?",
+                Integer.class, String.valueOf(agendamentoId));
+        assertThat(eventosGravados).isEqualTo(1);
+    }
+
+    @Test
+    void confirmacaoDuplicadaRetorna200SemGravarNovoEvento() throws Exception {
+        long agendamentoId = criarAgendamentoComStatus(StatusAgendamento.AGUARDANDO_CONFIRMACAO);
+
+        HttpResponse<String> primeira = confirmarPresenca(agendamentoId);
+        HttpResponse<String> segunda = confirmarPresenca(agendamentoId);
+
+        assertThat(primeira.statusCode()).isEqualTo(200);
+        assertThat(segunda.statusCode()).isEqualTo(200);
+
+        Integer eventosGravados = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agendamento_confirmacao.eventos_outbox "
+                        + "WHERE event_type = 'ConfirmacaoRegistrada' AND payload ->> 'agendamentoId' = ?",
+                Integer.class, String.valueOf(agendamentoId));
+        assertThat(eventosGravados).isEqualTo(1);
+    }
+
+    @Test
+    void janelaAindaNaoAbertaRetorna409RfC7807() throws Exception {
+        long agendamentoId = criarAgendamentoComStatus(StatusAgendamento.AGUARDANDO_JANELA);
+
+        HttpResponse<String> response = confirmarPresenca(agendamentoId);
+
+        assertThat(response.statusCode()).isEqualTo(409);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+
+        String status = jdbcTemplate.queryForObject(
+                "SELECT status FROM agendamento_confirmacao.agendamentos WHERE id = ?",
+                String.class, agendamentoId);
+        assertThat(status).isEqualTo("AGUARDANDO_JANELA");
+    }
+
+    @Test
+    void vagaJaLiberadaRetorna409RfC7807() throws Exception {
+        long agendamentoId = criarAgendamentoComStatus(StatusAgendamento.LIBERADO);
+
+        HttpResponse<String> response = confirmarPresenca(agendamentoId);
+
+        assertThat(response.statusCode()).isEqualTo(409);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+    }
+
+    @Test
+    void agendamentoIdInexistenteRetorna404() throws Exception {
+        HttpResponse<String> response = confirmarPresenca(Long.MAX_VALUE);
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+    }
+
+    @Test
+    void identificadorNaoNumericoRetorna400RfC7807() throws Exception {
+        // Achado do code review adversarial: id nao numerico no path faz o
+        // Spring lancar MethodArgumentTypeMismatchException antes do
+        // controller -- sem handler dedicado caia no fallback generico e
+        // respondia 500 para uma entrada invalida.
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/v1/agendamentos/abc/confirmacao"))
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(400);
         assertThat(response.headers().firstValue("Content-Type"))
                 .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
     }

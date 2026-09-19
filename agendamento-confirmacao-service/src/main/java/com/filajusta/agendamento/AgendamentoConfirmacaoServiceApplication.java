@@ -2,6 +2,7 @@ package com.filajusta.agendamento;
 
 import com.filajusta.agendamento.application.command.AbrirJanelaDeConfirmacao;
 import com.filajusta.agendamento.application.command.AgendamentoRepositorio;
+import com.filajusta.agendamento.application.command.ConfirmarPresenca;
 import com.filajusta.agendamento.application.command.EventoOutboxRepositorio;
 import com.filajusta.agendamento.application.command.PacienteRepositorio;
 import com.filajusta.agendamento.application.command.RegistrarAgendamento;
@@ -63,5 +64,12 @@ public class AgendamentoConfirmacaoServiceApplication {
                                                        @Value("${filajusta.agendamento.abertura-janela.batch-size:50}")
                                                        int loteTamanho) {
         return new AbrirJanelaDeConfirmacao(agendamentoRepositorio, eventoOutboxRepositorio, clock, loteTamanho);
+    }
+
+    @Bean
+    ConfirmarPresenca confirmarPresenca(AgendamentoRepositorio agendamentoRepositorio,
+                                         EventoOutboxRepositorio eventoOutboxRepositorio,
+                                         Clock clock) {
+        return new ConfirmarPresenca(agendamentoRepositorio, eventoOutboxRepositorio, clock);
     }
 }
