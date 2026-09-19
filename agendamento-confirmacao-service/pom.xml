@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.filajusta</groupId>
+    <artifactId>fila-justa-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>agendamento-confirmacao-service</artifactId>
+  <packaging>jar</packaging>
+
+  <name>agendamento-confirmacao-service</name>
+  <description>
+    Servico de dominio do FilaJusta (Epic 1) -- renomeado/podado do extinto
+    triagem-score-service (produto FilaJusta descartado, AD-1). Story 1.1
+    expoe POST /v1/agendamentos: resolve/cria o Paciente por CPF de forma
+    idempotente (reaproveitado sem alteracao de logica) e registra um
+    Agendamento (estado inicial AGUARDANDO_JANELA), validando recursoId
+    (formato) e dataHoraAgendamento (instante futuro). Story 1.2 acrescenta o
+    poller AbrirJanelaDeConfirmacao (@Scheduled) que transiciona
+    AGUARDANDO_JANELA -> AGUARDANDO_CONFIRMACAO e publica
+    NotificacaoConfirmacaoPublicada via outbox (RelaySnsPublisherJob),
+    mesmo molde ja provado em matching-alocacao-service.
+  </description>
+
+  <properties>
+    <!-- Mesma versao do AWS SDK v2 ja fixada em matching-alocacao-service
+         (Story 3-3a) - reusa o precedente existente, nao introduz um novo. -->
+    <aws-sdk.version>2.54.14</aws-sdk.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <!-- Spec 1.2: infraestrutura outbox propria deste servico
+         (RelaySnsPublisherJob), mesmo precedente ja usado em
+         matching-alocacao-service/pom.xml (Story 3-3a). Credenciais/regiao
+         resolvidas so via variavel de ambiente/role da task
+         (DefaultCredentialsProvider), nunca hardcoded (mesmo Boundary de
+         RelaySnsClientConfig). -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sns</artifactId>
+    </dependency>
+    <!-- So para o teste de integracao do relay (assina a fila SQS FIFO que
+         recebe o que o SNS publica) - mesmo precedente de
+         matching-alocacao-service/pom.xml, que usa "sqs" tanto em producao
+         (consumidor real) quanto em teste; aqui e so a asserção via
+         LocalStack, escopo test basta. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sqs</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <!-- Boot 4.1 modularizou a autoconfiguracao (spring-boot-flyway),
+         separada do starter de JPA. Sem isso o Flyway nunca roda: a
+         migration so existe no classpath, mas o bean flywayInitializer
+         nunca e criado, e o Hibernate valida um schema vazio (mesmo achado
+         do extinto triagem-score-service, ver auth-service/pom.xml). -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Mesmo precedente de LocalStack de matching-alocacao-service (Story
+         3-3a) - sobe um topico SNS FIFO + fila SQS FIFO assinante reais so
+         para o teste de integracao ponta a ponta do relay; nunca toca a
+         conta AWS real. -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-localstack</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>agendamento-confirmacao-service</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- epic-1-context.md (Requirements & Constraints): cobertura de linha
+           >=90% (JaCoCo) na camada de dominio. -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.13</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>check-domain-coverage</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <includes>
+                    <include>com.filajusta.agendamento.domain.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <!-- Spec 1.2, Verification: "cobertura >=90% dominio" do
+                     poller AbrirJanelaDeConfirmacao (application/command). -->
+                <rule>
+                  <element>BUNDLE</element>
+                  <includes>
+                    <include>com.filajusta.agendamento.application.command.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- Teste de mutacao (mesmo requisito do epic). Nao vinculado a
+           nenhuma fase do lifecycle (custo alto); rodar sob demanda:
+           mvn -pl agendamento-confirmacao-service -am org.pitest:pitest-maven:mutationCoverage -->
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>1.30.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>1.2.2</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <targetClasses>
+            <param>com.filajusta.agendamento.domain.*</param>
+          </targetClasses>
+          <targetTests>
+            <param>com.filajusta.agendamento.domain.*</param>
+          </targetTests>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

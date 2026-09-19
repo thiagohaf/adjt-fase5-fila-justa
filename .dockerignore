@@ -1,0 +1,20 @@
+# Contexto de build docker dos assets CDK (ContainerImage.fromAsset("..") em
+# infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java) e a raiz
+# do repo. Excluir tudo que nao e preciso para o multi-stage build dos
+# Dockerfiles de gateway-service/auth-service (CDK le este .dockerignore
+# automaticamente ao empacotar o asset -- evita copiar infra-cdk/cdk.out
+# dentro de si mesmo e o conteudo pesado de planejamento/skills do BMAD).
+.git/
+.github/
+_bmad/
+_bmad-output/
+.agents/
+.cursor/
+.claude/
+docs/
+target/
+**/target/
+infra-cdk/cdk.out/
+infra-cdk/.cdk.staging/
+*.md
+README.md

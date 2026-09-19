@@ -1,0 +1,39 @@
+# Build/compilação
+target/
+build/
+out/
+bin/
+.gradle/
+
+# Binários e pacotes
+*.class
+*.jar
+*.war
+*.ear
+
+# Relatórios e caches
+**/reports/
+**/test-results/
+**/jacoco/
+*.log
+.mvn/.cache/
+
+# Metadados de IDE
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+
+# Binários gerais, zips e assets pesados
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+*.mp4
+*.mov

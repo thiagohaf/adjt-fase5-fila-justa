@@ -1,0 +1,140 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 09-07-2026 03:15
+last_updated: 09-18-2026 22:45
+project: ConfirmaSUS
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: in-progress
+  1-1-registrar-agendamento-e-resolver-paciente-por-cpf: review
+  1-2-abertura-da-janela-de-confirmação-e-notificação: done
+  1-3-confirmação-de-presença: done
+  1-4-recusa-ativa-e-liberação-imediata-da-vaga: done
+  1-5-expiração-da-janela-e-liberação-automática: backlog
+  epic-1-retrospective: done
+
+  epic-2: in-progress
+  2-1-registrar-catálogo-de-recurso-e-entrada-na-lista-de-espera: backlog
+  2-2-consulta-da-lista-de-espera: backlog
+  2-3-geração-automática-de-sugestão-de-repasse: backlog
+  2-4-confirmação-do-repasse: backlog
+  2-5-recusa-do-repasse-e-nova-sugestão: backlog
+  epic-2-retrospective: done
+
+  epic-3: in-progress
+  3-1-registro-de-decisão-no-log-auditável: backlog
+  3-2-consulta-de-auditoria-por-paciente-ou-agendamento: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-autenticação-do-seed-adapter-e-upsert-do-catálogo-de-recurso: backlog
+  4-2-carga-idempotente-de-agendamentos-sintéticos: backlog
+  4-3-carga-idempotente-da-lista-de-espera: backlog
+  epic-4-retrospective: optional
+action_items:
+  - id: "epic-1-retro-item-1-atualizar-package-info-java-desatualizad"
+    epic: 1
+    action: "Atualizar package-info.java desatualizado (gateway-service/application
+      e domain) que ainda descreve validação de JWT entrando em application/domain
+      — foi implementada em infrastructure/security"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-2-rodar-verificação-ao-vivo-aws-real-de-ac"
+    epic: 1
+    action: "Rodar verificação ao vivo (AWS real) de AC-3/AC-4 — validação de JWT
+      no gateway — hoje só coberta por mvn test/cdk synth, diferente do resto do epic.
+      DECISÃO 2026-09-08: hoje não existe nenhuma rota protegida real no RouteLocator
+      do gateway (só /v1/auth/login, pública) — GlobalFilters do Spring Cloud Gateway
+      só rodam para paths que casam com uma rota existente, então o JwtAuthenticationFilter
+      não é exercitável ao vivo sem uma rota-stub. ThiagoFerreira optou por não criar
+      rota-stub agora; adiado para verificação orgânica quando a 1ª rota protegida
+      real (Epic 2, triagem-score-service) existir."
+    owner: "ThiagoFerreira"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-3-triar-os-15-itens-acumulados-em-deferred"
+    epic: 1
+    action: "Triar os 15 itens acumulados em deferred-work.md em stories/chores formais
+      antes do início do Epic 2, ou adiar cada um explicitamente"
+    owner: "ThiagoFerreira"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-08.md"
+  - id: "epic-2-retro-item-4-registrar-em-deferred-work-md-o-gap-do-r"
+    epic: 2
+    action: "Registrar em deferred-work.md o gap do relay/publisher SNS FIFO para
+      o evento ScoreCalculado (hoje só grava na tabela outbox) — Epic 3/4 dependem
+      deste relay estar publicando corretamente."
+    owner: "ThiagoFerreira"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/deferred-work.md#deferred-from-retrospectiva-do-epic-2-2026-09-08-epic-2-retro-2026-09-08md"
+  - id: "epic-2-retro-item-5-decidir-e-registrar-o-destino-dos-endpoi"
+    epic: 2
+    action: "Decidir e registrar o destino dos endpoints gRPC internos (ResolveCpfParaId,
+      ObterCpfMascarado) declarados no Technical Decisions do epic-2-context.md —
+      hoje sem implementação nem registro de adiamento. DECISÃO 2026-09-08: manter
+      a declaração no epic-2-context.md e adiar a implementação até o primeiro consumidor
+      real precisar (Epic 3/4) — registrado em deferred-work.md."
+    owner: "ThiagoFerreira"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/deferred-work.md#deferred-from-retrospectiva-do-epic-2-2026-09-08-epic-2-retro-2026-09-08md"
+  - id: "epic-2-retro-item-6-corrigir-epic-2-context-md-technical-dec"
+    epic: 2
+    action: "Corrigir epic-2-context.md (Technical Decisions) para anotar que ListarScoresAtuais
+      foi explicitamente adiado para o Epic 3 pela spec 2.2 (Boundaries)."
+    owner: "ThiagoFerreira"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-2-context.md"
+  - id: "epic-2-retro-item-7-configurar-jacoco-90-domínio-pit-no-tria"
+    epic: 2
+    action: "Configurar JaCoCo (≥90% domínio) + PIT no triagem-score-service — já
+      apontado como \"antes do fechamento do Epic 2\" na revisão da Story 2.1 e ainda
+      não feito. RESOLVIDO 2026-09-08: jacoco-maven-plugin 0.8.13 (rule BUNDLE restrita
+      a com.filajusta.triagem.domain.*, mínimo 90% LINE) vinculado a test/verify —
+      `mvn verify` confirmado passando (96,6% de cobertura de linha no domínio). pitest-maven
+      1.30.0 + pitest-junit5-plugin 1.2.2 configurados (targetClasses/targetTests
+      = domain), não vinculados ao lifecycle por custo — rodar sob demanda via `mvn
+      -pl triagem-score-service -am org.pitest:pitest-maven:mutationCoverage` (confirmado
+      rodando: 74% mutation score na 1ª execução, sem threshold mínimo imposto)."
+    owner: "ThiagoFerreira"
+    status: done
+    ref: "triagem-score-service/pom.xml"
+  - id: "epic-2-retro-item-8-fechar-cada-story-com-commit-e-pr-quando"
+    epic: 2
+    action: "Fechar cada story com commit (e PR, quando o fluxo pedir) na mesma sessão
+      em que o code review termina — a Story 2.2 ficou sem commit até a retro do epic.
+      RESOLVIDO 2026-09-08: lição adotada como preferência de processo permanente
+      (memória de sessão), a aplicar a partir da Story 3.1."
+    owner: "ThiagoFerreira"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
