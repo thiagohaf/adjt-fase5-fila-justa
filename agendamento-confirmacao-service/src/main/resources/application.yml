@@ -37,6 +37,39 @@ spring:
       # Flyway (nao Hibernate) e o dono do schema -- so valida o mapeamento.
       ddl-auto: validate
 
+# Spec 1.2 (Abertura da Janela de Confirmacao e Notificacao):
+filajusta:
+  agendamento:
+    # Duracao da Janela de Confirmacao (RegistrarAgendamento calcula
+    # janelaAbreEm = agora + esta duracao) -- [ASSUMPTION] valor fixo
+    # configuravel (Design Notes da spec 1.2, o PRD nao define o numero
+    # exato). ISO-8601 duration (java.time.Duration).
+    janela:
+      duracao: PT30M
+    # Poller que abre a Janela de Confirmacao (AbrirJanelaDeConfirmacao,
+    # application/command) -- cadencia [ASSUMPTION] 5000ms, mesmo default do
+    # molde de outbox-relay (Ask First da spec 1.2: nenhuma cadencia exata
+    # foi pedida ao humano).
+    abertura-janela:
+      poll-interval-ms: 5000
+      batch-size: 50
+    # Infraestrutura outbox propria deste servico (AD-3) --
+    # RelaySnsPublisherJob (infrastructure/relay), mesmo molde de
+    # matching-alocacao-service/.../application.yml. Namespace
+    # "outbox-relay" isolado de "abertura-janela" acima -- pollers
+    # independentes (transicao de estado + escrita no outbox vs. publicacao
+    # no SNS). topic-arn fica vazio por padrao (injetado so no deploy real
+    # via FILAJUSTA_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN, infra-cdk). Testes
+    # @SpringBootTest pre-existentes que nao exercitam este relay setam
+    # outbox-relay.enabled=false explicitamente (mesmo padrao do molde).
+    outbox-relay:
+      enabled: true
+      topic-arn: ${FILAJUSTA_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${FILAJUSTA_AGENDAMENTO_OUTBOX_RELAY_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 50
+
 logging:
   pattern:
     console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"agendamento-confirmacao-service","logger":"%c","message":"%m"}%n'

@@ -6,6 +6,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -39,6 +40,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// Este teste nao exercita o relay outbox (Story 1.2) -- desliga o kill
+// switch explicitamente (mesmo padrao de matching-alocacao-service) para
+// nao exigir um topic-arn/SnsClient real so para subir o contexto.
+@TestPropertySource(properties = "filajusta.agendamento.outbox-relay.enabled=false")
 class AgendamentoControllerIntegrationTest {
 
     @Container

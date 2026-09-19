@@ -429,6 +429,58 @@ class FilaJustaStackTest {
     }
 
     @Test
+    void agendamentoConfirmacaoEventosTopicIsFifo() {
+        // Spec 1.2 (AD-3): topico SNS FIFO proprio do
+        // agendamento-confirmacao-service que RelaySnsPublisherJob publica --
+        // ordem deterministica por Agendamento via
+        // MessageGroupId=agendamentoId, mesma propriedade dos topicos irmaos
+        // ScoreCalculadoTopic/MatchingAlocacaoEventosTopic
+        // (ContentBasedDeduplication=false: MessageDeduplicationId sempre
+        // explicito, o eventId do outbox).
+        template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
+                "TopicName", "agendamento-confirmacao-eventos.fifo",
+                "FifoTopic", true,
+                "ContentBasedDeduplication", false)));
+    }
+
+    @Test
+    void agendamentoConfirmacaoServiceTaskRoleCanPublishToAgendamentoConfirmacaoEventosTopic() {
+        // Diferente de matching-alocacao-service (deploy ECS ainda
+        // deferido, role standalone pre-criada), agendamento-confirmacao-service
+        // ja tem um FargateService real -- a policy de publish precisa estar
+        // presa a TaskRole DE FATO usada em runtime (a task role default da
+        // AgendamentoConfirmacaoTaskDef), nao uma role a parte.
+        Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "TopicName", "agendamento-confirmacao-eventos.fifo")))));
+        assertThat(topicos).hasSize(1);
+        String topicoLogicalId = topicos.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
+                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref",
+                        Match.stringLikeRegexp("^AgendamentoConfirmacaoTaskDefTaskRole.*"))))),
+                "PolicyDocument", Match.objectLike(Map.of(
+                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                "Action", "sns:Publish",
+                                "Effect", "Allow",
+                                "Resource", Match.objectLike(Map.of("Ref", topicoLogicalId)))))))))));
+    }
+
+    @Test
+    void agendamentoConfirmacaoServiceReceivesOutboxTopicArnAsEnvironmentVariable() {
+        // Spec 1.2: ARN nao e segredo -- injetado como env var comum
+        // (Environment), nunca como ECS Secret.
+        Object environmentMatch = Match.arrayWith(java.util.List.of(
+                Match.objectLike(Map.of("Name", "FILAJUSTA_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN"))));
+        Map<String, Object> container = Map.of(
+                "Name", "agendamento-confirmacao-service",
+                "Environment", environmentMatch);
+        Object containerDefinitions = Match.arrayWith(java.util.List.of(Match.objectLike(container)));
+        template.hasResourceProperties("AWS::ECS::TaskDefinition", Match.objectLike(Map.of(
+                "ContainerDefinitions", containerDefinitions)));
+    }
+
+    @Test
     void matchingAlocacaoServiceTaskRoleCanSendMessagesToLiberacaoAgendadaQueue() {
         // Deploy ECS do matching-alocacao-service continua deferido -- mas a
         // policy de publish na fila de liberacao agendada ja precisa existir

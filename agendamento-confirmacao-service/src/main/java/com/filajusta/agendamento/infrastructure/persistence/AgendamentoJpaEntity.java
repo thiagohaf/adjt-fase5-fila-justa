@@ -43,17 +43,26 @@ public class AgendamentoJpaEntity {
     @Column(name = "criado_em", nullable = false)
     private Instant criadoEm;
 
+    @Column(name = "janela_abre_em", nullable = false)
+    private Instant janelaAbreEm;
+
+    @Column(name = "janela_expira_em")
+    private Instant janelaExpiraEm;
+
     protected AgendamentoJpaEntity() {
         // Exigido pelo JPA.
     }
 
     public AgendamentoJpaEntity(Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
-                                 StatusAgendamento status, Instant criadoEm) {
+                                 StatusAgendamento status, Instant criadoEm, Instant janelaAbreEm,
+                                 Instant janelaExpiraEm) {
         this.pacienteId = pacienteId;
         this.recursoId = recursoId;
         this.dataHoraAgendamento = dataHoraAgendamento;
         this.status = status;
         this.criadoEm = criadoEm;
+        this.janelaAbreEm = janelaAbreEm;
+        this.janelaExpiraEm = janelaExpiraEm;
     }
 
     public Long getId() {
@@ -78,5 +87,13 @@ public class AgendamentoJpaEntity {
 
     public Instant getCriadoEm() {
         return criadoEm;
+    }
+
+    public Instant getJanelaAbreEm() {
+        return janelaAbreEm;
+    }
+
+    public Instant getJanelaExpiraEm() {
+        return janelaExpiraEm;
     }
 }

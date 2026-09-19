@@ -2,20 +2,32 @@ package com.filajusta.agendamento.infrastructure.persistence;
 
 import com.filajusta.agendamento.application.command.AgendamentoRepositorio;
 import com.filajusta.agendamento.domain.Agendamento;
+import com.filajusta.agendamento.domain.StatusAgendamento;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.util.List;
 
 /**
  * Adapter que implementa a porta {@link AgendamentoRepositorio}
  * (application/command) usando {@link AgendamentoJpaRepository} (Spring
  * Data, schema {@code agendamento_confirmacao}).
+ *
+ * <p>{@link Clock} injetado (mesmo bean da raiz de composicao, mesmo padrao
+ * de {@code EventoOutboxRepositorioAdapter}) -- usado como {@code agora} na
+ * query de abertura de janela ({@link #buscarPendentesAberturaJanela(int)}),
+ * nunca {@code Instant.now()} direto.
  */
 @Component
 class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
 
     private final AgendamentoJpaRepository jpaRepository;
+    private final Clock clock;
 
-    AgendamentoRepositorioAdapter(AgendamentoJpaRepository jpaRepository) {
+    AgendamentoRepositorioAdapter(AgendamentoJpaRepository jpaRepository, Clock clock) {
         this.jpaRepository = jpaRepository;
+        this.clock = clock;
     }
 
     @Override
@@ -25,14 +37,41 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
                 agendamento.getRecursoId(),
                 agendamento.getDataHoraAgendamento(),
                 agendamento.getStatus(),
-                agendamento.getCriadoEm());
+                agendamento.getCriadoEm(),
+                agendamento.getJanelaAbreEm(),
+                agendamento.getJanelaExpiraEm());
         AgendamentoJpaEntity salvo = jpaRepository.save(entity);
+        return paraDominio(salvo);
+    }
+
+    @Override
+    public List<Agendamento> buscarPendentesAberturaJanela(int limite) {
+        // FOR UPDATE SKIP LOCKED -- so protege de fato contra corrida entre
+        // instancias do poller quando chamado dentro da mesma transacao que
+        // tambem executa a escrita condicional (AbrirJanelaDeConfirmacao
+        // .abrirJanelas, @Transactional); chamado fora de uma transacao ja
+        // aberta, o lock e liberado assim que este metodo retorna.
+        return jpaRepository.buscarPendentesAberturaJanela(clock.instant(), limite)
+                .stream()
+                .map(this::paraDominio)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public boolean atualizarStatusSeAtual(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus) {
+        return jpaRepository.atualizarStatusSeAtual(id, statusEsperado, novoStatus) > 0;
+    }
+
+    private Agendamento paraDominio(AgendamentoJpaEntity entity) {
         return new Agendamento(
-                salvo.getId(),
-                salvo.getPacienteId(),
-                salvo.getRecursoId(),
-                salvo.getDataHoraAgendamento(),
-                salvo.getStatus(),
-                salvo.getCriadoEm());
+                entity.getId(),
+                entity.getPacienteId(),
+                entity.getRecursoId(),
+                entity.getDataHoraAgendamento(),
+                entity.getStatus(),
+                entity.getCriadoEm(),
+                entity.getJanelaAbreEm(),
+                entity.getJanelaExpiraEm());
     }
 }

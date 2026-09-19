@@ -21,11 +21,52 @@
     expoe POST /v1/agendamentos: resolve/cria o Paciente por CPF de forma
     idempotente (reaproveitado sem alteracao de logica) e registra um
     Agendamento (estado inicial AGUARDANDO_JANELA), validando recursoId
-    (formato) e dataHoraAgendamento (instante futuro). Nenhum outbox/SNS
-    nesta story -- entra a partir da Story 1.2.
+    (formato) e dataHoraAgendamento (instante futuro). Story 1.2 acrescenta o
+    poller AbrirJanelaDeConfirmacao (@Scheduled) que transiciona
+    AGUARDANDO_JANELA -> AGUARDANDO_CONFIRMACAO e publica
+    NotificacaoConfirmacaoPublicada via outbox (RelaySnsPublisherJob),
+    mesmo molde ja provado em matching-alocacao-service.
   </description>
 
+  <properties>
+    <!-- Mesma versao do AWS SDK v2 ja fixada em matching-alocacao-service
+         (Story 3-3a) - reusa o precedente existente, nao introduz um novo. -->
+    <aws-sdk.version>2.54.14</aws-sdk.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
+    <!-- Spec 1.2: infraestrutura outbox propria deste servico
+         (RelaySnsPublisherJob), mesmo precedente ja usado em
+         matching-alocacao-service/pom.xml (Story 3-3a). Credenciais/regiao
+         resolvidas so via variavel de ambiente/role da task
+         (DefaultCredentialsProvider), nunca hardcoded (mesmo Boundary de
+         RelaySnsClientConfig). -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sns</artifactId>
+    </dependency>
+    <!-- So para o teste de integracao do relay (assina a fila SQS FIFO que
+         recebe o que o SNS publica) - mesmo precedente de
+         matching-alocacao-service/pom.xml, que usa "sqs" tanto em producao
+         (consumidor real) quanto em teste; aqui e so a asserção via
+         LocalStack, escopo test basta. -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sqs</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
@@ -77,6 +118,15 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Mesmo precedente de LocalStack de matching-alocacao-service (Story
+         3-3a) - sobe um topico SNS FIFO + fila SQS FIFO assinante reais so
+         para o teste de integracao ponta a ponta do relay; nunca toca a
+         conta AWS real. -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers-localstack</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -125,6 +175,21 @@
                   <element>BUNDLE</element>
                   <includes>
                     <include>com.filajusta.agendamento.domain.*</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <!-- Spec 1.2, Verification: "cobertura >=90% dominio" do
+                     poller AbrirJanelaDeConfirmacao (application/command). -->
+                <rule>
+                  <element>BUNDLE</element>
+                  <includes>
+                    <include>com.filajusta.agendamento.application.command.*</include>
                   </includes>
                   <limits>
                     <limit>
