@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-18-2026 20:35
+last_updated: 09-18-2026 22:45
 project: ConfirmaSUS
 project_key: NOKEY
 tracking_system: file-system
@@ -37,8 +37,8 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
   1-1-registrar-agendamento-e-resolver-paciente-por-cpf: review
-  1-2-abertura-da-janela-de-confirmação-e-notificação: review
-  1-3-confirmação-de-presença: backlog
+  1-2-abertura-da-janela-de-confirmação-e-notificação: done
+  1-3-confirmação-de-presença: done
   1-4-recusa-ativa-e-liberação-imediata-da-vaga: backlog
   1-5-expiração-da-janela-e-liberação-automática: backlog
   epic-1-retrospective: done

@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Adapter que implementa a porta {@link AgendamentoRepositorio}
@@ -61,6 +62,11 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     @Transactional
     public boolean atualizarStatusSeAtual(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus) {
         return jpaRepository.atualizarStatusSeAtual(id, statusEsperado, novoStatus) > 0;
+    }
+
+    @Override
+    public Optional<Agendamento> buscarPorId(Long id) {
+        return jpaRepository.findById(id).map(this::paraDominio);
     }
 
     private Agendamento paraDominio(AgendamentoJpaEntity entity) {

@@ -77,6 +77,23 @@ public final class Agendamento {
                 StatusAgendamento.AGUARDANDO_CONFIRMACAO, criadoEm, janelaAbreEm, janelaExpiraEm);
     }
 
+    /**
+     * Retorna uma copia deste Agendamento com {@code status} transicionado
+     * para {@link StatusAgendamento#CONFIRMADO} (spec 1.3) -- mesmo padrao
+     * imutavel de {@link #abrirJanela()}. Assim como {@code abrirJanela()},
+     * so representa a transicao no dominio; a escrita condicional de fato
+     * ({@code UPDATE ... WHERE status = 'AGUARDANDO_CONFIRMACAO'}, AD-4) vive
+     * no adapter, orquestrada por {@code ConfirmarPresenca}
+     * (application/command) -- este metodo nao e chamado no caminho real de
+     * persistencia (Boundaries da spec 1.3: "Nao reativar
+     * Agendamento.abrirJanela() como padrao"), so existe para completude do
+     * modelo de dominio.
+     */
+    public Agendamento confirmar() {
+        return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
+                StatusAgendamento.CONFIRMADO, criadoEm, janelaAbreEm, janelaExpiraEm);
+    }
+
     public Long getId() {
         return id;
     }
