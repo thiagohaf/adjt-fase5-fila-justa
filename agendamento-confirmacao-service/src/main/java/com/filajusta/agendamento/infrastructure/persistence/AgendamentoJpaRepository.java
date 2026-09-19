@@ -35,4 +35,14 @@ interface AgendamentoJpaRepository extends JpaRepository<AgendamentoJpaEntity, L
     int atualizarStatusSeAtual(@Param("id") Long id,
                                 @Param("statusEsperado") StatusAgendamento statusEsperado,
                                 @Param("novoStatus") StatusAgendamento novoStatus);
+
+    // Escrita condicional com motivo de liberacao (AD-4, spec 1.4): retorna 0 quando o
+    // Agendamento ja nao estava mais em statusEsperado.
+    @Modifying
+    @Query("UPDATE AgendamentoJpaEntity a SET a.status = :novoStatus, a.motivoLiberacao = :motivoLiberacao "
+            + "WHERE a.id = :id AND a.status = :statusEsperado")
+    int atualizarStatusComMotivo(@Param("id") Long id,
+                                  @Param("statusEsperado") StatusAgendamento statusEsperado,
+                                  @Param("novoStatus") StatusAgendamento novoStatus,
+                                  @Param("motivoLiberacao") String motivoLiberacao);
 }

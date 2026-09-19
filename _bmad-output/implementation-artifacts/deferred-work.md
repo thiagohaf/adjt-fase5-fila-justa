@@ -631,3 +631,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-confirmacao-de-presenca.md`
   summary: Nenhum evento de domínio do serviço (`NotificacaoConfirmacaoPublicada`, `ConfirmacaoRegistrada`, e os que virão em Recusa/Expiração) tem um JSON Schema companion versionado junto ao produtor, apesar de ser convenção declarada em `ARCHITECTURE-SPINE.md` (Consistency Conventions: "cada eventType tem schema companion (JSON Schema) versionado junto ao produtor").
   evidence: Achado do blind-hunter sobre o diff da Story 1.3, mas o gap é anterior a esta story (já valia para `NotificacaoConfirmacaoPublicada` na Story 1.2) — convenção do projeto ainda não implementada em nenhum evento, não regressão desta mudança especificamente.
+
+- source_spec: `spec-1-4-recusa-ativa-e-liberacao-imediata-da-vaga.md`
+  summary: Logging estruturado em JSON ausente no fluxo de recusa (observabilidade)
+  evidence: Achado do blind-hunter durante revisão da Story 1.4 — logging em nível de aplicação implementado, mas sem structured logging em JSON para integração com observabilidade centralizada; mesma lacuna da Story 1.3 (verificar se é padrão do projeto)
+
+- source_spec: `spec-1-4-recusa-ativa-e-liberacao-imediata-da-vaga.md`
+  summary: CHECK constraint ausente no banco para validar enum de motivoLiberacao
+  evidence: Coluna `motivo_liberacao VARCHAR(32) NULL` criada sem constraint de domínio; validação existe no código (enum), mas não na camada de banco — trade-off aceitável (validação em código + testes suficientes), mas gap de design registrado para futuro

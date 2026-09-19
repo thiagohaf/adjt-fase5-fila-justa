@@ -65,6 +65,12 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     }
 
     @Override
+    @Transactional
+    public boolean atualizarStatusComMotivo(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus, String motivoLiberacao) {
+        return jpaRepository.atualizarStatusComMotivo(id, statusEsperado, novoStatus, motivoLiberacao) > 0;
+    }
+
+    @Override
     public Optional<Agendamento> buscarPorId(Long id) {
         return jpaRepository.findById(id).map(this::paraDominio);
     }
@@ -78,6 +84,7 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
                 entity.getStatus(),
                 entity.getCriadoEm(),
                 entity.getJanelaAbreEm(),
-                entity.getJanelaExpiraEm());
+                entity.getJanelaExpiraEm(),
+                entity.getMotivoLiberacao());
     }
 }

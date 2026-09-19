@@ -2,6 +2,8 @@ package com.filajusta.agendamento;
 
 import com.filajusta.agendamento.domain.StatusAgendamento;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -44,6 +46,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 1.3): confirmacao valida (200), confirmacao duplicada (200, sem novo
  * evento), janela ainda nao aberta (409), vaga ja liberada (409) e
  * agendamentoId inexistente (404).
+ *
+ * <p>Cobre tambem, ponta a ponta, o contrato HTTP de {@code POST
+ * /v1/agendamentos/{id}/recusa} (I/O &amp; Edge-Case Matrix da spec 1.4):
+ * recusa valida (200), recusa duplicada (200, sem novo evento),
+ * janela ainda nao aberta (409), confirmado (409), liberado por outro motivo
+ * (409) e agendamentoId inexistente (404).
  */
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -92,6 +100,14 @@ class AgendamentoControllerIntegrationTest {
     private HttpResponse<String> confirmarPresenca(long agendamentoId) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/v1/agendamentos/" + agendamentoId + "/confirmacao"))
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> recusarPresenca(long agendamentoId) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/v1/agendamentos/" + agendamentoId + "/recusa"))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -336,6 +352,103 @@ class AgendamentoControllerIntegrationTest {
         // respondia 500 para uma entrada invalida.
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/v1/agendamentos/abc/confirmacao"))
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+    }
+
+    @Test
+    void recusaValidaRetorna200ETransicionaParaLiberadoComMotivoRecusaGravandoDoisEventosNoOutbox()
+            throws Exception {
+        long agendamentoId = criarAgendamentoComStatus(StatusAgendamento.AGUARDANDO_CONFIRMACAO);
+
+        HttpResponse<String> response = recusarPresenca(agendamentoId);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        String status = jdbcTemplate.queryForObject(
+                "SELECT status FROM agendamento_confirmacao.agendamentos WHERE id = ?",
+                String.class, agendamentoId);
+        assertThat(status).isEqualTo("LIBERADO");
+        String motivo = jdbcTemplate.queryForObject(
+                "SELECT motivo_liberacao FROM agendamento_confirmacao.agendamentos WHERE id = ?",
+                String.class, agendamentoId);
+        assertThat(motivo).isEqualTo("RECUSA");
+
+        Integer eventosGravados = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agendamento_confirmacao.eventos_outbox "
+                        + "WHERE payload ->> 'agendamentoId' = ?",
+                Integer.class, String.valueOf(agendamentoId));
+        assertThat(eventosGravados).isEqualTo(2);
+
+        Integer recusaRegistrada = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agendamento_confirmacao.eventos_outbox "
+                        + "WHERE event_type = 'RecusaRegistrada' AND payload ->> 'agendamentoId' = ?",
+                Integer.class, String.valueOf(agendamentoId));
+        assertThat(recusaRegistrada).isEqualTo(1);
+
+        Integer vagaLiberada = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agendamento_confirmacao.eventos_outbox "
+                        + "WHERE event_type = 'VagaLiberada' AND payload ->> 'agendamentoId' = ?",
+                Integer.class, String.valueOf(agendamentoId));
+        assertThat(vagaLiberada).isEqualTo(1);
+    }
+
+    @Test
+    void recusaDuplicadaRetorna200SemGravarNovoEvento() throws Exception {
+        long agendamentoId = criarAgendamentoComStatus(StatusAgendamento.AGUARDANDO_CONFIRMACAO);
+
+        HttpResponse<String> primeira = recusarPresenca(agendamentoId);
+        HttpResponse<String> segunda = recusarPresenca(agendamentoId);
+
+        assertThat(primeira.statusCode()).isEqualTo(200);
+        assertThat(segunda.statusCode()).isEqualTo(200);
+
+        Integer eventosGravados = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM agendamento_confirmacao.eventos_outbox "
+                        + "WHERE payload ->> 'agendamentoId' = ?",
+                Integer.class, String.valueOf(agendamentoId));
+        assertThat(eventosGravados).isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = StatusAgendamento.class, names = {"AGUARDANDO_JANELA", "CONFIRMADO", "LIBERADO"})
+    void recusaEmEstadosInvalidosRetorna409RfC7807(StatusAgendamento statusInvalido) throws Exception {
+        long agendamentoId = criarAgendamentoComStatus(statusInvalido);
+
+        HttpResponse<String> response = recusarPresenca(agendamentoId);
+
+        assertThat(response.statusCode())
+                .as("recusa em status " + statusInvalido + " deve retornar 409")
+                .isEqualTo(409);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+
+        String statusAtual = jdbcTemplate.queryForObject(
+                "SELECT status FROM agendamento_confirmacao.agendamentos WHERE id = ?",
+                String.class, agendamentoId);
+        assertThat(statusAtual)
+                .as("status nao deve ter sido alterado")
+                .isEqualTo(statusInvalido.name());
+    }
+
+    @Test
+    void recusaEmAgendamentoIdInexistenteRetorna404() throws Exception {
+        HttpResponse<String> response = recusarPresenca(Long.MAX_VALUE);
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/problem+json"));
+    }
+
+    @Test
+    void recusaComIdentificadorNaoNumericoRetorna400RfC7807() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/v1/agendamentos/abc/recusa"))
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 

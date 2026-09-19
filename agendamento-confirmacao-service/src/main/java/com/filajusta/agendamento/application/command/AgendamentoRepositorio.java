@@ -45,6 +45,13 @@ public interface AgendamentoRepositorio {
     boolean atualizarStatusSeAtual(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus);
 
     /**
+     * {@code UPDATE ... SET status = novoStatus, motivoLiberacao = motivo WHERE id = id AND status =
+     * statusEsperado} (AD-4, spec 1.4) -- escrita condicional que inclui o campo motivoLiberacao.
+     * Mesmo contrato de {@link #atualizarStatusSeAtual(Long, StatusAgendamento, StatusAgendamento)}.
+     */
+    boolean atualizarStatusComMotivo(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus, String motivoLiberacao);
+
+    /**
      * Releitura pontual por {@code id} (spec 1.3, {@code ConfirmarPresenca}):
      * usada apos {@link #atualizarStatusSeAtual} para decidir, quando a
      * escrita condicional afeta 0 linhas, entre sucesso silencioso (ja

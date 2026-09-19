@@ -39,9 +39,16 @@ public final class Agendamento {
     private final Instant criadoEm;
     private final Instant janelaAbreEm;
     private final Instant janelaExpiraEm;
+    private final String motivoLiberacao;
 
     public Agendamento(Long id, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
                         StatusAgendamento status, Instant criadoEm, Instant janelaAbreEm, Instant janelaExpiraEm) {
+        this(id, pacienteId, recursoId, dataHoraAgendamento, status, criadoEm, janelaAbreEm, janelaExpiraEm, null);
+    }
+
+    public Agendamento(Long id, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
+                        StatusAgendamento status, Instant criadoEm, Instant janelaAbreEm, Instant janelaExpiraEm,
+                        String motivoLiberacao) {
         this.id = id;
         this.pacienteId = Objects.requireNonNull(pacienteId, "pacienteId");
         this.recursoId = Objects.requireNonNull(recursoId, "recursoId");
@@ -50,6 +57,7 @@ public final class Agendamento {
         this.criadoEm = Objects.requireNonNull(criadoEm, "criadoEm");
         this.janelaAbreEm = Objects.requireNonNull(janelaAbreEm, "janelaAbreEm");
         this.janelaExpiraEm = janelaExpiraEm;
+        this.motivoLiberacao = motivoLiberacao;
     }
 
     /**
@@ -91,7 +99,23 @@ public final class Agendamento {
      */
     public Agendamento confirmar() {
         return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
-                StatusAgendamento.CONFIRMADO, criadoEm, janelaAbreEm, janelaExpiraEm);
+                StatusAgendamento.CONFIRMADO, criadoEm, janelaAbreEm, janelaExpiraEm, motivoLiberacao);
+    }
+
+    /**
+     * Retorna uma copia deste Agendamento com {@code status} transicionado
+     * para {@link StatusAgendamento#LIBERADO} e {@code motivoLiberacao = RECUSA}
+     * (spec 1.4) -- mesmo padrao imutavel de {@link #abrirJanela()}.
+     * So representa a transicao no dominio; a escrita condicional de fato
+     * ({@code UPDATE ... WHERE status = 'AGUARDANDO_CONFIRMACAO'}, AD-4) vive
+     * no adapter, orquestrada por {@code RecusarPresenca}
+     * (application/command) -- este metodo nao e chamado no caminho real de
+     * persistencia (Boundaries da spec 1.4: mesmo padrao que {@code confirmar()}),
+     * so existe para completude do modelo de dominio.
+     */
+    public Agendamento recusar() {
+        return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
+                StatusAgendamento.LIBERADO, criadoEm, janelaAbreEm, janelaExpiraEm, MotivoLiberacao.RECUSA.name());
     }
 
     public Long getId() {
@@ -124,5 +148,9 @@ public final class Agendamento {
 
     public Instant getJanelaExpiraEm() {
         return janelaExpiraEm;
+    }
+
+    public String getMotivoLiberacao() {
+        return motivoLiberacao;
     }
 }

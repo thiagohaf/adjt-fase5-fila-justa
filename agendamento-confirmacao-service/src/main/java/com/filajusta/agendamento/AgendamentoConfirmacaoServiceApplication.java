@@ -6,6 +6,7 @@ import com.filajusta.agendamento.application.command.ConfirmarPresenca;
 import com.filajusta.agendamento.application.command.EventoOutboxRepositorio;
 import com.filajusta.agendamento.application.command.PacienteRepositorio;
 import com.filajusta.agendamento.application.command.RegistrarAgendamento;
+import com.filajusta.agendamento.application.command.RecusarPresenca;
 import com.filajusta.agendamento.application.command.ResolverOuCriarPaciente;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -71,5 +72,12 @@ public class AgendamentoConfirmacaoServiceApplication {
                                          EventoOutboxRepositorio eventoOutboxRepositorio,
                                          Clock clock) {
         return new ConfirmarPresenca(agendamentoRepositorio, eventoOutboxRepositorio, clock);
+    }
+
+    @Bean
+    RecusarPresenca recusarPresenca(AgendamentoRepositorio agendamentoRepositorio,
+                                     EventoOutboxRepositorio eventoOutboxRepositorio,
+                                     Clock clock) {
+        return new RecusarPresenca(agendamentoRepositorio, eventoOutboxRepositorio, clock);
     }
 }

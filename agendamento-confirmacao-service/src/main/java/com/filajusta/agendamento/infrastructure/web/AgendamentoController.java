@@ -2,6 +2,7 @@ package com.filajusta.agendamento.infrastructure.web;
 
 import com.filajusta.agendamento.application.command.ConfirmarPresenca;
 import com.filajusta.agendamento.application.command.RegistrarAgendamento;
+import com.filajusta.agendamento.application.command.RecusarPresenca;
 import com.filajusta.agendamento.domain.Agendamento;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,7 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
  * POST /v1/agendamentos/{id}/confirmacao} (Story 1.3, FR-4) transiciona um
  * Agendamento {@code AGUARDANDO_CONFIRMACAO} para {@code CONFIRMADO} --
  * {@code 200} sincrono, inclusive em confirmacao duplicada (sucesso
- * silencioso, Boundaries da spec 1.3).
+ * silencioso, Boundaries da spec 1.3). {@code POST /v1/agendamentos/{id}/recusa}
+ * (Story 1.4, FR-5) transiciona um Agendamento {@code AGUARDANDO_CONFIRMACAO}
+ * para {@code LIBERADO} com {@code motivoLiberacao = RECUSA} -- {@code 200}
+ * sincrono (mesmo padrao de ConfirmarPresenca).
  *
  * <p>Erros de validacao/conflito/nao-encontrado viram RFC 7807 via
  * {@link AgendamentoExceptionHandler}.
@@ -28,10 +32,13 @@ public class AgendamentoController {
 
     private final RegistrarAgendamento registrarAgendamento;
     private final ConfirmarPresenca confirmarPresenca;
+    private final RecusarPresenca recusarPresenca;
 
-    public AgendamentoController(RegistrarAgendamento registrarAgendamento, ConfirmarPresenca confirmarPresenca) {
+    public AgendamentoController(RegistrarAgendamento registrarAgendamento, ConfirmarPresenca confirmarPresenca,
+                                  RecusarPresenca recusarPresenca) {
         this.registrarAgendamento = registrarAgendamento;
         this.confirmarPresenca = confirmarPresenca;
+        this.recusarPresenca = recusarPresenca;
     }
 
     @PostMapping("/v1/agendamentos")
@@ -46,5 +53,11 @@ public class AgendamentoController {
     @ResponseStatus(HttpStatus.OK)
     public void confirmar(@PathVariable("id") Long id) {
         confirmarPresenca.confirmar(id);
+    }
+
+    @PostMapping("/v1/agendamentos/{id}/recusa")
+    @ResponseStatus(HttpStatus.OK)
+    public void recusar(@PathVariable("id") Long id) {
+        recusarPresenca.recusar(id);
     }
 }

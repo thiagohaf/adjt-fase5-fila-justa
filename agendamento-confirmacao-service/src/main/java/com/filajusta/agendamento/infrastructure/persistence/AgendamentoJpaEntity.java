@@ -49,6 +49,9 @@ public class AgendamentoJpaEntity {
     @Column(name = "janela_expira_em")
     private Instant janelaExpiraEm;
 
+    @Column(name = "motivo_liberacao", length = 32)
+    private String motivoLiberacao;
+
     protected AgendamentoJpaEntity() {
         // Exigido pelo JPA.
     }
@@ -95,5 +98,13 @@ public class AgendamentoJpaEntity {
 
     public Instant getJanelaExpiraEm() {
         return janelaExpiraEm;
+    }
+
+    public String getMotivoLiberacao() {
+        return motivoLiberacao;
+    }
+
+    public void setMotivoLiberacao(String motivoLiberacao) {
+        this.motivoLiberacao = motivoLiberacao;
     }
 }
