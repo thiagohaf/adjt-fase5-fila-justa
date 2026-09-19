@@ -39,7 +39,7 @@ development_status:
   1-1-registrar-agendamento-e-resolver-paciente-por-cpf: review
   1-2-abertura-da-janela-de-confirmação-e-notificação: done
   1-3-confirmação-de-presença: done
-  1-4-recusa-ativa-e-liberação-imediata-da-vaga: review
+  1-4-recusa-ativa-e-liberação-imediata-da-vaga: done
   1-5-expiração-da-janela-e-liberação-automática: backlog
   epic-1-retrospective: done
 
