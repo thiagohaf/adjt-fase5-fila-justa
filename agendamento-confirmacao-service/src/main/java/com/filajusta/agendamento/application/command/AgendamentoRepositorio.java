@@ -52,6 +52,16 @@ public interface AgendamentoRepositorio {
     boolean atualizarStatusComMotivo(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus, String motivoLiberacao);
 
     /**
+     * Agendamentos com {@code status = AGUARDANDO_CONFIRMACAO} e
+     * {@code janelaExpiraEm <= agora}, ordenados por {@code id} ascendente,
+     * limitados a {@code limite} -- bloqueados via {@code FOR UPDATE SKIP
+     * LOCKED} ate o fim da transacao do chamador (spec 1.5, poller
+     * {@code ExpirarJanelaDeConfirmacao}). Mesmo contrato transacional de
+     * {@link #buscarPendentesAberturaJanela(int)}.
+     */
+    List<Agendamento> buscarPendentesExpiracaoJanela(int limite);
+
+    /**
      * Releitura pontual por {@code id} (spec 1.3, {@code ConfirmarPresenca}):
      * usada apos {@link #atualizarStatusSeAtual} para decidir, quando a
      * escrita condicional afeta 0 linhas, entre sucesso silencioso (ja

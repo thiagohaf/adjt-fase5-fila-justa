@@ -53,6 +53,14 @@ filajusta:
     abertura-janela:
       poll-interval-ms: 5000
       batch-size: 50
+    # Poller que expira a Janela de Confirmacao (ExpirarJanelaDeConfirmacao,
+    # application/command, spec 1.5) -- cadencia [ASSUMPTION] 5000ms, mesmo
+    # que abertura-janela. Processa Agendamentos com
+    # janelaExpiraEm <= now() + status = AGUARDANDO_CONFIRMACAO em lotes
+    # com SKIP LOCKED (paralelismo ECS).
+    expiracao-janela:
+      poll-interval-ms: 5000
+      batch-size: 50
     # Infraestrutura outbox propria deste servico (AD-3) --
     # RelaySnsPublisherJob (infrastructure/relay), mesmo molde de
     # matching-alocacao-service/.../application.yml. Namespace
