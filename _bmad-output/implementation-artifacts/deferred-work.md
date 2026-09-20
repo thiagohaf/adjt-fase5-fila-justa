@@ -639,3 +639,19 @@
 - source_spec: `spec-1-4-recusa-ativa-e-liberacao-imediata-da-vaga.md`
   summary: CHECK constraint ausente no banco para validar enum de motivoLiberacao
   evidence: Coluna `motivo_liberacao VARCHAR(32) NULL` criada sem constraint de domínio; validação existe no código (enum), mas não na camada de banco — trade-off aceitável (validação em código + testes suficientes), mas gap de design registrado para futuro
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Circuit breaker / backoff ausente para falhas em cascata de LiberarRecurso
+  evidence: Blind-hunter identificou que se `LiberarRecurso.liberar()` falha repetidamente (ex.: DB indisponível), consumer tenta no mesmo rate (5s fixo) sem exponential backoff ou circuit breaker — risco de amplificação de carga. Atual: mensagem reenviada sem delay, SQS já gerencia retry via ApproximateReceiveCount + DLQ. Upgrade futuro para padrão Resilience4j se volume de erro for problema operacional.
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Micrometer metrics e alertas ausentes no consumer
+  evidence: Blind-hunter apontou falta de observabilidade (métricas de DLQ size, taxa de rejeição, latência de processamento). Atual: logging estruturado (messageId, alocacaoId, outcome). Upgrade futuro integrar com Micrometer (mX.justa.liberacao.consumer.* + alertas) quando observabilidade centralizada for strategy do projeto.
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Plano de evolução de schema (version >= 2) não documentado
+  evidence: Spec declara tolerância a version != 1 → DLQ, mas sem documentação de como migrar consumidores para version=2 quando necessário (ex.: novo campo obrigatório). Actual: version aditivo (campos extras ignorados) funciona, mas major version demanda análise de contrato. Registrado para discussão quando houver breaking change.
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Comportamento em graceful shutdown não explícito
+  evidence: Edge-case-hunter levantou que @Scheduled job não documenta se transações em voo são comitadas/rolleadas durante SIGTERM/shutdown. Padrão Spring Boot padrão (wait for in-flight + timeout), mas sem comentário no código explicando expectativa.

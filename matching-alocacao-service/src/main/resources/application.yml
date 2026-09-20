@@ -111,6 +111,25 @@ filajusta:
       endpoint-override: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_RELAY_ENDPOINT_OVERRIDE:}
       poll-interval-ms: 5000
       batch-size: 50
+    # Consumidor SQS da fila de liberacao agendada (Story 3-4b2) --
+    # LiberacaoAgendadaSqsConsumerJob (infrastructure/relay). Namespace
+    # "liberacao-agendada-consumer" isolado do relay de publicacao para
+    # permitir ligar/desligar cada um independentemente.
+    #
+    # enabled=false por padrao (mesmo padrao real de relay.enabled, que e
+    # true por padrao mas pode ser desligado em testes especificos).
+    # queue-url e dlq-url ficam vazios por padrao (injetados so no deploy
+    # real). Testes @SpringBootTest que nao exercitam este consumidor setam
+    # liberacao-agendada-consumer.enabled=false explicitamente (mesmo padrao
+    # de relay/outbox-relay).
+    liberacao-agendada-consumer:
+      enabled: false
+      queue-url: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_CONSUMER_QUEUE_URL:}
+      dlq-url: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_CONSUMER_DLQ_URL:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_CONSUMER_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 10
 
   # Prioridade Efetiva = score + min(k * max(0, horas_espera), teto)
   # (Story 3.1c, epic-3-context.md) -- teto = 20% da amplitude do Score

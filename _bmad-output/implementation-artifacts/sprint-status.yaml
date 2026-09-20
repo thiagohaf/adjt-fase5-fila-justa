@@ -160,6 +160,10 @@ development_status:
   # 2026-09-13: 3-4b1 -> done (PR #43 confirmado mergeado em develop pelo
   # usuário).
   3-4b1-liberacao-real-recurso: done
+  # Story 3-4b2 iniciada em 2026-09-20 -- Consumer SQS para liberações agendadas
+  # Especificação criada (spec-3-4b2-consumer-liberacao-agendada.md) na mesma data.
+  # Depende de Story 3-4a2 (fila SQS) e Story 3-4b1 (comando LiberarRecurso).
+  3-4b2-consumer-liberacao-agendada: in-progress
   epic-3-retrospective: done
 
   epic-4: backlog

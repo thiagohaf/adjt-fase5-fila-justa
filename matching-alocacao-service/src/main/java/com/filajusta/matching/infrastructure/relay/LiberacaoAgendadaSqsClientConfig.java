@@ -51,21 +51,25 @@ import java.time.Duration;
  * {@value #API_CALL_TIMEOUT_SECONDS}s e generoso o bastante sem o motivo de
  * long-polling que levou {@code ScoreCalculadoSqsClientConfig} a 30s.
  *
- * <p>{@code @ConditionalOnProperty}
- * ({@code filajusta.matching.liberacao-agendada-relay.enabled}, SEM
- * {@code matchIfMissing} -- default {@code false}, mesmo padrao de
- * {@code RelaySnsClientConfig}/{@code outbox-relay}, nao o {@code true} de
- * {@link ScoreCalculadoSqsClientConfig}): mesma condicao de
- * {@link LiberacaoAgendadaRelayJob}, para que os dois beans sejam
- * criados/omitidos juntos. Bean nomeado explicitamente
- * ({@code liberacaoAgendadaSqsClient}, nao o default {@code sqsClient} de
- * {@link ScoreCalculadoSqsClientConfig}) porque os dois beans {@link SqsClient}
- * coexistem no mesmo contexto Spring quando ambos os relays estao habilitados
- * -- ver {@code @Qualifier} correspondente no construtor de
- * {@link LiberacaoAgendadaRelayJob} e {@code @Primary} acrescentado a
+ * <p>Bean nomeado explicitamente ({@code liberacaoAgendadaSqsClient}, nao o
+ * default {@code sqsClient} de {@link ScoreCalculadoSqsClientConfig}) porque
+ * os dois beans {@link SqsClient} coexistem no mesmo contexto Spring quando
+ * ambos os relays/consumidores estao habilitados -- ver {@code @Qualifier}
+ * correspondente nos construtores de {@link LiberacaoAgendadaRelayJob} e
+ * {@link LiberacaoAgendadaSqsConsumerJob}, e {@code @Primary} acrescentado a
  * {@link ScoreCalculadoSqsClientConfig#sqsClient} para manter a injecao
  * (sem qualifier) de {@code ScoreCalculadoConsumerJob} resolvendo para o bean
  * certo sem ambiguidade.
+ *
+ * <p>{@code @ConditionalOnProperty}
+ * ({@code filajusta.matching.liberacao-agendada-relay.enabled}, SEM
+ * {@code matchIfMissing} -- default {@code false}, mesmo padrao de
+ * {@code RelaySnsClientConfig}/{@code outbox-relay}): Bean só é criado
+ * quando relay está habilitado. Consumer ({@link LiberacaoAgendadaSqsConsumerJob})
+ * também depende deste bean; se consumer está habilitado mas relay não, a
+ * injeção falhará e alertará o operador.  Essa é a escolha deliberada: ambos
+ * precisam do mesmo infra-config, então naturalmente ambos têm sua @ConditionalOnProperty
+ * referenciando liberacao-agendada-relay (Story 3-4b2 Boundaries).
  */
 @Configuration
 @ConditionalOnProperty(prefix = "filajusta.matching.liberacao-agendada-relay", name = "enabled")
