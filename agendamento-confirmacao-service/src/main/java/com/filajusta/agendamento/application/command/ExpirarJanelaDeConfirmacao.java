@@ -1,12 +1,14 @@
 package com.filajusta.agendamento.application.command;
 
 import com.filajusta.agendamento.domain.Agendamento;
+import com.filajusta.agendamento.domain.AgendamentoComDadosIncompletosException;
 import com.filajusta.agendamento.domain.EventoOutbox;
 import com.filajusta.agendamento.domain.MotivoLiberacao;
 import com.filajusta.agendamento.domain.StatusAgendamento;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -70,7 +72,7 @@ public class ExpirarJanelaDeConfirmacao {
     }
 
     @Scheduled(fixedDelayString = "${filajusta.agendamento.expiracao-janela.poll-interval-ms:5000}")
-    public void expirarJanelas() {
+    public void expirarJanelas() { // FIX-1: removido @Transactional (era aplicado a each item em processar())
         List<Agendamento> pendentes;
         try {
             pendentes = agendamentoRepositorio.buscarPendentesExpiracaoJanela(loteTamanho);
@@ -96,28 +98,22 @@ public class ExpirarJanelaDeConfirmacao {
         }
     }
 
-    @Transactional
-    private void processar(Agendamento agendamento) {
-        // Validacoes null ANTES de UPDATE (nulls nao devem gravar UPDATE inconsistente)
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // FIX-1: cada item é transação independente
+    public void processar(Agendamento agendamento) {
+        // FIX-3: null checks são exceções (corrupção de domínio), não silenciosos
         if (agendamento.getRecursoId() == null) {
-            log.warn("Agendamento {} tem recursoId null, skip -- nunca deveria ocorrer, "
-                    + "verificar integridade de dados",
-                    agendamento.getId());
-            return;
+            throw new AgendamentoComDadosIncompletosException(
+                    "Agendamento " + agendamento.getId() + " tem recursoId null -- corrupção de dados");
         }
 
         if (agendamento.getDataHoraAgendamento() == null) {
-            log.warn("Agendamento {} tem dataHoraAgendamento null, skip -- nunca deveria ocorrer, "
-                    + "verificar integridade de dados",
-                    agendamento.getId());
-            return;
+            throw new AgendamentoComDadosIncompletosException(
+                    "Agendamento " + agendamento.getId() + " tem dataHoraAgendamento null -- corrupção de dados");
         }
 
         if (agendamento.getPacienteId() == null) {
-            log.warn("Agendamento {} tem pacienteId null, skip -- nunca deveria ocorrer, "
-                    + "verificar integridade de dados",
-                    agendamento.getId());
-            return;
+            throw new AgendamentoComDadosIncompletosException(
+                    "Agendamento " + agendamento.getId() + " tem pacienteId null -- corrupção de dados");
         }
 
         boolean transicionado = agendamentoRepositorio.atualizarStatusComMotivo(
