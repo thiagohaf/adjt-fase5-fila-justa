@@ -5,7 +5,6 @@ created: '2026-09-19'
 status: 'done'
 review_loop_iteration: 1
 baseline_commit: '2e5e9518aa7106c46e1010a900c8f77ee015925e'
-review_loop_iteration: 0
 context: []
 ---
 
