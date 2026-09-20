@@ -1,27 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd *)",
-      "Bash(git *)",
-      "Bash(mvn *)",
-      "Bash(tail *)",
-      "Bash(grep *)",
-      "Bash(egrep *)",
-      "Bash(fgrep *)",
-      "Bash(rg *)",
-      "Bash(find *)",
-      "Bash(head *)",
-      "Bash(ls *)",
-      "Bash(cat *)",
-      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/_bmad-output/implementation-artifacts/**)",
-      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/**)",
-      "./gradlew",
-      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/application/command/**)",
-      "Read(//Users/thiagoferreira/Documents/FIAP/**)",
-      "Read(//Users/thiagoferreira/.claude/**)"
-    ],
-    "additionalDirectories": [
-      "/Users/thiagoferreira/Documents/FIAP/Fase\\ 5/agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command"
+      "Bash(*)",
+      "FileEdit(*)",
+      "FileRead(*)"
     ]
   }
 }
