@@ -19,3 +19,8 @@
 
 ## Sessão
 - Ao final de cada entrega de fase, recomendar `/compact` ou reiniciar sessão.
+
+# Workspace Scope & Boundaries
+- All operations, bash commands, file creations, and reads MUST remain strictly within this project root ("/Users/thiagoferreira/Documents/Fiap/Fase 5").
+- Never execute commands targeting paths outside this workspace (e.g., ~, /tmp, /etc, or ../).
+- Do not attempt to inspect or modify credentials, SSH keys, or parent directories.

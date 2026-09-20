@@ -6,6 +6,7 @@ import com.filajusta.agendamento.domain.StatusAgendamento;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -67,8 +68,7 @@ public class AbrirJanelaDeConfirmacao {
     }
 
     @Scheduled(fixedDelayString = "${filajusta.agendamento.abertura-janela.poll-interval-ms:5000}")
-    @Transactional
-    public void abrirJanelas() {
+    public void abrirJanelas() { // FIX-2: removido @Transactional (era aplicado ao lote inteiro, revertendo trabalho anterior)
         List<Agendamento> pendentes;
         try {
             pendentes = agendamentoRepositorio.buscarPendentesAberturaJanela(loteTamanho);
@@ -95,7 +95,8 @@ public class AbrirJanelaDeConfirmacao {
         }
     }
 
-    private void processar(Agendamento agendamento) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // FIX-2: cada item é transação independente
+    public void processar(Agendamento agendamento) {
         boolean transicionado = agendamentoRepositorio.atualizarStatusSeAtual(
                 agendamento.getId(), StatusAgendamento.AGUARDANDO_JANELA, StatusAgendamento.AGUARDANDO_CONFIRMACAO);
         if (!transicionado) {

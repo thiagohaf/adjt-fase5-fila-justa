@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fila_justa_test?currentSchema=triagem_score
+    username: fila_justa_user
+    password: fila_justa_password
+  flyway:
+    clean-on-validation-error: true

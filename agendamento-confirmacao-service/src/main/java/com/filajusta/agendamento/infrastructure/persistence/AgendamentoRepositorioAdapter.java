@@ -59,6 +59,14 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     }
 
     @Override
+    public List<Agendamento> buscarPendentesExpiracaoJanela(int limite) {
+        return jpaRepository.buscarPendentesExpiracaoJanela(clock.instant(), limite)
+                .stream()
+                .map(this::paraDominio)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public boolean atualizarStatusSeAtual(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus) {
         return jpaRepository.atualizarStatusSeAtual(id, statusEsperado, novoStatus) > 0;
