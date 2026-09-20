@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: triagem-score-service
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQL15Dialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/fila_justa?currentSchema=triagem_score
+    username: fila_justa_user
+    password: fila_justa_password
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    schemas: triagem_score
+    locations: classpath:db/migration
+
+server:
+  port: 8082
+  servlet:
+    context-path: /
+
+management:
+  server:
+    port: 8091
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Faixas fisiológicas (AD-11) centralizadas
+filajusta:
+  triagem:
+    limites:
+      frequencia_cardiaca:
+        min: 40
+        max: 200
+      pressao_arterial_sistolica:
+        min: 60
+        max: 260
+      pressao_arterial_diastolica:
+        min: 30
+        max: 150
+      saturacao_oxigenio:
+        min: 50
+        max: 100
+      frequencia_respiratoria:
+        min: 5
+        max: 60
+      temperatura:
+        min: 30
+        max: 42
