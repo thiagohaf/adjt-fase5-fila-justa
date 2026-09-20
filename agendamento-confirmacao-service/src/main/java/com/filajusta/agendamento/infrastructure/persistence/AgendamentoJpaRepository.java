@@ -45,4 +45,16 @@ interface AgendamentoJpaRepository extends JpaRepository<AgendamentoJpaEntity, L
                                   @Param("statusEsperado") StatusAgendamento statusEsperado,
                                   @Param("novoStatus") StatusAgendamento novoStatus,
                                   @Param("motivoLiberacao") String motivoLiberacao);
+
+    // Busca de Agendamentos expirados (spec 1.5): FOR UPDATE SKIP LOCKED
+    // para garantir que multiplos pollers nao processem o mesmo Agendamento.
+    @Query(value = "SELECT * FROM agendamento_confirmacao.agendamentos "
+            + "WHERE status = 'AGUARDANDO_CONFIRMACAO' AND janela_expira_em <= :agora "
+            + "ORDER BY id ASC "
+            + "LIMIT :limite "
+            + "FOR UPDATE SKIP LOCKED",
+            nativeQuery = true)
+    List<AgendamentoJpaEntity> buscarPendentesExpiracaoJanela(@Param("agora") Instant agora,
+                                                               @Param("limite") int limite);
+
 }
