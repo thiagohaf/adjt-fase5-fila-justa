@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-19-2026 00:00
+last_updated: 09-20-2026 00:24
 project: ConfirmaSUS
 project_key: NOKEY
 tracking_system: file-system
@@ -138,3 +138,51 @@ action_items:
     owner: "ThiagoFerreira"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+  - id: "epic-1-retro-item-1-fix-transactional-private-method"
+    epic: 1
+    action: "Resolver @Transactional em método privado (ExpirarJanelaDeConfirmacao/AbrirJanelaDeConfirmacao)
+      — mover para método público ou usar TransactionTemplate"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-20.md"
+  - id: "epic-1-retro-item-2-fix-batch-rollback-scope"
+    epic: 1
+    action: "Isolar transações por item em AbrirJanelaDeConfirmacao com PROPAGATION_REQUIRES_NEW
+      — hoje falha no item 5 reverte itens 1-4"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-20.md"
+  - id: "epic-1-retro-item-3-null-check-exception"
+    epic: 1
+    action: "Converter null checks silenciosos em exceções ou registrar em DLQ (ExpirarJanelaDeConfirmacao,
+      linhas 102-121)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-20.md"
+  - id: "epic-1-retro-item-1"
+    epic: 1
+    action: "Resolver @Transactional em método privado"
+    owner: "dev"
+    status: open
+    ref: "epic-1-retro-2026-09-20.md"
+  - id: "epic-1-retro-item-1"
+    epic: 1
+    action: "Resolver @Transactional privado (ExpirarJanelaDeConfirmacao/AbrirJanelaDeConfirmacao)
+      — mover para público ou TransactionTemplate"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-20.md"
+  - id: "epic-1-retro-item-2"
+    epic: 1
+    action: "Isolar transações por item com PROPAGATION_REQUIRES_NEW — falha no item
+      5 não reverte itens 1-4"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-20.md"
+  - id: "epic-1-retro-item-3"
+    epic: 1
+    action: "Converter null checks silenciosos em exceções (ExpirarJanelaDeConfirmacao,
+      linhas 102-121)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-20.md"
