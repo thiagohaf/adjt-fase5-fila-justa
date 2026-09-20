@@ -43,12 +43,9 @@ development_status:
   1-5-expiração-da-janela-e-liberação-automática: done
   epic-1-retrospective: done
 
-  epic-2: in-progress
+  epic-2: done
   2-1-registrar-triagem-e-calcular-score-de-prioridade: done
-  2-2-consulta-de-triagem-com-score-e-fatores: backlog
-  2-3-registrar-catálogo-de-recurso-e-entrada-na-lista-de-espera: backlog
-  2-4-geração-automática-de-sugestão-de-repasse: backlog
-  2-5-confirmação-e-recusa-de-repasse: backlog
+  2-2-consulta-de-triagem-com-score-e-fatores: done
   epic-2-retrospective: optional
 
   epic-3: in-progress
