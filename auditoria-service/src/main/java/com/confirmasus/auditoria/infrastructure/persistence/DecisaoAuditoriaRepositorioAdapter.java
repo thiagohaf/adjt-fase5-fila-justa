@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -55,6 +56,28 @@ class DecisaoAuditoriaRepositorioAdapter implements DecisaoAuditoriaRepositorio 
         return jpaRepository.findByEventId(eventId)
                 .map(this::paraDominio)
                 .orElse(null);
+    }
+
+    @Override
+    public List<DecisaoAuditoria> findByPacienteIdOrderByTimestamp(Long pacienteId) {
+        List<DecisaoAuditoriaJpaEntity> entities = jpaRepository.findByPacienteIdOrderByTimestamp(pacienteId);
+        if (entities == null) {
+            return List.of();
+        }
+        return entities.stream()
+                .map(this::paraDominio)
+                .toList();
+    }
+
+    @Override
+    public List<DecisaoAuditoria> findByAgendamentoIdOrderByTimestamp(Long agendamentoId) {
+        List<DecisaoAuditoriaJpaEntity> entities = jpaRepository.findByAgendamentoIdOrderByTimestamp(agendamentoId);
+        if (entities == null) {
+            return List.of();
+        }
+        return entities.stream()
+                .map(this::paraDominio)
+                .toList();
     }
 
     private DecisaoAuditoria paraDominio(DecisaoAuditoriaJpaEntity entity) {
