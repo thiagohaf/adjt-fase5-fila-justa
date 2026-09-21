@@ -2,10 +2,12 @@ package com.confirmasus.auditoria.infrastructure.persistence;
 
 import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
+import com.confirmasus.auditoria.domain.TipoDecisao;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -78,6 +80,78 @@ class DecisaoAuditoriaRepositorioAdapter implements DecisaoAuditoriaRepositorio 
         return entities.stream()
                 .map(this::paraDominio)
                 .toList();
+    }
+
+    @Override
+    public PaginatedResult<DecisaoAuditoria> findByPacienteIdWithFilters(Long pacienteId,
+                                                                           Instant startDate,
+                                                                           Instant endDate,
+                                                                           TipoDecisao tipoDecisao,
+                                                                           int limit,
+                                                                           int offset) {
+        // Valida entrada
+        if (pacienteId == null || pacienteId <= 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Converte TipoDecisao para String para SQL nativo (null se não filtrado)
+        String tipoDecisaoStr = tipoDecisao != null ? tipoDecisao.name() : null;
+
+        // Conta total com filtros (SEM paginação)
+        long total = jpaRepository.countByPacienteIdWithFilters(pacienteId, startDate, endDate, tipoDecisaoStr);
+
+        // Se total é 0, retorna vazio sem fazer select
+        if (total == 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Busca itens paginados com filtros (paginação via SQL LIMIT/OFFSET)
+        List<DecisaoAuditoriaJpaEntity> entities = jpaRepository.findByPacienteIdWithFilters(
+                pacienteId, startDate, endDate, tipoDecisaoStr, offset, limit
+        );
+
+        // Converte entidades para domínio
+        List<DecisaoAuditoria> items = entities.stream()
+                .map(this::paraDominio)
+                .toList();
+
+        return new PaginatedResult<>(items, total);
+    }
+
+    @Override
+    public PaginatedResult<DecisaoAuditoria> findByAgendamentoIdWithFilters(Long agendamentoId,
+                                                                              Instant startDate,
+                                                                              Instant endDate,
+                                                                              TipoDecisao tipoDecisao,
+                                                                              int limit,
+                                                                              int offset) {
+        // Valida entrada
+        if (agendamentoId == null || agendamentoId <= 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Converte TipoDecisao para String para SQL nativo (null se não filtrado)
+        String tipoDecisaoStr = tipoDecisao != null ? tipoDecisao.name() : null;
+
+        // Conta total com filtros (SEM paginação)
+        long total = jpaRepository.countByAgendamentoIdWithFilters(agendamentoId, startDate, endDate, tipoDecisaoStr);
+
+        // Se total é 0, retorna vazio sem fazer select
+        if (total == 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Busca itens paginados com filtros (paginação via SQL LIMIT/OFFSET)
+        List<DecisaoAuditoriaJpaEntity> entities = jpaRepository.findByAgendamentoIdWithFilters(
+                agendamentoId, startDate, endDate, tipoDecisaoStr, offset, limit
+        );
+
+        // Converte entidades para domínio
+        List<DecisaoAuditoria> items = entities.stream()
+                .map(this::paraDominio)
+                .toList();
+
+        return new PaginatedResult<>(items, total);
     }
 
     private DecisaoAuditoria paraDominio(DecisaoAuditoriaJpaEntity entity) {

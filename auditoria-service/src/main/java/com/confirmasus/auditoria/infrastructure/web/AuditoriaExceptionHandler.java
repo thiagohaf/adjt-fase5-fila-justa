@@ -15,14 +15,27 @@ import java.util.Map;
  *
  * <p>Mapeia exceções de domínio e aplicação para respostas HTTP apropriadas.
  * Todos os erros retornam um corpo JSON estruturado com timestamp, status e mensagem.
+ *
+ * <p>Erros tratados:
+ * <ul>
+ *   <li>IllegalArgumentException: validação de negócio (ex.: filtros inválidos, Story 4.3)
+ *   <li>Exception: erros genéricos não tratados
+ * </ul>
  */
 @RestControllerAdvice
 public class AuditoriaExceptionHandler {
 
     /**
-     * Manipula IllegalArgumentException lançadas pelas regras de negócio.
+     * Manipula IllegalArgumentException lançadas pelas regras de negócio (Story 4.3).
      *
-     * <p>Exemplos: DecisaoAuditoria null, pacienteId/agendamentoId inválido.
+     * <p>Exemplos:
+     * <ul>
+     *   <li>DecisaoAuditoria null
+     *   <li>pacienteId/agendamentoId inválido
+     *   <li>startDate > endDate
+     *   <li>limit > 200
+     *   <li>tipoDecisao inválido
+     * </ul>
      *
      * @param ex a exceção capturada
      * @param request o contexto da request
@@ -43,7 +56,7 @@ public class AuditoriaExceptionHandler {
     }
 
     /**
-     * Manipula exceções genéricas nãao tratadas.
+     * Manipula exceções genéricas não tratadas.
      *
      * @param ex a exceção capturada
      * @param request o contexto da request
