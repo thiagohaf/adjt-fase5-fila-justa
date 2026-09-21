@@ -42,11 +42,11 @@ baseline_commit: '105eea55e57967d2d7d56a1be165bc0adfae334e'
 - `.../domain/StatusAgendamento.java:12-17` -- enum já completo, nenhuma mudança.
 - `.../application/command/AgendamentoRepositorio.java:10-13` -- porta só com `salvar`; adicionar `buscarPendentesAberturaJanela(int limite)` + `atualizarStatusSeAtual(id, statusEsperado, novoStatus)`.
 - `.../infrastructure/persistence/AgendamentoJpaEntity.java:22-82`, `AgendamentoRepositorioAdapter.java:12-38` -- seguir o mesmo padrão de `EventoOutboxJpaRepository` (`matching-alocacao-service/.../infrastructure/persistence/EventoOutboxJpaRepository.java:24-39`) para a query nativa `FOR UPDATE SKIP LOCKED` e o `UPDATE` condicional.
-- Molde completo de outbox a replicar em `agendamento-confirmacao-service` (novo pacote): `domain/EventoOutbox.java`, `application/command/EventoOutboxRepositorio.java`, `infrastructure/persistence/EventoOutbox{JpaEntity,JpaRepository,RepositorioAdapter}.java`, `infrastructure/relay/{RelaySnsPublisherJob,RelaySnsClientConfig}.java` -- copiar de `matching-alocacao-service/src/main/java/com/filajusta/matching/{domain,application/command,infrastructure/persistence,infrastructure/relay}/` (arquivos e linhas conforme investigação já compilada nesta sessão), adaptando pacote e `MessageGroupId` para `agendamentoId`.
+- Molde completo de outbox a replicar em `agendamento-confirmacao-service` (novo pacote): `domain/EventoOutbox.java`, `application/command/EventoOutboxRepositorio.java`, `infrastructure/persistence/EventoOutbox{JpaEntity,JpaRepository,RepositorioAdapter}.java`, `infrastructure/relay/{RelaySnsPublisherJob,RelaySnsClientConfig}.java` -- copiar de `matching-alocacao-service/src/main/java/com/confirmasus/matching/{domain,application/command,infrastructure/persistence,infrastructure/relay}/` (arquivos e linhas conforme investigação já compilada nesta sessão), adaptando pacote e `MessageGroupId` para `agendamentoId`.
 - `agendamento-confirmacao-service/src/main/resources/db/migration/V1__create_agendamento_confirmacao_schema.sql:24-31` -- não alterar; criar `V2__add_janela_e_outbox.sql` com `ALTER TABLE agendamentos ADD janela_abre_em TIMESTAMPTZ, ADD janela_expira_em TIMESTAMPTZ` + `CREATE TABLE eventos_outbox` (mesmo DDL de `matching-alocacao-service/.../V4__create_eventos_outbox.sql`, schema `agendamento_confirmacao`).
-- `agendamento-confirmacao-service/src/main/resources/application.yml` -- adicionar bloco `filajusta.agendamento.outbox-relay.*` (molde `matching-alocacao-service/.../application.yml:71-91`, env var `FILAJUSTA_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN`).
+- `agendamento-confirmacao-service/src/main/resources/application.yml` -- adicionar bloco `confirmasus.agendamento.outbox-relay.*` (molde `matching-alocacao-service/.../application.yml:71-91`, env var `FILAJUSTA_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN`).
 - `AgendamentoConfirmacaoServiceApplication.java:23-27` -- remover comentário "sem `@EnableScheduling`"; adicionar a anotação (molde `MatchingAlocacaoServiceApplication.java:124-125`).
-- `infra-cdk/.../FilaJustaStack.java:268-276` -- criar tópico SNS FIFO próprio (molde `buildMatchingAlocacaoEventosTopic():293`) + `TaskRole` com `grantPublish` (molde linha 294) para `agendamento-confirmacao-service`; injetar ARN/região via env var no construto Fargate do serviço.
+- `infra-cdk/.../ConfirmaSusStack.java:268-276` -- criar tópico SNS FIFO próprio (molde `buildMatchingAlocacaoEventosTopic():293`) + `TaskRole` com `grantPublish` (molde linha 294) para `agendamento-confirmacao-service`; injetar ARN/região via env var no construto Fargate do serviço.
 
 ## Tasks & Acceptance
 
@@ -59,8 +59,8 @@ baseline_commit: '105eea55e57967d2d7d56a1be165bc0adfae334e'
 - [x] `application.yml` + `AgendamentoConfirmacaoServiceApplication` -- config outbox-relay + `@EnableScheduling`
 - [x] Testes unitários do poller cobrindo a I/O Matrix (happy path, reprocessamento idempotente, ainda não chegou a hora) -- cobertura ≥90% domínio
 - [x] Teste de integração com `SKIP LOCKED` sob concorrência simulada (2 chamadas ao método de busca) -- valida exclusão mútua
-- [x] `infra-cdk/.../FilaJustaStack.java` -- tópico SNS FIFO + `TaskRole.grantPublish` + env vars no Fargate -- AD-3/AD-11
-- [x] `infra-cdk` teste -- atualizar `FilaJustaStackTest` para o tópico/role novos
+- [x] `infra-cdk/.../ConfirmaSusStack.java` -- tópico SNS FIFO + `TaskRole.grantPublish` + env vars no Fargate -- AD-3/AD-11
+- [x] `infra-cdk` teste -- atualizar `ConfirmaSusStackTest` para o tópico/role novos
 
 **Acceptance Criteria:**
 - Given um Agendamento `AGUARDANDO_JANELA` com `janelaAbreEm <= now()`, when o poller roda, then o Agendamento vira `AGUARDANDO_CONFIRMACAO` e `NotificacaoConfirmacaoPublicada` é publicado via outbox na mesma transação.
@@ -78,42 +78,42 @@ O poller não deve reimplementar o relay — só a leitura/transição de `Agend
 
 **Commands:**
 - `mvn -pl agendamento-confirmacao-service -am test` -- expected: todos os testes passam, incluindo os novos do poller
-- `mvn -pl infra-cdk -am test` (da raiz do repo) -- expected: `FilaJustaStackTest` passa com o tópico/role novos
+- `mvn -pl infra-cdk -am test` (da raiz do repo) -- expected: `ConfirmaSusStackTest` passa com o tópico/role novos
 - `grep -rn "janelaAbreEm\|eventos_outbox" agendamento-confirmacao-service/src/main` -- expected: presente em domain, migration e persistence
 
 **Manual checks (if no CLI):**
-- Revisar `application.yml` para confirmar que o namespace `filajusta.agendamento.outbox-relay` não colide com nenhum existente.
+- Revisar `application.yml` para confirmar que o namespace `confirmasus.agendamento.outbox-relay` não colide com nenhum existente.
 
 ## Suggested Review Order
 
 **Poller de abertura de janela (AD-5)**
 
 - Ponto de entrada: transição condicional + isolamento de falha por item (patch do code review).
-  [`AbrirJanelaDeConfirmacao.java:71`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/AbrirJanelaDeConfirmacao.java#L71)
+  [`AbrirJanelaDeConfirmacao.java:71`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/AbrirJanelaDeConfirmacao.java#L71)
 
 - `abrirJanela()` no domínio nunca é chamado — a transição real vive no adapter (decisão documentada, ver `deferred-work.md`).
-  [`Agendamento.java:511`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/Agendamento.java#L511)
+  [`Agendamento.java:511`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/Agendamento.java#L511)
 
 - Query nativa `FOR UPDATE SKIP LOCKED` + `UPDATE` condicional — garante exclusão mútua entre tasks ECS concorrentes.
-  [`AgendamentoJpaRepository.java:694`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/persistence/AgendamentoJpaRepository.java#L694)
+  [`AgendamentoJpaRepository.java:694`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/persistence/AgendamentoJpaRepository.java#L694)
 
 **Outbox + relay SNS FIFO (AD-3, molde copiado de matching-alocacao-service)**
 
 - Linha do outbox, agora com `eventType` validado como não-branco (patch do code review).
-  [`EventoOutbox.java:35`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/EventoOutbox.java#L35)
+  [`EventoOutbox.java:35`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/EventoOutbox.java#L35)
 
 - Relay periódico: lê pendentes, publica no SNS FIFO, marca publicado só após ack do broker.
-  [`RelaySnsPublisherJob.java`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/relay/RelaySnsPublisherJob.java)
+  [`RelaySnsPublisherJob.java`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/relay/RelaySnsPublisherJob.java)
 
 **Cálculo da janela (RegistrarAgendamento, Story 1.1 revisitada)**
 
 - `janelaAbreEm = agora + janelaDuracao` — sem validação cruzada contra `dataHoraAgendamento` (item deferido).
-  [`RegistrarAgendamento.java:67`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RegistrarAgendamento.java#L67)
+  [`RegistrarAgendamento.java:67`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RegistrarAgendamento.java#L67)
 
 **Infraestrutura (CDK + migration)**
 
 - Tópico SNS FIFO novo + `grantPublish` na TaskRole real do serviço (não uma role standalone).
-  [`FilaJustaStack.java:268`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L268)
+  [`ConfirmaSusStack.java:268`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L268)
 
 - Colunas de janela + tabela `eventos_outbox`; backfill assume tabela vazia (item deferido).
   [`V2__add_janela_e_outbox.sql`](../../agendamento-confirmacao-service/src/main/resources/db/migration/V2__add_janela_e_outbox.sql)
@@ -121,8 +121,8 @@ O poller não deve reimplementar o relay — só a leitura/transição de `Agend
 **Testes (peso maior: concorrência e I/O Matrix)**
 
 - Concorrência real via `SKIP LOCKED` sob 8 threads simultâneas.
-  [`AbrirJanelaDeConfirmacaoConcurrencyIntegrationTest.java`](../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/application/command/AbrirJanelaDeConfirmacaoConcurrencyIntegrationTest.java)
+  [`AbrirJanelaDeConfirmacaoConcurrencyIntegrationTest.java`](../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/application/command/AbrirJanelaDeConfirmacaoConcurrencyIntegrationTest.java)
 
 - Cobertura unitária da I/O & Edge-Case Matrix da spec (happy path, reprocessamento, ainda não chegou a hora).
-  [`AbrirJanelaDeConfirmacaoTest.java`](../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/application/command/AbrirJanelaDeConfirmacaoTest.java)
+  [`AbrirJanelaDeConfirmacaoTest.java`](../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/application/command/AbrirJanelaDeConfirmacaoTest.java)
 </content>

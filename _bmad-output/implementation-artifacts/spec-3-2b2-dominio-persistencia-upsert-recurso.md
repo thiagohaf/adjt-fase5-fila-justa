@@ -80,36 +80,36 @@ baseline_commit: 'c7edba3d9d15548f09b822bb2f56ed5d3d68109f'
 **Endpoint interno (entrada)**
 
 - `POST /internal/recursos`, sem segurança, javadoc alertando para nunca expor via gateway -- ponto de entrada do fluxo.
-  [`RecursosInternalController.java:36`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecursosInternalController.java#L36)
+  [`RecursosInternalController.java:36`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecursosInternalController.java#L36)
 
 **Decisão criado vs. atualizado (comando de aplicação)**
 
 - `upsertar` delega o upsert nativo e decide `criado`/`atualizado` comparando o `recursoId` retornado com o candidato gerado -- núcleo do AC de status `201`/`200`.
-  [`UpsertRecurso.java:37`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/UpsertRecurso.java#L37)
+  [`UpsertRecurso.java:37`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/UpsertRecurso.java#L37)
 
 - `Resultado` carrega o `Recurso` persistido e o flag `criado` até o controller.
-  [`UpsertRecurso.java:54`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/UpsertRecurso.java#L54)
+  [`UpsertRecurso.java:54`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/UpsertRecurso.java#L54)
 
 **Domínio (invariantes + patch de normalização)**
 
 - Construtor valida `especificidadeRank >= 1` e normaliza (`trim`) `codigoRecurso` -- patch do code review, preserva a idempotência do upsert para códigos com espaços ao redor.
-  [`Recurso.java:35`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/domain/Recurso.java#L35)
+  [`Recurso.java:35`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/Recurso.java#L35)
 
 **Persistência (upsert nativo)**
 
 - `INSERT ... ON CONFLICT (codigo_recurso) DO UPDATE` -- upsert direto e idempotente, sem cláusula `WHERE` temporal (diferente do upsert de `ScoreReplica`).
-  [`RecursoJpaRepository.java:22`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoJpaRepository.java#L22)
+  [`RecursoJpaRepository.java:22`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoJpaRepository.java#L22)
 
 - `upsert` lê o Recurso de volta na mesma transação (a query nativa nunca sobrescreve `recurso_id`) para devolver o estado realmente persistido.
-  [`RecursoRepositorioAdapter.java:29`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoRepositorioAdapter.java#L29)
+  [`RecursoRepositorioAdapter.java:29`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoRepositorioAdapter.java#L29)
 
 **Tratamento de erros (patches do code review)**
 
 - Patch 1: `HttpMessageNotReadableException` (corpo JSON malformado/ausente) agora retorna `400` RFC 7807 em vez de cair no handler genérico `500` de `FilaExceptionHandler`.
-  [`RecursosExceptionHandler.java:61`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecursosExceptionHandler.java#L61)
+  [`RecursosExceptionHandler.java:61`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecursosExceptionHandler.java#L61)
 
 - Validação de Bean Validation (`especificidadeRank`/`codigoRecurso`/`disponivel` ausentes ou inválidos) também retorna `400` RFC 7807.
-  [`RecursosExceptionHandler.java:41`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecursosExceptionHandler.java#L41)
+  [`RecursosExceptionHandler.java:41`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecursosExceptionHandler.java#L41)
 
 **Peripherals**
 
@@ -117,4 +117,4 @@ baseline_commit: 'c7edba3d9d15548f09b822bb2f56ed5d3d68109f'
   [`V3__create_recurso.sql:12`](../../matching-alocacao-service/src/main/resources/db/migration/V3__create_recurso.sql#L12)
 
 - Testes cobrindo a I/O Matrix completa (criação, atualização, três cenários de `400`) mais os dois patches (corpo malformado, `codigoRecurso` com espaços) via HTTP real, e insert/update/idempotência na camada de persistência (Testcontainers).
-  [`UpsertRecursoIntegrationTest.java`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/UpsertRecursoIntegrationTest.java), [`RecursoRepositorioAdapterIntegrationTest.java`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/RecursoRepositorioAdapterIntegrationTest.java)
+  [`UpsertRecursoIntegrationTest.java`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/UpsertRecursoIntegrationTest.java), [`RecursoRepositorioAdapterIntegrationTest.java`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/RecursoRepositorioAdapterIntegrationTest.java)

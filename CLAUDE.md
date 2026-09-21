@@ -1,4 +1,4 @@
-# CLAUDE.md — adjt-fase5-fila-justa
+# CLAUDE.md — adjt-fase5-confirmasus
 
 ## Formato de resposta
 - Direto e conciso: sem introdução, saudação ou recapitulação.

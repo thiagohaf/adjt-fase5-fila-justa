@@ -5,8 +5,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.filajusta</groupId>
-    <artifactId>fila-justa-parent</artifactId>
+    <groupId>com.confirmasus</groupId>
+    <artifactId>confirmasus-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
@@ -16,7 +16,7 @@
 
   <name>matching-alocacao-service</name>
   <description>
-    Servico de dominio do FilaJusta (Epic 3). Story 3.1b entrega o esqueleto
+    Servico de dominio do ConfirmaSUS (Epic 3). Story 3.1b entrega o esqueleto
     Clean Architecture (schema matching_alocacao) com o primeiro consumidor
     SQS real do projeto: ScoreCalculadoConsumerJob (infrastructure/relay)
     le a fila SQS FIFO assinante do topico SNS FIFO score-calculado.fifo
@@ -208,7 +208,7 @@
                 <rule>
                   <element>BUNDLE</element>
                   <includes>
-                    <include>com.filajusta.matching.domain.*</include>
+                    <include>com.confirmasus.matching.domain.*</include>
                   </includes>
                   <limits>
                     <limit>
@@ -221,7 +221,7 @@
                 <rule>
                   <element>BUNDLE</element>
                   <includes>
-                    <include>com.filajusta.matching.application.command.*</include>
+                    <include>com.confirmasus.matching.application.command.*</include>
                   </includes>
                   <limits>
                     <limit>
@@ -237,7 +237,7 @@
                 <rule>
                   <element>BUNDLE</element>
                   <includes>
-                    <include>com.filajusta.matching.application.query.*</include>
+                    <include>com.confirmasus.matching.application.query.*</include>
                   </includes>
                   <limits>
                     <limit>
@@ -268,10 +268,10 @@
         </dependencies>
         <configuration>
           <targetClasses>
-            <param>com.filajusta.matching.domain.*</param>
+            <param>com.confirmasus.matching.domain.*</param>
           </targetClasses>
           <targetTests>
-            <param>com.filajusta.matching.domain.*</param>
+            <param>com.confirmasus.matching.domain.*</param>
           </targetTests>
         </configuration>
       </plugin>

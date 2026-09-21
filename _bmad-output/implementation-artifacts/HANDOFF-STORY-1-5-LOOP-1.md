@@ -92,7 +92,7 @@ Deixar propagar. Falha em 1 agendamento = falha TODO o lote.
 ## Arquivos-Chave
 
 - **Spec:** `_bmad-output/implementation-artifacts/spec-1-5-expiração-da-janela-e-liberação-automática.md`
-- **Implementação:** `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/ExpirarJanelaDeConfirmacao.java`
+- **Implementação:** `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/ExpirarJanelaDeConfirmacao.java`
 - **Testes:** 
   - `ExpirarJanelaDeConfirmacaoTest.java`
   - `ExpirarJanelaDeConfirmacaoConcurrencyIntegrationTest.java`

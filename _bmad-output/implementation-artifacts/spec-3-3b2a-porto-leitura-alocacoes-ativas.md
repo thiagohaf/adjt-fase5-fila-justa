@@ -40,11 +40,11 @@ baseline_commit: 'ba088aa65edb3702d17ffcae2ef346b952a6cd64'
 
 ## Code Map
 
-- `matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/AlocacaoConsultaRepositorio.java` (novo) -- porta de leitura, `Set<Long> pacientesComAlocacaoAtiva()`, modelo: `application/query/RecursoConsultaRepositorio.java`
-- `matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/AlocacaoJpaRepository.java` (modificado, hoje só tem `inserir`, linhas 11-29) -- novo método `@Query(nativeQuery = true)` retornando `paciente_id` `WHERE status = :status`
-- `matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapter.java` (novo) -- `@Component`, implementa a porta, modelo: `infrastructure/persistence/RecursoConsultaRepositorioAdapter.java`
-- `matching-alocacao-service/src/main/java/com/filajusta/matching/domain/Alocacao.java:22` -- reusar `STATUS_ATIVA`, sem modificar
-- `matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java` (novo) -- Testcontainers, insere via `AlocacaoRepositorio#confirmar`, confere `pacientesComAlocacaoAtiva()`, modelo: `AlocacaoRepositorioAdapterIntegrationTest.java`/`RecursoConsultaRepositorioAdapterIntegrationTest.java`
+- `matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/AlocacaoConsultaRepositorio.java` (novo) -- porta de leitura, `Set<Long> pacientesComAlocacaoAtiva()`, modelo: `application/query/RecursoConsultaRepositorio.java`
+- `matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoJpaRepository.java` (modificado, hoje só tem `inserir`, linhas 11-29) -- novo método `@Query(nativeQuery = true)` retornando `paciente_id` `WHERE status = :status`
+- `matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapter.java` (novo) -- `@Component`, implementa a porta, modelo: `infrastructure/persistence/RecursoConsultaRepositorioAdapter.java`
+- `matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/Alocacao.java:22` -- reusar `STATUS_ATIVA`, sem modificar
+- `matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java` (novo) -- Testcontainers, insere via `AlocacaoRepositorio#confirmar`, confere `pacientesComAlocacaoAtiva()`, modelo: `AlocacaoRepositorioAdapterIntegrationTest.java`/`RecursoConsultaRepositorioAdapterIntegrationTest.java`
 
 ## Tasks & Acceptance
 
@@ -73,26 +73,26 @@ baseline_commit: 'ba088aa65edb3702d17ffcae2ef346b952a6cd64'
 **Contrato do porto de leitura**
 
 - Entry point: único método exposto, `Set<Long>` puro -- sem consumidor ligado ainda (aditivo por design).
-  [`AlocacaoConsultaRepositorio.java:31`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/AlocacaoConsultaRepositorio.java#L31)
+  [`AlocacaoConsultaRepositorio.java:31`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/AlocacaoConsultaRepositorio.java#L31)
 
 **Implementação: adapter + query nativa**
 
 - Query nativa 100% SQL (mesmo padrão do `inserir` já existente) filtra por `status = :status`, nunca lança exceção.
-  [`AlocacaoJpaRepository.java:36`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/AlocacaoJpaRepository.java#L36)
+  [`AlocacaoJpaRepository.java:36`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoJpaRepository.java#L36)
 
 - Adapter fino: só delega, injeta `Alocacao.STATUS_ATIVA` (constante do domínio, nunca literal repetido).
-  [`AlocacaoConsultaRepositorioAdapter.java:30`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapter.java#L30)
+  [`AlocacaoConsultaRepositorioAdapter.java:30`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapter.java#L30)
 
 **Testes de integração (Postgres real via Testcontainers)**
 
 - Prova que o `WHERE` de fato discrimina -- sem este teste uma query sem filtro nenhum passaria nos demais (achado do code review).
-  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:118`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L118)
+  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:118`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L118)
 
 - Isolamento por estado (`deleteAll()` a cada teste), não por ordem de execução -- robusto a novos testes futuros.
-  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:64`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L64)
+  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:64`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L64)
 
 - Tabela genuinamente vazia -> `Set` vazio, prova literal da linha da I/O Matrix.
-  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:84`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L84)
+  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:84`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L84)
 
 - Caminho feliz simples e múltiplos Pacientes alocados -- cobertura direta da I/O Matrix.
-  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:96`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L96)
+  [`AlocacaoConsultaRepositorioAdapterIntegrationTest.java:96`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoConsultaRepositorioAdapterIntegrationTest.java#L96)

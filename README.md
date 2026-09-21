@@ -1,8 +1,8 @@
-# FilaJusta — adjt-fase5-fila-justa
+# ConfirmaSUS — adjt-fase5-confirmasus
 
-MVP backend do FilaJusta, desenvolvido para o Hackathon FIAP Pós-Tech (Fase 5) com a metodologia BMAD (Brief → PRD → Architecture → Epics/Stories → Build).
+MVP backend do ConfirmaSUS, desenvolvido para o Hackathon FIAP Pós-Tech (Fase 5) com a metodologia BMAD (Brief → PRD → Architecture → Epics/Stories → Build).
 
-Sistema de fila justa de priorização/matching de recursos, com autenticação dedicada via JWT (HS256) emitido por um `auth-service` e validado no `gateway-service` — único ponto de entrada do sistema.
+Sistema de confirmação ativa de consultas e exames do SUS com sugestão inteligente de repasse, com autenticação dedicada via JWT (HS256) emitido por um `auth-service` e validado no `gateway-service` — único ponto de entrada do sistema.
 
 ## Arquitetura (visão rápida)
 

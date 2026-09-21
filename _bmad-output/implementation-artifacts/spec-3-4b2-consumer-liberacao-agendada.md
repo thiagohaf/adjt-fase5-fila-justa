@@ -12,7 +12,7 @@ baseline_commit: 'd301f59c80107c400bc0a813e2de7f078ef2a940'
 
 **Problem:** A fila SQS standard com liberações agendadas (`matching-alocacao-service`) está sendo populada (Story 3-4a2) e as mensagens aguardam consumo — sem nenhum listener, as mensagens expiram ou são transferidas para a DLQ, perdendo a oportunidade de liberar recursos em tempo hábil.
 
-**Approach:** Implementar um job `@Scheduled` (`LiberacaoAgendadaSqsConsumerJob`) que consome da fila SQS standard de liberações agendadas (`FilaJustaStack`), desserializa cada mensagem, valida o schema, e invoca o comando `LiberarRecurso` já pronto (Story 3-4b1) para executar a liberação real. Idempotência garantida por `alocacaoId` (o comando já é idempotente); reprocessamento de DLQ via script manual fora de escopo. Inclui tratamento de schema versioning (eventos futuros com versão incompatível vão para a DLQ sem quebrar o consumer).
+**Approach:** Implementar um job `@Scheduled` (`LiberacaoAgendadaSqsConsumerJob`) que consome da fila SQS standard de liberações agendadas (`ConfirmaSusStack`), desserializa cada mensagem, valida o schema, e invoca o comando `LiberarRecurso` já pronto (Story 3-4b1) para executar a liberação real. Idempotência garantida por `alocacaoId` (o comando já é idempotente); reprocessamento de DLQ via script manual fora de escopo. Inclui tratamento de schema versioning (eventos futuros com versão incompatível vão para a DLQ sem quebrar o consumer).
 
 ## Boundaries & Constraints
 
@@ -98,46 +98,46 @@ O intervalo do poller (5s) é um trade-off: alta latência de aceitação de lib
 **Poller e gerenciamento de filas SQS**
 
 - Fail-fast validation do constructor: queue-url e dlq-url não podem estar vazios se consumer habilitado.
-  [`LiberacaoAgendadaSqsConsumerJob.java:90-103`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L90)
+  [`LiberacaoAgendadaSqsConsumerJob.java:90-103`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L90)
 
 - Método consumirPendentes: poller @Scheduled com long-poll 20s, até 10 mensagens por ciclo.
-  [`LiberacaoAgendadaSqsConsumerJob.java:114-135`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L114)
+  [`LiberacaoAgendadaSqsConsumerJob.java:114-135`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L114)
 
 **Desserialização, validação e roteamento**
 
 - Desserialização com ObjectMapper, captura de JsonProcessingException com log/DLQ.
-  [`LiberacaoAgendadaSqsConsumerJob.java:144-178`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L144)
+  [`LiberacaoAgendadaSqsConsumerJob.java:144-178`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L144)
 
 - Validação de version: rejeição clara de version != 1 para DLQ sem chamar LiberarRecurso.
-  [`LiberacaoAgendadaSqsConsumerJob.java:148-154`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L148)
+  [`LiberacaoAgendadaSqsConsumerJob.java:148-154`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L148)
 
 - Validação de null em alocacaoId, recursoId e correlationId: campos críticos validados antes de invocação.
-  [`LiberacaoAgendadaSqsConsumerJob.java:162-168`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L162)
+  [`LiberacaoAgendadaSqsConsumerJob.java:162-168`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L162)
 
 **Integração com comando de liberação**
 
 - Invocação de LiberarRecurso.liberar com try-catch: falha transiente não deleta mensagem.
-  [`LiberacaoAgendadaSqsConsumerJob.java:181-193`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L181)
+  [`LiberacaoAgendadaSqsConsumerJob.java:181-193`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L181)
 
 - Deleção de mensagem apenas após LiberarRecurso confirmado (Boundaries).
-  [`LiberacaoAgendadaSqsConsumerJob.java:195-207`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L195)
+  [`LiberacaoAgendadaSqsConsumerJob.java:195-207`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJob.java#L195)
 
 **Event DTO e configuração**
 
 - LiberacaoAgendadaEvent record: desserialização flexível com Jackson, suporte a schema aditivo.
-  [`LiberacaoAgendadaEvent.java`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/messaging/LiberacaoAgendadaEvent.java)
+  [`LiberacaoAgendadaEvent.java`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/messaging/LiberacaoAgendadaEvent.java)
 
 - LiberacaoAgendadaSqsClientConfig e fallback: bean compartilhado entre relay e consumer com @ConditionalOnMissingBean.
-  [`LiberacaoAgendadaSqsClientConfig.java:51-73`](../../../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsClientConfig.java#L51)
+  [`LiberacaoAgendadaSqsClientConfig.java:51-73`](../../../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsClientConfig.java#L51)
 
 **Testes de integração**
 
 - Happy path: mensagem válida consumida, Alocação liberada, Recurso disponível, mensagem deletada.
-  [`LiberacaoAgendadaSqsConsumerJobIntegrationTest.java:131-164`](../../../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJobIntegrationTest.java#L131)
+  [`LiberacaoAgendadaSqsConsumerJobIntegrationTest.java:131-164`](../../../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJobIntegrationTest.java#L131)
 
 - Version incompatível: mensagem rejeitada para DLQ, Alocação permanece ATIVA.
-  [`LiberacaoAgendadaSqsConsumerJobIntegrationTest.java:166-209`](../../../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJobIntegrationTest.java#L166)
+  [`LiberacaoAgendadaSqsConsumerJobIntegrationTest.java:166-209`](../../../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJobIntegrationTest.java#L166)
 
 - Idempotência: Alocação já liberada resulta em no-op seguro, mensagem deletada.
-  [`LiberacaoAgendadaSqsConsumerJobIntegrationTest.java:211-268`](../../../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJobIntegrationTest.java#L211)
+  [`LiberacaoAgendadaSqsConsumerJobIntegrationTest.java:211-268`](../../../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsConsumerJobIntegrationTest.java#L211)
 

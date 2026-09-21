@@ -12,7 +12,7 @@ baseline_commit: '05038b049b9b74317d7ad73c56fbfda115c23824'
 
 ## Intent
 
-**Problem:** Um Regulador não tem como saber qual Paciente sugerir para um Recurso específico sem selecionar manualmente da fila, o que quebra a garantia de justiça objetiva do FilaJusta (AD-5).
+**Problem:** Um Regulador não tem como saber qual Paciente sugerir para um Recurso específico sem selecionar manualmente da fila, o que quebra a garantia de justiça objetiva do ConfirmaSus (AD-5).
 
 **Approach:** Novo endpoint `GET /v1/recursos/{id}/sugestao` em `matching-alocacao-service` que aplica o algoritmo de tiers de desempate sobre a fila global já ordenada por Prioridade Efetiva (`ConsultarFilaPriorizada`, reutilizada sem duplicar lógica), consultando o domínio `Recurso` (3-2b2) para determinar quantos tiers mais genéricos e disponíveis existem antes de indexar na fila.
 
@@ -97,49 +97,49 @@ baseline_commit: '05038b049b9b74317d7ad73c56fbfda115c23824'
 **Algoritmo de tiers (entrada)**
 
 - Ponto de entrada do algoritmo: resolve o Recurso, aplica o guard de indisponibilidade, calcula N e indexa na fila global.
-  [`ConsultarSugestaoRecurso.java:49`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarSugestaoRecurso.java#L49)
+  [`ConsultarSugestaoRecurso.java:49`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecurso.java#L49)
 
 - Guard clause adicionado no loop 1 do review: Recurso indisponível nunca é elegível, mesmo tratamento de fila esgotada.
-  [`ConsultarSugestaoRecurso.java:53`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarSugestaoRecurso.java#L53)
+  [`ConsultarSugestaoRecurso.java:53`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecurso.java#L53)
 
 - Porta de consulta nova (CQRS), separada do upsert de 3.2b2 -- só o essencial para o algoritmo.
-  [`RecursoConsultaRepositorio.java:19`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/RecursoConsultaRepositorio.java#L19)
+  [`RecursoConsultaRepositorio.java:19`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/RecursoConsultaRepositorio.java#L19)
 
 **Contagem de tiers (persistência)**
 
 - Query nativa `COUNT(DISTINCT especificidade_rank)` -- núcleo do "N" do algoritmo, Recursos do mesmo tier não se somam.
-  [`RecursoJpaRepository.java:53`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoJpaRepository.java#L53)
+  [`RecursoJpaRepository.java:53`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoJpaRepository.java#L53)
 
 - `Math.toIntExact` no cast `long`→`int` (patch do review, evita overflow silencioso).
-  [`RecursoConsultaRepositorioAdapter.java:45`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoConsultaRepositorioAdapter.java#L45)
+  [`RecursoConsultaRepositorioAdapter.java:45`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoConsultaRepositorioAdapter.java#L45)
 
 - Mapeamento entidade→domínio extraído para a própria entidade JPA, compartilhado com o adapter de comando (patch do review, elimina duplicação).
-  [`RecursoJpaEntity.java:61`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoJpaEntity.java#L61)
+  [`RecursoJpaEntity.java:61`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoJpaEntity.java#L61)
 
 **Endpoint HTTP e tratamento de erro**
 
 - `GET /v1/recursos/{id}/sugestao`, sem segurança (mesmo gap pré-existente de `GET /v1/fila`).
-  [`RecursoSugestaoController.java:38`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecursoSugestaoController.java#L38)
+  [`RecursoSugestaoController.java:38`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecursoSugestaoController.java#L38)
 
 - `404` para Recurso inexistente e `400` para `{id}` malformado, ambos RFC 7807, mesmo padrão de `TriagemExceptionHandler`.
-  [`RecursosExceptionHandler.java:84`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecursosExceptionHandler.java#L84)
+  [`RecursosExceptionHandler.java:84`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecursosExceptionHandler.java#L84)
 
 - `pacienteId` nulo quando não há sugestão (fila esgotada ou Recurso indisponível) -- nunca omitido do JSON.
-  [`SugestaoRecursoResponse.java:16`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/SugestaoRecursoResponse.java#L16)
+  [`SugestaoRecursoResponse.java:16`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/SugestaoRecursoResponse.java#L16)
 
 - Wiring do novo caso de uso no composition root, mesmo padrão dos beans existentes.
-  [`MatchingAlocacaoServiceApplication.java:87`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/MatchingAlocacaoServiceApplication.java#L87)
+  [`MatchingAlocacaoServiceApplication.java:87`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/MatchingAlocacaoServiceApplication.java#L87)
 
 **Testes**
 
 - Cobertura unitária completa da I/O Matrix (mocks), incluindo o caso `RECURSO_INDISPONIVEL` adicionado no loop 1.
-  [`ConsultarSugestaoRecursoTest.java:130`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/query/ConsultarSugestaoRecursoTest.java#L130)
+  [`ConsultarSugestaoRecursoTest.java:130`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecursoTest.java#L130)
 
 - Teste HTTP de ponta a ponta do caminho feliz (200 real, fila semeada via JdbcTemplate) -- fechado na Matrix Test Audit/loop 1, não existia na primeira versão.
-  [`RecursoSugestaoControllerIntegrationTest.java:99`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/RecursoSugestaoControllerIntegrationTest.java#L99)
+  [`RecursoSugestaoControllerIntegrationTest.java:99`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/RecursoSugestaoControllerIntegrationTest.java#L99)
 
 - Teste HTTP de `RECURSO_INDISPONIVEL` (200, `pacienteId` null serializado, não omitido).
-  [`RecursoSugestaoControllerIntegrationTest.java:118`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/RecursoSugestaoControllerIntegrationTest.java#L118)
+  [`RecursoSugestaoControllerIntegrationTest.java:118`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/RecursoSugestaoControllerIntegrationTest.java#L118)
 
 - Testes de `404`/`400` que revelaram o bug do `@PathVariable` sem nome explícito (corrigido no step-03).
-  [`RecursoSugestaoControllerIntegrationTest.java:132`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/RecursoSugestaoControllerIntegrationTest.java#L132)
+  [`RecursoSugestaoControllerIntegrationTest.java:132`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/RecursoSugestaoControllerIntegrationTest.java#L132)

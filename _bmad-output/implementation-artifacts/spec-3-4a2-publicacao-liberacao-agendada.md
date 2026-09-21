@@ -22,7 +22,7 @@ baseline_commit: '1446a224a7cc00c36fd61defb11abc88e67d762c'
 
 **Ask First:** nenhuma decisão adicional além das já resolvidas nesta spec.
 
-**Never:** implementar o consumidor/liberação real do Recurso (3-4b, deferida). Adicionar validação de domínio para `delaySegundos` fora do range aceito pelo SQS (achado já deferido separadamente). Reaproveitar o namespace `filajusta.matching.relay.*` ou `outbox-relay.*` — usar `filajusta.matching.liberacao-agendada-relay.*` isolado para não colidir os beans `SqsClient`.
+**Never:** implementar o consumidor/liberação real do Recurso (3-4b, deferida). Adicionar validação de domínio para `delaySegundos` fora do range aceito pelo SQS (achado já deferido separadamente). Reaproveitar o namespace `confirmasus.matching.relay.*` ou `outbox-relay.*` — usar `confirmasus.matching.liberacao-agendada-relay.*` isolado para não colidir os beans `SqsClient`.
 
 ## I/O & Edge-Case Matrix
 
@@ -37,10 +37,10 @@ baseline_commit: '1446a224a7cc00c36fd61defb11abc88e67d762c'
 
 ## Code Map
 
-- `infrastructure/relay/LiberacaoAgendadaRelayJob.java` (novo) -- molde `RelaySnsPublisherJob.java:69-194`: `@ConditionalOnProperty(prefix = "filajusta.matching.liberacao-agendada-relay", name = "enabled")`, `@Scheduled` + `@Transactional` em `publicarPendentes()`, chama `buscarPendentes(loteTamanho)`, para cada item `sqsClient.sendMessage(...).delaySeconds(item.getDelaySegundos())` + `liberacaoAgendadaRepositorio.marcarComoEnviado(item.getAlocacaoId())`; corpo da mensagem serializado via `ObjectMapper` (`alocacaoId`, `recursoId`, `correlationId`)
-- `infrastructure/relay/LiberacaoAgendadaSqsClientConfig.java` (novo) -- cópia de `ScoreCalculadoSqsClientConfig.java:57-85`, `@Value` lendo `filajusta.matching.liberacao-agendada-relay.{endpoint-override,region}`
-- `application.yml` -- novo bloco `filajusta.matching.liberacao-agendada-relay.{enabled,queue-url,region,endpoint-override,poll-interval-ms,batch-size}`, molde de `outbox-relay` (linhas 85-91)
-- `infra-cdk/.../FilaJustaStack.java` -- nova `Queue liberacaoAgendadaQueue` ("liberacao-agendada", standard) + `Queue liberacaoAgendadaDlq` ("liberacao-agendada-dlq"), `maxReceiveCount=5`, `visibilityTimeout=60s`, molde `buildScoreCalculadoConsumerQueue` (linhas 278-317); `liberacaoAgendadaQueue.grantSendMessage(matchingAlocacaoServiceTaskRole)` (role já existe, linha 320)
+- `infrastructure/relay/LiberacaoAgendadaRelayJob.java` (novo) -- molde `RelaySnsPublisherJob.java:69-194`: `@ConditionalOnProperty(prefix = "confirmasus.matching.liberacao-agendada-relay", name = "enabled")`, `@Scheduled` + `@Transactional` em `publicarPendentes()`, chama `buscarPendentes(loteTamanho)`, para cada item `sqsClient.sendMessage(...).delaySeconds(item.getDelaySegundos())` + `liberacaoAgendadaRepositorio.marcarComoEnviado(item.getAlocacaoId())`; corpo da mensagem serializado via `ObjectMapper` (`alocacaoId`, `recursoId`, `correlationId`)
+- `infrastructure/relay/LiberacaoAgendadaSqsClientConfig.java` (novo) -- cópia de `ScoreCalculadoSqsClientConfig.java:57-85`, `@Value` lendo `confirmasus.matching.liberacao-agendada-relay.{endpoint-override,region}`
+- `application.yml` -- novo bloco `confirmasus.matching.liberacao-agendada-relay.{enabled,queue-url,region,endpoint-override,poll-interval-ms,batch-size}`, molde de `outbox-relay` (linhas 85-91)
+- `infra-cdk/.../ConfirmaSusStack.java` -- nova `Queue liberacaoAgendadaQueue` ("liberacao-agendada", standard) + `Queue liberacaoAgendadaDlq` ("liberacao-agendada-dlq"), `maxReceiveCount=5`, `visibilityTimeout=60s`, molde `buildScoreCalculadoConsumerQueue` (linhas 278-317); `liberacaoAgendadaQueue.grantSendMessage(matchingAlocacaoServiceTaskRole)` (role já existe, linha 320)
 - `MatchingAlocacaoServiceApplication.java` -- wiring do bean `LiberacaoAgendadaRelayJob`
 - `test/.../LiberacaoAgendadaRelayJobIntegrationTest.java` (novo) -- molde `ScoreCalculadoConsumerJobIntegrationTest.java` (Testcontainers Postgres + LocalStack `4.12.0` `sqs`, `@DynamicPropertySource` cria fila e injeta `endpoint-override`/`region`/`queue-url`)
 - `test/.../LiberacaoAgendadaRelayJobConcurrencyIntegrationTest.java` (novo) -- molde `UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java:137-187` (`ExecutorService`/`CountDownLatch`, N chamadas concorrentes a `publicarPendentes()` contra Postgres real, assere que cada linha pendente é marcada `enviado_em` exatamente 1 vez)
@@ -51,7 +51,7 @@ baseline_commit: '1446a224a7cc00c36fd61defb11abc88e67d762c'
 - [x] `infrastructure/relay/LiberacaoAgendadaSqsClientConfig.java` -- bean `SqsClient` dedicado -- isola namespace de config e evita colisão com beans existentes
 - [x] `infrastructure/relay/LiberacaoAgendadaRelayJob.java` -- polling transacional busca+envia+marca -- fecha a lacuna de concorrência deferida da 3-4a1
 - [x] `application.yml`, `MatchingAlocacaoServiceApplication.java` -- config + wiring
-- [x] `infra-cdk/.../FilaJustaStack.java` -- fila `liberacao-agendada` + DLQ + `grantSendMessages`
+- [x] `infra-cdk/.../ConfirmaSusStack.java` -- fila `liberacao-agendada` + DLQ + `grantSendMessages`
 - [x] Testes: unitário do job (mock do porto + `SqsClient`), integração LocalStack (mensagem chega com `DelaySeconds` correto), integração de concorrência real (Postgres, sem duplicidade)
 
 **Acceptance Criteria:**
@@ -63,33 +63,33 @@ baseline_commit: '1446a224a7cc00c36fd61defb11abc88e67d762c'
 
 **Commands:**
 - `mvn -pl matching-alocacao-service -am verify` -- expected: testes verdes, incluindo integração LocalStack e concorrência
-- `mvn -pl infra-cdk -am verify` -- expected: `FilaJustaStack` sintetiza com a nova fila/DLQ
+- `mvn -pl infra-cdk -am verify` -- expected: `ConfirmaSusStack` sintetiza com a nova fila/DLQ
 
 ## Suggested Review Order
 
 **Polling transacional (job novo)**
 
 - Entry point: busca+envia+marca na MESMA `@Transactional`, fechando a lacuna de concorrência da 3-4a1.
-  [`LiberacaoAgendadaRelayJob.java:104`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaRelayJob.java#L104)
+  [`LiberacaoAgendadaRelayJob.java:104`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaRelayJob.java#L104)
 
 - Falha de UM item (montar corpo, enviar ou marcar) é isolada por try/catch -- nunca aborta o lote.
-  [`LiberacaoAgendadaRelayJob.java:122`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaRelayJob.java#L122)
+  [`LiberacaoAgendadaRelayJob.java:122`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaRelayJob.java#L122)
 
 **Dois beans `SqsClient` coexistindo (namespace isolado + `@Primary`)**
 
 - Bean nomeado `liberacaoAgendadaSqsClient`, namespace `liberacao-agendada-relay.*` isolado de `relay.*`/`outbox-relay.*`.
-  [`LiberacaoAgendadaSqsClientConfig.java:80`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaSqsClientConfig.java#L80)
+  [`LiberacaoAgendadaSqsClientConfig.java:80`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaSqsClientConfig.java#L80)
 
 - `@Primary` acrescentado para o consumidor de ScoreCalculado continuar resolvendo sem ambiguidade com o 2º `SqsClient`.
-  [`ScoreCalculadoSqsClientConfig.java:76`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoSqsClientConfig.java#L76)
+  [`ScoreCalculadoSqsClientConfig.java:76`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoSqsClientConfig.java#L76)
 
 **Infra CDK (fila + DLQ + permissão)**
 
 - Fila standard `liberacao-agendada` + DLQ (`maxReceiveCount=5`), molde de `buildScoreCalculadoConsumerQueue`.
-  [`FilaJustaStack.java:361`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L361)
+  [`ConfirmaSusStack.java:361`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L361)
 
 - `grantSendMessages` na `MatchingAlocacaoServiceTaskRole` já existente -- nenhuma role nova.
-  [`FilaJustaStack.java:250`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L250)
+  [`ConfirmaSusStack.java:250`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L250)
 
 - Bloco de config novo, `enabled=true` por padrão (mesmo padrão de `outbox-relay`).
   [`application.yml:107`](../../matching-alocacao-service/src/main/resources/application.yml#L107)
@@ -97,19 +97,19 @@ baseline_commit: '1446a224a7cc00c36fd61defb11abc88e67d762c'
 **Testes**
 
 - Prova o `@Primary` com os DOIS relays habilitados ao mesmo tempo -- exatamente a config default real de produção.
-  [`SqsClientPrimaryBeanIntegrationTest.java:79`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/SqsClientPrimaryBeanIntegrationTest.java#L79)
+  [`SqsClientPrimaryBeanIntegrationTest.java:79`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/SqsClientPrimaryBeanIntegrationTest.java#L79)
 
 - Concorrência real (Postgres+LocalStack): 8 threads, exatamente 1 publica e marca `enviado_em`.
-  [`LiberacaoAgendadaRelayJobConcurrencyIntegrationTest.java:122`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaRelayJobConcurrencyIntegrationTest.java#L122)
+  [`LiberacaoAgendadaRelayJobConcurrencyIntegrationTest.java:122`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaRelayJobConcurrencyIntegrationTest.java#L122)
 
 - LocalStack real: prova `DelaySeconds` pela (in)visibilidade da mensagem antes/depois do delay.
-  [`LiberacaoAgendadaRelayJobIntegrationTest.java:111`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaRelayJobIntegrationTest.java#L111)
+  [`LiberacaoAgendadaRelayJobIntegrationTest.java:111`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaRelayJobIntegrationTest.java#L111)
 
 - Unitário (mocks): HAPPY_PATH, SEM_PENDENTES, FALHA_ENVIO_1_ITEM da I/O Matrix.
-  [`LiberacaoAgendadaRelayJobTest.java:38`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/LiberacaoAgendadaRelayJobTest.java#L38)
+  [`LiberacaoAgendadaRelayJobTest.java:38`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/LiberacaoAgendadaRelayJobTest.java#L38)
 
 - CDK: fila standard+DLQ e `VisibilityTimeout`.
-  [`FilaJustaStackTest.java:412`](../../infra-cdk/src/test/java/com/filajusta/infra/FilaJustaStackTest.java#L412)
+  [`ConfirmaSusStackTest.java:412`](../../infra-cdk/src/test/java/com/confirmasus/infra/ConfirmaSusStackTest.java#L412)
 
 - CDK: policy de `sqs:SendMessage` presa à role certa.
-  [`FilaJustaStackTest.java:456`](../../infra-cdk/src/test/java/com/filajusta/infra/FilaJustaStackTest.java#L456)
+  [`ConfirmaSusStackTest.java:456`](../../infra-cdk/src/test/java/com/confirmasus/infra/ConfirmaSusStackTest.java#L456)

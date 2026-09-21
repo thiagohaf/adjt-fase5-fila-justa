@@ -4,7 +4,7 @@
 
 ## Goal
 
-Um Profissional de Triagem registra os dados clínicos estruturados de um Paciente (CPF, sintomas, sinais vitais, gravidade percebida) via API e recebe, na mesma resposta, o Score de Prioridade Clínica já calculado e detalhado por fator contribuinte — sem cálculo manual nem segunda chamada. O CPF é resolvido para um ID de Paciente interno na fronteira de ingestão e nunca propaga além desse ponto, mantendo o restante do sistema (Matching, Log Auditável) livre de dado pessoal identificador. Este epic é o ponto de entrada de todo o fluxo de priorização do FilaJusta: sem ele, não há dado para a fila (Epic 3) nem decisão para auditar (Epic 4).
+Um Profissional de Triagem registra os dados clínicos estruturados de um Paciente (CPF, sintomas, sinais vitais, gravidade percebida) via API e recebe, na mesma resposta, o Score de Prioridade Clínica já calculado e detalhado por fator contribuinte — sem cálculo manual nem segunda chamada. O CPF é resolvido para um ID de Paciente interno na fronteira de ingestão e nunca propaga além desse ponto, mantendo o restante do sistema (Matching, Log Auditável) livre de dado pessoal identificador. Este epic é o ponto de entrada de todo o fluxo de priorização do ConfirmaSus: sem ele, não há dado para a fila (Epic 3) nem decisão para auditar (Epic 4).
 
 ## Stories
 
@@ -28,7 +28,7 @@ Um Profissional de Triagem registra os dados clínicos estruturados de um Pacien
 - Propagação assíncrona: evento `ScoreCalculado` gravado em tabela outbox na mesma transação local do comando; `eventId` (UUID v4) gerado nesse momento e nunca regenerado em retry. Relay publica em tópico SNS FIFO; `MessageGroupId = pacienteId`; DLQ com `maxReceiveCount = 5`. Envelope de evento: `{eventId, eventType, occurredAt, version, correlationId, payload}`; schema companion JSON Schema versionado; mudanças só aditivas.
 - Fronteira de CPF: validado em `triagem-score-service` antes de qualquer resolução/cálculo. Único acesso externo a dado derivado de CPF é via dois endpoints gRPC internos protegidos por segredo compartilhado + isolamento de rede: `ResolveCpfParaId(cpf) -> pacienteId` e `ObterCpfMascarado(pacienteId) -> cpfMascarado`. Máscara: `123.***.***-09`.
 - Convenções: eventos em PascalCase passado (`ScoreCalculado`); IDs internos = UUID v4; datas ISO-8601 UTC; erros REST em RFC 7807; contrato versionado (`/v1/`); `correlationId` gerado no gateway e propagado no header HTTP e no envelope do evento.
-- Faixas fisiológicas e demais valores calibráveis ficam centralizados em `application.yml` do serviço (`filajusta.triagem.limites.*`), não espalhados no código.
+- Faixas fisiológicas e demais valores calibráveis ficam centralizados em `application.yml` do serviço (`confirmasus.triagem.limites.*`), não espalhados no código.
 - Autenticação: endpoints protegidos exigem JWT válido emitido por `auth-service` e validado no `gateway-service` (Epic 1) — este epic não implementa autenticação, apenas depende dela.
 
 ## Cross-Story Dependencies

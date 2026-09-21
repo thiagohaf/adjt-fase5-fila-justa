@@ -12,7 +12,7 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 
 ## Intent
 
-**Problem:** A plataforma FilaJusta ainda não tem nenhuma infraestrutura provisionada — não existe VPC, cluster ECS, Postgres nem forma de confirmar que o sistema está no ar antes de construir qualquer funcionalidade de domínio.
+**Problem:** A plataforma ConfirmaSus ainda não tem nenhuma infraestrutura provisionada — não existe VPC, cluster ECS, Postgres nem forma de confirmar que o sistema está no ar antes de construir qualquer funcionalidade de domínio.
 
 **Approach:** Provisionar via AWS CDK (Java) a VPC (subnet pública única, 2 AZs, sem NAT Gateway), um cluster ECS Fargate com Postgres 18 containerizado, e dois serviços Spring Boot em esqueleto — `gateway-service` e `auth-service` — suficientes para expor e testar o health-check público e o bloqueio de bypass; entregar scripts `deploy`/`pause`/`destroy`. Os outros 3 serviços de domínio (`triagem-score-service`, `matching-alocacao-service`, `auditoria-service`) foram deliberadamente adiados (ver `deferred-work.md`) — seguem o mesmo padrão de esqueleto e não são necessários para validar os ACs desta story.
 
@@ -117,38 +117,38 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 **Infraestrutura (VPC, ECS, Postgres/EFS) — CDK Java**
 
 - Ponto de entrada: monta VPC, cluster, EFS, security groups e as 3 tasks/services na ordem certa.
-  [`FilaJustaStack.java:79`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L79)
+  [`ConfirmaSusStack.java:79`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L79)
 
 - VPC de subnet pública única, sem NAT Gateway (AD-12, custo).
-  [`FilaJustaStack.java:175`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L175)
+  [`ConfirmaSusStack.java:175`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L175)
 
 - SG do auth-service criado antes do EFS -- ordem importa (ver corrida abaixo).
-  [`FilaJustaStack.java:96`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L96)
+  [`ConfirmaSusStack.java:96`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L96)
 
 - SG do EFS passado direto no builder do FileSystem, não depois.
-  [`FilaJustaStack.java:121`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L121)
+  [`ConfirmaSusStack.java:121`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L121)
 
 - Postgres 18 containerizado (não RDS) com volume EFS persistente.
-  [`FilaJustaStack.java:214`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L214)
+  [`ConfirmaSusStack.java:214`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L214)
 
 - `runtimePlatform(arm64Platform())` aplicado nas 3 task definitions.
-  [`FilaJustaStack.java:255`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L255)
+  [`ConfirmaSusStack.java:255`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L255)
 
 **Corridas de infraestrutura encontradas e corrigidas no deploy ao vivo**
 
 - ARM64 evita "exec format error" (imagem local Apple Silicon x task X86_64 default).
-  [`FilaJustaStack.java:72`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L72)
+  [`ConfirmaSusStack.java:72`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L72)
 
 - Dependência explícita no namespace Cloud Map evita "Failed to retrieve namespace".
-  [`FilaJustaStack.java:149`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L149)
+  [`ConfirmaSusStack.java:149`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L149)
 
 - Dependência em `mountTargetsAvailable()` evita timeout de mount NFS no EFS.
-  [`FilaJustaStack.java:155`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L155)
+  [`ConfirmaSusStack.java:155`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L155)
 
 **Esqueleto Clean Architecture dos serviços**
 
 - `gateway-service`: porta única 8080, health público por padrão (sem dependência de segurança ainda).
-  [`GatewayServiceApplication.java:13`](../../gateway-service/src/main/java/com/filajusta/gateway/GatewayServiceApplication.java#L13)
+  [`GatewayServiceApplication.java:13`](../../gateway-service/src/main/java/com/confirmasus/gateway/GatewayServiceApplication.java#L13)
 
 - `auth-service`: porta de app (8081) separada da porta de management (8090) -- permite SG restrito só na 8081.
   [`application.yml:2`](../../auth-service/src/main/resources/application.yml#L2)
@@ -164,7 +164,7 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 **Testes (peripherals)**
 
 - Assert do `SourceSecurityGroupId` real (não `Match.anyValue()`) -- fecha o gap de bypass da review.
-  [`FilaJustaStackTest.java:56`](../../infra-cdk/src/test/java/com/filajusta/infra/FilaJustaStackTest.java#L56)
+  [`ConfirmaSusStackTest.java:56`](../../infra-cdk/src/test/java/com/confirmasus/infra/ConfirmaSusStackTest.java#L56)
 
 - Novos testes de regressão: health-check do auth-service, ARM64 e `DependsOn` do Postgres.
-  [`FilaJustaStackTest.java:73`](../../infra-cdk/src/test/java/com/filajusta/infra/FilaJustaStackTest.java#L73)
+  [`ConfirmaSusStackTest.java:73`](../../infra-cdk/src/test/java/com/confirmasus/infra/ConfirmaSusStackTest.java#L73)

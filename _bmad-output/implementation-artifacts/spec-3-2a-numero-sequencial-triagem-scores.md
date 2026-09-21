@@ -63,26 +63,26 @@ baseline_commit: 'fcaab29b356f653a22dfc8d9eb1b2f8622b69cc5'
 **Extração do dado (fonte da verdade)**
 
 - `payload.get("triagemId")` extraído junto de `pacienteId`, validado como `Number` antes de virar `numeroSequencialTriagem` -- núcleo da mudança.
-  [`ScoresAtuaisRepositorioAdapter.java:92-113`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L92)
+  [`ScoresAtuaisRepositorioAdapter.java:92-113`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L92)
 
 **Propagação do campo (persistência → web)**
 
 - `ScoreAtual` ganha `numeroSequencialTriagem`, com o javadoc explicando a direção do desempate (menor = mais antiga) para a 3.2b.
-  [`ScoreAtual.java:24-42`](../../triagem-score-service/src/main/java/com/filajusta/triagem/application/query/ScoreAtual.java#L24)
+  [`ScoreAtual.java:24-42`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/application/query/ScoreAtual.java#L24)
 
 - `ScoreAtualResponse` expõe o mesmo campo no JSON de `GET /internal/scores`.
-  [`ScoreAtualResponse.java:18-32`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/web/ScoreAtualResponse.java#L18)
+  [`ScoreAtualResponse.java:18-32`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/web/ScoreAtualResponse.java#L18)
 
 **Testes (I/O & Edge-Case Matrix)**
 
 - Payload válido: `numeroSequencialTriagem` reconstruído corretamente.
-  [`ScoresAtuaisRepositorioAdapterTest.java:37-55`](../../triagem-score-service/src/test/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L37)
+  [`ScoresAtuaisRepositorioAdapterTest.java:37-55`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L37)
 
 - `triagemId` ausente: linha isolada/ignorada, resto da listagem sobrevive.
-  [`ScoresAtuaisRepositorioAdapterTest.java:59-81`](../../triagem-score-service/src/test/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L59)
+  [`ScoresAtuaisRepositorioAdapterTest.java:59-81`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L59)
 
 - `triagemId` de tipo errado (string): mesmo tratamento de isolamento (achado do code review, cobre a metade "não-numérico" da matriz).
-  [`ScoresAtuaisRepositorioAdapterTest.java:85-107`](../../triagem-score-service/src/test/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L85)
+  [`ScoresAtuaisRepositorioAdapterTest.java:85-107`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L85)
 
 - Ponta a ponta via `GET /internal/scores`: `numeroSequencialTriagem` bate com o `triagemId` retornado por `POST /v1/triagens` e distingue 2 Triagens do mesmo paciente.
-  [`ListarScoresAtuaisIntegrationTest.java:166-179`](../../triagem-score-service/src/test/java/com/filajusta/triagem/ListarScoresAtuaisIntegrationTest.java#L166)
+  [`ListarScoresAtuaisIntegrationTest.java:166-179`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/ListarScoresAtuaisIntegrationTest.java#L166)

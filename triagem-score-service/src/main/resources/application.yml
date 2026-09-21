@@ -13,9 +13,9 @@ spring:
         order_inserts: true
         order_updates: true
   datasource:
-    url: jdbc:postgresql://localhost:5432/fila_justa?currentSchema=triagem_score
-    username: fila_justa_user
-    password: fila_justa_password
+    url: jdbc:postgresql://localhost:5432/confirma_sus?currentSchema=triagem_score
+    username: confirma_sus_user
+    password: confirma_sus_password
     driver-class-name: org.postgresql.Driver
   flyway:
     enabled: true
@@ -39,7 +39,7 @@ management:
       show-details: when-authorized
 
 # Faixas fisiológicas (AD-11) centralizadas
-filajusta:
+confirmasus:
   triagem:
     limites:
       frequencia_cardiaca:

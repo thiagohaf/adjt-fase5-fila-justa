@@ -28,7 +28,7 @@ spring:
   # o secret admin do Postgres compartilhado (mesmo padrao dos demais
   # servicos). Host "postgres" (Service Connect, sem sufixo de namespace).
   datasource:
-    url: jdbc:postgresql://postgres:5432/filajusta
+    url: jdbc:postgresql://postgres:5432/confirmasus
   flyway:
     schemas: matching_alocacao
   jpa:
@@ -45,17 +45,17 @@ spring:
 # producao real fora do valor injetado pela task ECS (chore de deploy
 # deferido, ver deferred-work.md); credenciais nunca aqui, so via variavel
 # de ambiente/role da task (Boundaries da spec 3.1b).
-filajusta:
+confirmasus:
   matching:
     relay:
       # Kill switch operacional -- tambem usado pelos testes que nao
       # exercitam o consumidor, para nao criar o SqsClient nem agendar o
       # poller (evita qualquer tentativa de chamada de rede real fora do
-      # escopo deles), mesmo padrao de filajusta.triagem.relay.enabled.
+      # escopo deles), mesmo padrao de confirmasus.triagem.relay.enabled.
       enabled: true
-      queue-url: ${FILAJUSTA_MATCHING_RELAY_QUEUE_URL:}
+      queue-url: ${CONFIRMASUS_MATCHING_RELAY_QUEUE_URL:}
       region: ${AWS_REGION:us-east-1}
-      endpoint-override: ${FILAJUSTA_MATCHING_RELAY_ENDPOINT_OVERRIDE:}
+      endpoint-override: ${CONFIRMASUS_MATCHING_RELAY_ENDPOINT_OVERRIDE:}
       poll-interval-ms: 5000
       batch-size: 10
       wait-time-seconds: 1
@@ -67,26 +67,26 @@ filajusta:
       # "http://auth-service:8081"). Sem override real fora do valor
       # injetado pela task ECS fica deferido (mesmo chore de deploy de
       # 2.1/3.0/3.1a/3.1b, deferred-work.md).
-      base-url: ${FILAJUSTA_MATCHING_BOOTSTRAP_BASE_URL:http://triagem-score-service:8082}
+      base-url: ${CONFIRMASUS_MATCHING_BOOTSTRAP_BASE_URL:http://triagem-score-service:8082}
     # Infraestrutura outbox propria deste servico (Story 3-3a, AD-3) --
     # RelaySnsPublisherJob (infrastructure/relay). Namespace
     # "outbox-relay" (nao "relay" acima, ja usado pelo consumidor SQS de
     # ScoreCalculado) para nao colidir os dois pollers independentes.
     #
-    # enabled=true (mesmo padrao real de filajusta.triagem.relay.enabled) --
+    # enabled=true (mesmo padrao real de confirmasus.triagem.relay.enabled) --
     # topico SNS FIFO proprio (matching-alocacao-eventos.fifo) ja
     # provisionado em infra-cdk (FilaJustaStack). topic-arn fica vazio por
     # padrao (injetado so no deploy real via
-    # FILAJUSTA_MATCHING_OUTBOX_RELAY_TOPIC_ARN) -- deploy ECS deste servico
+    # CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN) -- deploy ECS deste servico
     # ainda pendente (gap pre-existente, deferred-work.md, nao desta story).
     # Testes @SpringBootTest pre-existentes que nao exercitam este relay
     # setam outbox-relay.enabled=false explicitamente (mesmo padrao de
     # RegistrarTriagemIntegrationTest/ConsultarTriagemIntegrationTest).
     outbox-relay:
       enabled: true
-      topic-arn: ${FILAJUSTA_MATCHING_OUTBOX_RELAY_TOPIC_ARN:}
+      topic-arn: ${CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN:}
       region: ${AWS_REGION:us-east-1}
-      endpoint-override: ${FILAJUSTA_MATCHING_OUTBOX_RELAY_ENDPOINT_OVERRIDE:}
+      endpoint-override: ${CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENDPOINT_OVERRIDE:}
       poll-interval-ms: 5000
       batch-size: 50
     # Relay de publicacao da liberacao agendada (Story 3-4a2) --
@@ -98,7 +98,7 @@ filajusta:
     # enabled=true (mesmo padrao real de outbox-relay.enabled) -- fila SQS
     # standard propria (liberacao-agendada) ja provisionada em infra-cdk
     # (FilaJustaStack). queue-url fica vazio por padrao (injetado so no
-    # deploy real via FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL)
+    # deploy real via CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL)
     # -- deploy ECS deste servico ainda pendente (gap pre-existente,
     # deferred-work.md, nao desta story). Testes @SpringBootTest
     # pre-existentes que nao exercitam este relay setam
@@ -106,9 +106,9 @@ filajusta:
     # outbox-relay acima).
     liberacao-agendada-relay:
       enabled: true
-      queue-url: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL:}
+      queue-url: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL:}
       region: ${AWS_REGION:us-east-1}
-      endpoint-override: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_RELAY_ENDPOINT_OVERRIDE:}
+      endpoint-override: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_ENDPOINT_OVERRIDE:}
       poll-interval-ms: 5000
       batch-size: 50
     # Consumidor SQS da fila de liberacao agendada (Story 3-4b2) --
@@ -124,10 +124,10 @@ filajusta:
     # de relay/outbox-relay).
     liberacao-agendada-consumer:
       enabled: false
-      queue-url: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_CONSUMER_QUEUE_URL:}
-      dlq-url: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_CONSUMER_DLQ_URL:}
+      queue-url: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_CONSUMER_QUEUE_URL:}
+      dlq-url: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_CONSUMER_DLQ_URL:}
       region: ${AWS_REGION:us-east-1}
-      endpoint-override: ${FILAJUSTA_MATCHING_LIBERACAO_AGENDADA_CONSUMER_ENDPOINT_OVERRIDE:}
+      endpoint-override: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_CONSUMER_ENDPOINT_OVERRIDE:}
       poll-interval-ms: 5000
       batch-size: 10
 
