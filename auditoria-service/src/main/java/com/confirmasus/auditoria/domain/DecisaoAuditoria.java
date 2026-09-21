@@ -149,6 +149,7 @@ public final class DecisaoAuditoria {
                 ", motivo='" + motivo + '\'' +
                 ", timestamp=" + timestamp +
                 ", criadoEm=" + criadoEm +
+                ", payloadBruto='" + payloadBruto + '\'' +
                 '}';
     }
 }
