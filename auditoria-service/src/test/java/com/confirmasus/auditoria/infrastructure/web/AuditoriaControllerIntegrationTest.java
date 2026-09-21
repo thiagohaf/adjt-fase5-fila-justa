@@ -72,16 +72,19 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao1, decisao2, decisao3));
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarPaciente(pacienteId, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
 
         // Assert
-        assertThat(resultado).hasSize(3);
-        assertThat(resultado.get(0).eventId()).isEqualTo(eventId1);
-        assertThat(resultado.get(0).tipoDecisao()).isEqualTo(TipoDecisao.NOTIFICACAO);
-        assertThat(resultado.get(0).pacienteId()).isEqualTo(123L);
-        assertThat(resultado.get(1).eventId()).isEqualTo(eventId2);
-        assertThat(resultado.get(2).eventId()).isEqualTo(eventId3);
-        assertThat(resultado.get(2).motivo()).isEqualTo("Paciente mudou");
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).hasSize(3);
+        assertThat(items.get(0).eventId()).isEqualTo(eventId1);
+        assertThat(items.get(0).tipoDecisao()).isEqualTo(TipoDecisao.NOTIFICACAO);
+        assertThat(items.get(0).pacienteId()).isEqualTo(123L);
+        assertThat(items.get(1).eventId()).isEqualTo(eventId2);
+        assertThat(items.get(2).eventId()).isEqualTo(eventId3);
+        assertThat(items.get(2).motivo()).isEqualTo("Paciente mudou");
         verify(consultarAuditoriaPaciente, times(1)).consultar(eq(pacienteId), any(Optional.class));
     }
 
@@ -93,10 +96,13 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaPaciente.consultar(eq(pacienteId), any(Optional.class))).thenReturn(List.of());
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarPaciente(pacienteId, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
 
         // Assert
-        assertThat(resultado).isEmpty();
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).isEmpty();
         verify(consultarAuditoriaPaciente, times(1)).consultar(eq(pacienteId), any(Optional.class));
     }
 
@@ -121,16 +127,19 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao1, decisao2));
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarAgendamento(agendamentoId, null);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null);
 
         // Assert
-        assertThat(resultado).hasSize(2);
-        assertThat(resultado.get(0).eventId()).isEqualTo(eventId1);
-        assertThat(resultado.get(0).tipoDecisao()).isEqualTo(TipoDecisao.NOTIFICACAO);
-        assertThat(resultado.get(0).agendamentoId()).isEqualTo(456L);
-        assertThat(resultado.get(1).eventId()).isEqualTo(eventId2);
-        assertThat(resultado.get(1).tipoDecisao()).isEqualTo(TipoDecisao.RECUSA);
-        assertThat(resultado.get(1).motivo()).isEqualTo("Paciente recusou");
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).hasSize(2);
+        assertThat(items.get(0).eventId()).isEqualTo(eventId1);
+        assertThat(items.get(0).tipoDecisao()).isEqualTo(TipoDecisao.NOTIFICACAO);
+        assertThat(items.get(0).agendamentoId()).isEqualTo(456L);
+        assertThat(items.get(1).eventId()).isEqualTo(eventId2);
+        assertThat(items.get(1).tipoDecisao()).isEqualTo(TipoDecisao.RECUSA);
+        assertThat(items.get(1).motivo()).isEqualTo("Paciente recusou");
         verify(consultarAuditoriaAgendamento, times(1)).consultar(eq(agendamentoId), any(Optional.class));
     }
 
@@ -142,10 +151,13 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaAgendamento.consultar(eq(agendamentoId), any(Optional.class))).thenReturn(List.of());
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarAgendamento(agendamentoId, null);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null);
 
         // Assert
-        assertThat(resultado).isEmpty();
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).isEmpty();
         verify(consultarAuditoriaAgendamento, times(1)).consultar(eq(agendamentoId), any(Optional.class));
     }
 
@@ -169,14 +181,17 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaPaciente.consultar(eq(pacienteId), any(Optional.class))).thenReturn(decisoes);
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarPaciente(pacienteId, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
 
         // Assert
-        assertThat(resultado).hasSize(4);
-        assertThat(resultado.get(0).tipoDecisao()).isEqualTo(TipoDecisao.NOTIFICACAO);
-        assertThat(resultado.get(1).tipoDecisao()).isEqualTo(TipoDecisao.CONFIRMACAO);
-        assertThat(resultado.get(2).tipoDecisao()).isEqualTo(TipoDecisao.LIBERACAO);
-        assertThat(resultado.get(3).tipoDecisao()).isEqualTo(TipoDecisao.SUGESTAO_GERADA);
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).hasSize(4);
+        assertThat(items.get(0).tipoDecisao()).isEqualTo(TipoDecisao.NOTIFICACAO);
+        assertThat(items.get(1).tipoDecisao()).isEqualTo(TipoDecisao.CONFIRMACAO);
+        assertThat(items.get(2).tipoDecisao()).isEqualTo(TipoDecisao.LIBERACAO);
+        assertThat(items.get(3).tipoDecisao()).isEqualTo(TipoDecisao.SUGESTAO_GERADA);
     }
 
     @Test
@@ -195,12 +210,15 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaAgendamento.consultar(eq(agendamentoId), any(Optional.class))).thenReturn(decisoes);
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarAgendamento(agendamentoId, null);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null);
 
         // Assert
-        assertThat(resultado).hasSize(2);
-        assertThat(resultado.get(0).motivo()).isNull();
-        assertThat(resultado.get(1).motivo()).isEqualTo("Urgência baixa");
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).hasSize(2);
+        assertThat(items.get(0).motivo()).isNull();
+        assertThat(items.get(1).motivo()).isEqualTo("Urgência baixa");
     }
 
     @Test
@@ -220,11 +238,14 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao));
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarPaciente(pacienteId, correlationId);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, correlationId);
 
         // Assert
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).eventId()).isEqualTo(eventId);
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).eventId()).isEqualTo(eventId);
         verify(consultarAuditoriaPaciente, times(1)).consultar(pacienteId, Optional.of(correlationId));
     }
 
@@ -245,11 +266,14 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao));
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarAgendamento(agendamentoId, correlationId);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, correlationId);
 
         // Assert
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).eventId()).isEqualTo(eventId);
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).eventId()).isEqualTo(eventId);
         verify(consultarAuditoriaAgendamento, times(1)).consultar(agendamentoId, Optional.of(correlationId));
     }
 
@@ -262,10 +286,13 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of());
 
         // Act
-        List<DecisaoAuditoriaResponse> resultado = controller.consultarPaciente(pacienteId, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
 
         // Assert
-        assertThat(resultado).isEmpty();
+        assertThat(resultado).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<DecisaoAuditoriaResponse> items = (List<DecisaoAuditoriaResponse>) resultado;
+        assertThat(items).isEmpty();
         verify(consultarAuditoriaPaciente, times(1)).consultar(pacienteId, Optional.empty());
     }
 }
