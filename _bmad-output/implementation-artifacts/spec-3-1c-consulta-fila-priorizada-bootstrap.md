@@ -18,7 +18,7 @@ baseline_commit: '328af05c2f757940beb1daf15c21f7af3956ab8a'
 
 ## Boundaries & Constraints
 
-**Always:** Prioridade Efetiva = `score + min(k × max(0, horas_espera), teto)`, `teto=20`, `k≈1,111/h` (`filajusta.aging.k`/`teto`), sempre recomputada sob demanda (`Clock` injetável, nunca cacheada); `horas_espera` = agora − `occurredAt`, nunca negativa. Réplica vazia dispara bootstrap síncrono via `GET /internal/scores` antes de responder -- nunca fila incompleta silenciosa; cada linha do bootstrap passa pelo `upsertSeMaisRecente` já existente (converge para o mais recente por paciente mesmo com múltiplas linhas). Falha no bootstrap retorna `503` (RFC 7807). Sem paginação.
+**Always:** Prioridade Efetiva = `score + min(k × max(0, horas_espera), teto)`, `teto=20`, `k≈1,111/h` (`confirmasus.aging.k`/`teto`), sempre recomputada sob demanda (`Clock` injetável, nunca cacheada); `horas_espera` = agora − `occurredAt`, nunca negativa. Réplica vazia dispara bootstrap síncrono via `GET /internal/scores` antes de responder -- nunca fila incompleta silenciosa; cada linha do bootstrap passa pelo `upsertSeMaisRecente` já existente (converge para o mais recente por paciente mesmo com múltiplas linhas). Falha no bootstrap retorna `503` (RFC 7807). Sem paginação.
 
 **Ask First:** Nenhuma pendente -- rota/JWT e deploy ECS seguem o mesmo chore adiado de 2.1/3.0/3.1a/3.1b.
 
@@ -55,7 +55,7 @@ baseline_commit: '328af05c2f757940beb1daf15c21f7af3956ab8a'
 - [x] `.../infrastructure/bootstrap/TriagemScoreClient.java` -- `RestClient` síncrono para `GET /internal/scores`, base-url configurável
 - [x] `.../infrastructure/bootstrap/ScoreBootstrapService.java` -- mapeia a resposta, upserta cada linha via `AtualizarScoreReplica` (3.1b)
 - [x] `.../infrastructure/web/FilaController.java` + `FilaExceptionHandler` RFC 7807 (`503` em falha de bootstrap) -- `GET /v1/fila`
-- [x] `application.yml` -- `filajusta.aging.k`/`teto`, `filajusta.matching.bootstrap.base-url`
+- [x] `application.yml` -- `confirmasus.aging.k`/`teto`, `confirmasus.matching.bootstrap.base-url`
 - [x] Testes unitários de `PrioridadeEfetiva` (teto, `horas_espera` negativa) e `ConsultarFilaPriorizada` (mock do bootstrap) -- cobre a I/O Matrix
 - [x] Teste de integração: Testcontainers-Postgres + WireMock (stub de `GET /internal/scores`) -- boot a frio populando a réplica e falha do bootstrap → `503` (primeiro precedente de WireMock no projeto)
 
@@ -88,32 +88,32 @@ Bootstrap reaproveita `upsertSeMaisRecente` da 3.1b sem nova lógica de converg�
 **O bug real (achado do code review)**
 
 - `bootstrapar()` agora é `@Transactional` no método inteiro -- falha em qualquer linha do lote reverte tudo, a réplica continua vazia e o próximo `GET /v1/fila` reexecuta o bootstrap completo.
-  [`ScoreBootstrapService.java:65`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/bootstrap/ScoreBootstrapService.java#L65)
+  [`ScoreBootstrapService.java:65`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/bootstrap/ScoreBootstrapService.java#L65)
 
 - `catch (RestClientException e)` restrito à chamada HTTP -- falha de upsert já não é mascarada como "serviço indisponível" (achado do code review).
-  [`ScoreBootstrapService.java:69`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/bootstrap/ScoreBootstrapService.java#L69)
+  [`ScoreBootstrapService.java:69`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/bootstrap/ScoreBootstrapService.java#L69)
 
 **Consulta da fila (entrada)**
 
 - `GET /v1/fila`: delega ao caso de uso, sem lógica própria.
-  [`FilaController.java:28`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/FilaController.java#L28)
+  [`FilaController.java:28`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/FilaController.java#L28)
 
 - `consultar()`: `synchronized` evita bootstrap duplicado sob concorrência (achado do code review); lê, calcula Prioridade Efetiva, ordena decrescente com desempate estável por `occurredAt`.
-  [`ConsultarFilaPriorizada.java:62`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarFilaPriorizada.java#L62)
+  [`ConsultarFilaPriorizada.java:62`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarFilaPriorizada.java#L62)
 
 **Cálculo (decisão de design)**
 
 - `calcular()`: Aging com teto, `horas_espera` nunca negativa mesmo sob defasagem de relógio.
-  [`PrioridadeEfetiva.java:45`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/domain/PrioridadeEfetiva.java#L45)
+  [`PrioridadeEfetiva.java:45`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/PrioridadeEfetiva.java#L45)
 
 **Testes**
 
 - Prova o bug real corrigido: lote parcial reverte inteiro, réplica continua vazia.
-  [`FilaBootstrapIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/FilaBootstrapIntegrationTest.java#L1)
+  [`FilaBootstrapIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/FilaBootstrapIntegrationTest.java#L1)
 
 - Concorrência: N requisições paralelas disparam bootstrap uma única vez.
-  [`ConsultarFilaPriorizadaTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/query/ConsultarFilaPriorizadaTest.java#L1)
+  [`ConsultarFilaPriorizadaTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/query/ConsultarFilaPriorizadaTest.java#L1)
 
 - Domínio: teto de aging, `horas_espera` negativa.
-  [`PrioridadeEfetivaTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/domain/PrioridadeEfetivaTest.java#L1)
+  [`PrioridadeEfetivaTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/domain/PrioridadeEfetivaTest.java#L1)
 - Reexecutado após os 5 patches do code review (ver Spec Change Log): `mvn -pl matching-alocacao-service -am verify` -- BUILD SUCCESS, 50 testes (0 falhas, +3 novos: `FilaBootstrapIntegrationTest` Patch 1, `ConsultarFilaPriorizadaTest` Patch 2 e Patch 5), JaCoCo "All coverage checks have been met"

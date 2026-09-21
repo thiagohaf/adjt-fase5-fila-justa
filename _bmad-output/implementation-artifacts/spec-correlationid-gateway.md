@@ -37,9 +37,9 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 
 ## Code Map
 
-- `gateway-service/src/main/java/com/filajusta/gateway/infrastructure/web/CorrelationIdFilter.java` (novo) -- `GlobalFilter implements Ordered`, `getOrder() = Ordered.HIGHEST_PRECEDENCE` (roda antes de tudo, inclusive `JwtAuthenticationFilter`)
-- `gateway-service/src/main/java/com/filajusta/gateway/infrastructure/security/JwtAuthenticationFilter.java:140-146` (`getOrder()`) -- comentário atual descreve este filtro como hipotético ("um futuro filtro de correlationId... precisa rodar ANTES deste") -- atualizar para referenciar `CorrelationIdFilter` como fato consumado, não mudar `Ordered.HIGHEST_PRECEDENCE + 100`
-- `gateway-service/src/test/java/com/filajusta/gateway/JwtAuthenticationFilterTest.java` (referência, não alterar) -- padrão de stub HTTP local (`HttpServer`) + `@DynamicPropertySource` redefinindo a rota `[0]` para simular endpoint de domínio protegido; reusar o mesmo padrão para o novo teste, com o stub também ecoando o header `X-Correlation-Id` recebido no corpo da resposta para permitir assertar a propagação ao downstream
+- `gateway-service/src/main/java/com/confirmasus/gateway/infrastructure/web/CorrelationIdFilter.java` (novo) -- `GlobalFilter implements Ordered`, `getOrder() = Ordered.HIGHEST_PRECEDENCE` (roda antes de tudo, inclusive `JwtAuthenticationFilter`)
+- `gateway-service/src/main/java/com/confirmasus/gateway/infrastructure/security/JwtAuthenticationFilter.java:140-146` (`getOrder()`) -- comentário atual descreve este filtro como hipotético ("um futuro filtro de correlationId... precisa rodar ANTES deste") -- atualizar para referenciar `CorrelationIdFilter` como fato consumado, não mudar `Ordered.HIGHEST_PRECEDENCE + 100`
+- `gateway-service/src/test/java/com/confirmasus/gateway/JwtAuthenticationFilterTest.java` (referência, não alterar) -- padrão de stub HTTP local (`HttpServer`) + `@DynamicPropertySource` redefinindo a rota `[0]` para simular endpoint de domínio protegido; reusar o mesmo padrão para o novo teste, com o stub também ecoando o header `X-Correlation-Id` recebido no corpo da resposta para permitir assertar a propagação ao downstream
 - `gateway-service/src/main/resources/application.yml` -- não precisa mudar (nenhuma config nova; filtro é `@Component` autoconfigurado)
 
 ## Tasks & Acceptance
@@ -47,7 +47,7 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 **Execution:**
 - [x] `gateway-service/.../infrastructure/web/CorrelationIdFilter.java` -- `GlobalFilter` que lê/gera `X-Correlation-Id`, propaga na requisição mutada (`ServerHttpRequest.mutate().header(...)`, que substitui valores existentes) e na resposta (`exchange.getResponse().getHeaders().set(...)`, antes de `chain.filter`) -- cobre a intenção
 - [x] `JwtAuthenticationFilter.java:140-146` -- atualizar comentário de `getOrder()` para referenciar `CorrelationIdFilter` (não mudar o valor numérico) -- evita comentário desatualizado (mesma categoria de achado da retrospectiva do Epic 1: `package-info.java` que prometia código futuro)
-- [x] `gateway-service/src/test/java/com/filajusta/gateway/CorrelationIdFilterTest.java` (novo) -- cobre a I/O Matrix completa (sem header, com header, header em branco, propagação para downstream via stub, presença no `401` do filtro JWT)
+- [x] `gateway-service/src/test/java/com/confirmasus/gateway/CorrelationIdFilterTest.java` (novo) -- cobre a I/O Matrix completa (sem header, com header, header em branco, propagação para downstream via stub, presença no `401` do filtro JWT)
 
 **Acceptance Criteria:**
 - Given uma requisição sem `X-Correlation-Id`, when ela passa pelo gateway (rota pública ou protegida), then a resposta contém `X-Correlation-Id` com um UUID válido
@@ -79,16 +79,16 @@ Ordenação: `Ordered.HIGHEST_PRECEDENCE` é o valor mínimo possível (`Integer
 **Filtro de correlationId (entrada única, primeiro do pipeline)**
 
 - Ponto de entrada: lê/gera o `X-Correlation-Id`, valida o valor recebido (ASCII imprimível, até 128 chars) antes de reusá-lo, propaga na requisição mutada e na resposta antes de `chain.filter`.
-  [`CorrelationIdFilter.java:52`](../../gateway-service/src/main/java/com/filajusta/gateway/infrastructure/web/CorrelationIdFilter.java#L52)
+  [`CorrelationIdFilter.java:52`](../../gateway-service/src/main/java/com/confirmasus/gateway/infrastructure/web/CorrelationIdFilter.java#L52)
 - Guard de validação (patch da review) -- trata header ausente, em branco ou inválido (CR/LF, oversized) da mesma forma, evitando `500` do framework HTTP.
-  [`CorrelationIdFilter.java:79`](../../gateway-service/src/main/java/com/filajusta/gateway/infrastructure/web/CorrelationIdFilter.java#L79)
+  [`CorrelationIdFilter.java:79`](../../gateway-service/src/main/java/com/confirmasus/gateway/infrastructure/web/CorrelationIdFilter.java#L79)
 - `getOrder()` no valor mínimo possível -- roda antes de todo o resto, inclusive o `401` do `JwtAuthenticationFilter`.
-  [`CorrelationIdFilter.java:68`](../../gateway-service/src/main/java/com/filajusta/gateway/infrastructure/web/CorrelationIdFilter.java#L68)
+  [`CorrelationIdFilter.java:68`](../../gateway-service/src/main/java/com/confirmasus/gateway/infrastructure/web/CorrelationIdFilter.java#L68)
 
 **Ordenação entre filtros (fronteira com Story 1.2)**
 
 - Comentário atualizado para referenciar o `CorrelationIdFilter` como fato consumado (antes descrevia como hipotético) -- valor numérico do `getOrder()` inalterado.
-  [`JwtAuthenticationFilter.java:139`](../../gateway-service/src/main/java/com/filajusta/gateway/infrastructure/security/JwtAuthenticationFilter.java#L139)
+  [`JwtAuthenticationFilter.java:139`](../../gateway-service/src/main/java/com/confirmasus/gateway/infrastructure/security/JwtAuthenticationFilter.java#L139)
 
 **Documentação**
 
@@ -98,6 +98,6 @@ Ordenação: `Ordered.HIGHEST_PRECEDENCE` é o valor mínimo possível (`Integer
 **Testes (peripherals)**
 
 - Cobre a I/O Matrix completa: sem header, com header, header em branco, múltiplos valores, rota pública real (`/v1/auth/login`), header inválido (oversized e CR/LF), presença no `401`.
-  [`CorrelationIdFilterTest.java:152`](../../gateway-service/src/test/java/com/filajusta/gateway/CorrelationIdFilterTest.java#L152)
+  [`CorrelationIdFilterTest.java:152`](../../gateway-service/src/test/java/com/confirmasus/gateway/CorrelationIdFilterTest.java#L152)
 - Teste de header com CR/LF roda no nível do filtro isolado (`MockServerHttpRequest`), já que o cliente HTTP real rejeita esse valor antes de sair de processo.
-  [`CorrelationIdFilterTest.java:310`](../../gateway-service/src/test/java/com/filajusta/gateway/CorrelationIdFilterTest.java#L310)
+  [`CorrelationIdFilterTest.java:310`](../../gateway-service/src/test/java/com/confirmasus/gateway/CorrelationIdFilterTest.java#L310)

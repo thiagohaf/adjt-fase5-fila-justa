@@ -14,4 +14,4 @@
 - **Gestor de Agenda** — usuário direto da API responsável por decidir o repasse de uma Vaga Liberada.
 - **Auditor** — usuário (direto ou por meio de um atendente) que consulta o Log Auditável para justificar decisões passadas.
 
-**Nota de escopo:** este sistema não calcula nenhum "Score de Prioridade Clínica" nem faz "Matching automático" por gravidade — conceitos do produto anterior (FilaJusta), permanentemente fora de escopo aqui, por restrição legal.
+**Nota de escopo:** este sistema não calcula nenhum "Score de Prioridade Clínica" nem faz "Matching automático" por gravidade — conceitos do produto anterior, permanentemente fora de escopo aqui, por restrição legal.

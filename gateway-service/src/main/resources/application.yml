@@ -14,7 +14,7 @@ spring:
             # filtro de validacao de JWT -- o filtro global que protege
             # qualquer outra rota fica deferido (deferred-work.md, AC-3/AC-4).
             #
-            # Host "auth-service" (SEM sufixo ".filajusta.local"): o dnsName
+            # Host "auth-service" (SEM sufixo ".confirmasus.local"): o dnsName
             # do Service Connect e resolvido pelo Envoy pela string exata
             # configurada (FilaJustaStack.buildAuthService), nao pelo nome
             # qualificado com o namespace -- mesmo bug de DNS encontrado e
@@ -42,9 +42,9 @@ spring:
 # variavel de ambiente/Secrets Manager, nunca no repositorio (NFR-6).
 # Consumido pelo JwtAuthenticationFilter (infrastructure/security) que
 # valida assinatura/expiracao de qualquer rota fora da allowlist publica.
-filajusta:
+confirmasus:
   jwt:
-    secret: ${FILAJUSTA_JWT_SECRET}
+    secret: ${CONFIRMASUS_JWT_SECRET}
 
 management:
   endpoints:

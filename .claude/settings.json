@@ -3,7 +3,9 @@
     "allow": [
       "Bash(*)",
       "FileEdit(*)",
-      "FileRead(*)"
+      "FileRead(*)",
+      "Bash(mkdir -p /Users/thiagoferreira/.claude/plans)",
+      "Read(//Users/thiagoferreira/.claude/**)"
     ]
   }
 }

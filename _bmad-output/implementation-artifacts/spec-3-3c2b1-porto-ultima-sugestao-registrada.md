@@ -72,7 +72,7 @@ baseline_commit: 'd07cd41862e137fc5704fb56230547abc914d80b'
 **Porta (entry point)**
 
 - Porta de apoio ao AD-10, combinando leitura+escrita num único port -- exceção documentada AD-2 (rastreamento não é estado de domínio de Matching).
-  [`UltimaSugestaoRegistradaRepositorio.java:28-32`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/UltimaSugestaoRegistradaRepositorio.java#L28-L32)
+  [`UltimaSugestaoRegistradaRepositorio.java:28-32`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/UltimaSugestaoRegistradaRepositorio.java#L28-L32)
 
 **Persistência (schema + JPA)**
 
@@ -80,15 +80,15 @@ baseline_commit: 'd07cd41862e137fc5704fb56230547abc914d80b'
   [`V7__create_ultima_sugestao_registrada.sql:14`](../../matching-alocacao-service/src/main/resources/db/migration/V7__create_ultima_sugestao_registrada.sql#L14)
 
 - Upsert nativo `ON CONFLICT (recurso_id) DO UPDATE` -- last-write-wins simples, evita a corrida de findById+save em duas etapas.
-  [`UltimaSugestaoRegistradaJpaRepository.java:11-30`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/UltimaSugestaoRegistradaJpaRepository.java#L11-L30)
+  [`UltimaSugestaoRegistradaJpaRepository.java:11-30`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/UltimaSugestaoRegistradaJpaRepository.java#L11-L30)
 
 - Entidade com PK simples (sem `@EmbeddedId`) -- `getRegistradoEm()` adicionado no code review (achado do blind-hunter: campo mapeado sem getter).
-  [`UltimaSugestaoRegistradaJpaEntity.java:27-49`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/UltimaSugestaoRegistradaJpaEntity.java#L27-L49)
+  [`UltimaSugestaoRegistradaJpaEntity.java:27-49`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/UltimaSugestaoRegistradaJpaEntity.java#L27-L49)
 
 - Adapter fino delega ao upsert nativo; `@Transactional(readOnly = true)` na leitura adicionado no code review (consistência com `SugestaoRecusadaConsultaRepositorioAdapter`).
-  [`UltimaSugestaoRegistradaRepositorioAdapter.java:20-38`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapter.java#L20-L38)
+  [`UltimaSugestaoRegistradaRepositorioAdapter.java:20-38`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapter.java#L20-L38)
 
 **Testes**
 
 - Cobre a I/O Matrix completa contra Postgres real: vazio, primeiro registro, upsert idempotente, isolamento entre Recursos.
-  [`UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java:56-92`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java#L56-L92)
+  [`UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java:56-92`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java#L56-L92)

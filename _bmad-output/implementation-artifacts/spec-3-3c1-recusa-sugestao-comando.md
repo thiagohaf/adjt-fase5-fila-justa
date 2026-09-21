@@ -46,7 +46,7 @@ baseline_commit: '1273156a002a662e72c21dcc416a98f2a1ea29b1'
 
 ## Code Map
 
-Base: `matching-alocacao-service/src/{main,test}/java/com/filajusta/matching/`
+Base: `matching-alocacao-service/src/{main,test}/java/com/confirmasus/matching/`
 
 - `application/command/ConfirmarAlocacao.java:50-121` (referência, não tocar) — molde exato para `RecusarSugestao`; ver especialmente `correlationIdEfetivo` (102-111) e construção do `EventoOutbox` (94-97)
 - `application/command/ConfirmarAlocacao.java` `payloadAlocacaoConfirmada` (privado) — molde para `payloadSugestaoRecusada` (payload precisa ter `recursoId` no nível raiz)
@@ -95,40 +95,40 @@ Upsert idempotente na PK composta `(recurso_id, paciente_id)`: usar `INSERT ... 
 **Comando (entry point)**
 
 - Orquestra a recusa: valida Recurso, grava o par recusado, publica o evento -- tudo numa transação, molde exato de `ConfirmarAlocacao`.
-  [`RecusarSugestao.java:127-144`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/RecusarSugestao.java#L127-L144)
+  [`RecusarSugestao.java:127-144`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/RecusarSugestao.java#L127-L144)
 
 - Contrato do payload do outbox -- `recursoId` no nível raiz, exigido por `RelaySnsPublisherJob`.
-  [`RecusarSugestao.java:157-165`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/RecusarSugestao.java#L157-L165)
+  [`RecusarSugestao.java:157-165`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/RecusarSugestao.java#L157-L165)
 
 **Persistência (upsert idempotente)**
 
 - Upsert nativo `ON CONFLICT ... DO UPDATE` pela PK composta -- evita a corrida de `findById`+`save` em duas etapas.
-  [`SugestaoRecusadaJpaRepository.java:299-310`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/SugestaoRecusadaJpaRepository.java#L299-L310)
+  [`SugestaoRecusadaJpaRepository.java:299-310`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/SugestaoRecusadaJpaRepository.java#L299-L310)
 
 - Migration nova, PK composta sem coluna sintética -- identidade do par recusado é a própria PK.
   [`V6__create_sugestao_recusada.sql`](../../matching-alocacao-service/src/main/resources/db/migration/V6__create_sugestao_recusada.sql)
 
 - `@EmbeddedId` só para satisfazer o genérico de `JpaRepository` -- escrita real passa pelo upsert nativo, não por `save()`.
-  [`SugestaoRecusadaJpaEntity.java:228-273`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/SugestaoRecusadaJpaEntity.java#L228-L273)
+  [`SugestaoRecusadaJpaEntity.java:228-273`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/SugestaoRecusadaJpaEntity.java#L228-L273)
 
 **Endpoint HTTP**
 
 - Novo `POST /v1/recursos/{id}/alocacoes/recusa`, `201`, mesmo tratamento de `X-Correlation-Id`/404 do endpoint de confirmação.
-  [`AlocacaoController.java:401-409`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/AlocacaoController.java#L401-L409)
+  [`AlocacaoController.java:401-409`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/AlocacaoController.java#L401-L409)
 
 - Bean Validation do corpo -- `@NotNull @Positive` em `pacienteId`, `@NotBlank` em `motivo`.
-  [`RecusarSugestaoRequest.java:14`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecusarSugestaoRequest.java#L14)
+  [`RecusarSugestaoRequest.java:14`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecusarSugestaoRequest.java#L14)
 
 **Wiring**
 
 - Novo `@Bean recusarSugestao(...)`, mesmo molde de `confirmarAlocacao(...)`.
-  [`MatchingAlocacaoServiceApplication.java:133-140`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/MatchingAlocacaoServiceApplication.java#L133-L140)
+  [`MatchingAlocacaoServiceApplication.java:133-140`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/MatchingAlocacaoServiceApplication.java#L133-L140)
 
 **Testes**
 
 - Cobre a I/O Matrix inteira via mocks + `ArgumentCaptor` do `EventoOutbox` publicado.
-  [`RecusarSugestaoTest.java:692-757`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/command/RecusarSugestaoTest.java#L692-L757)
+  [`RecusarSugestaoTest.java:692-757`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/command/RecusarSugestaoTest.java#L692-L757)
 
 - Prova ponta a ponta contra Postgres real (Testcontainers) -- formato HTTP, persistência e os 2 cenários de Bean Validation que `RecusarSugestaoTest` não exercita (`pacienteId` ausente/não positivo).
-  [`AlocacaoControllerIntegrationTest.java:225-651`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/AlocacaoControllerIntegrationTest.java#L225-L651)
+  [`AlocacaoControllerIntegrationTest.java:225-651`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/AlocacaoControllerIntegrationTest.java#L225-L651)
 

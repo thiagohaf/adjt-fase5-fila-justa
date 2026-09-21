@@ -5,8 +5,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.filajusta</groupId>
-    <artifactId>fila-justa-parent</artifactId>
+    <groupId>com.confirmasus</groupId>
+    <artifactId>confirmasus-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
@@ -109,7 +109,7 @@
       </plugin>
 
       <!-- JaCoCo: cobertura de linha >= 90% no dominio (BUNDLE rule restrita a
-           com.filajusta.triagem.domain.*), vinculado a test/verify. -->
+           com.confirmasus.triagem.domain.*), vinculado a test/verify. -->
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
@@ -138,7 +138,7 @@
                 <rule>
                   <element>BUNDLE</element>
                   <includes>
-                    <include>com.filajusta.triagem.domain.*</include>
+                    <include>com.confirmasus.triagem.domain.*</include>
                   </includes>
                   <limits>
                     <limit>
@@ -163,10 +163,10 @@
         <version>${pitest.maven.version}</version>
         <configuration>
           <targetClasses>
-            <param>com.filajusta.triagem.domain.*</param>
+            <param>com.confirmasus.triagem.domain.*</param>
           </targetClasses>
           <targetTests>
-            <param>com.filajusta.triagem.domain.*</param>
+            <param>com.confirmasus.triagem.domain.*</param>
           </targetTests>
         </configuration>
         <dependencies>

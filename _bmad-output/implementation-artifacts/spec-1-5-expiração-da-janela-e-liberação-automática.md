@@ -25,7 +25,7 @@ context: []
 
 **Always:** Transição via `UPDATE ... WHERE status = 'AGUARDANDO_CONFIRMACAO'` (AD-5). Seleção via `janelaExpiraEm <= now()` sincronizada com Clock injetado (mesma prática de `AbrirJanelaDeConfirmacao`). Poller com `@Scheduled` fixedDelay + timeout e `@Transactional` no método — nunca leitura-depois-escrita sem guarda. Se a escrita condicional afeta 0 linhas (já foi expirado por outra instância ou de outro poller), retorna silenciosamente sem novo evento (idempotência via design, como em Story 1.2). Dois eventos (`AgendamentoNaoConfirmado` + `VagaLiberada`) publicados no outbox na mesma transação (AD-3/AD-4) — **falha ao salvar qualquer um dos dois eventos causa rollback de TODA a transação** (UPDATE + ambos eventos). Cada loop do poller processa um lote de Agendamentos com SKIP LOCKED para garantir paralelismo sob múltiplas tasks ECS sem lock distribuído explícito. Exception handling: falha ao ler pendentes é catchada (não propaga), mas falha ao salvar evento propaga para rollback transacional. Logging estruturado: sucesso (Agendamento expirado com dois eventos gravados), falha (erro com detalhes). Null checks em todos os campos antes de gravar no outbox (recursoId, dataHoraAgendamento, nunca null).
 
-**Ask First:** Cadência exata do poller (fixedDelay em milissegundos) — `[ASSUMPTION]` reutiliza a mesma `filajusta.agendamento.abertura-janela.poll-interval-ms` ou declara nova propriedade `filajusta.agendamento.expiracao-janela.poll-interval-ms`, ambas com default 5000ms. Timeout de execução — `[ASSUMPTION]` 30 segundos (boas práticas de mercado: banco não deve travar por mais de 30s em SELECT/UPDATE simples).
+**Ask First:** Cadência exata do poller (fixedDelay em milissegundos) — `[ASSUMPTION]` reutiliza a mesma `confirmasus.agendamento.abertura-janela.poll-interval-ms` ou declara nova propriedade `confirmasus.agendamento.expiracao-janela.poll-interval-ms`, ambas com default 5000ms. Timeout de execução — `[ASSUMPTION]` 30 segundos (boas práticas de mercado: banco não deve travar por mais de 30s em SELECT/UPDATE simples).
 
 **Never:** Não criar nova migration — coluna `janelaExpiraEm` já existe (adicionada em Story 1.2, v1 schema); só será preenchida em runtime pela `RegistrarAgendamento` (Story 1.2). Não publicar apenas um evento (sempre dois: Não Confirmado + Vaga Liberada). Não usar polling direto ao banco sem SKIP LOCKED. Não tratar `AgendamentoNaoEncontradoException` — a seleção já garante existência. Não adicionar RBAC ou autenticação no poller (é agendado, não exposto via HTTP).
 
@@ -48,14 +48,14 @@ context: []
 
 ## Code Map
 
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/AbrirJanelaDeConfirmacao.java:1-121` — padrão estrutural: @Scheduled + @Transactional, buscarPendentes() com SKIP LOCKED, loop com try-catch isolado, escrita condicional, publica evento(s) no outbox
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RecusarPresenca.java:128-154` — padrão de múltiplos eventos (RecusaRegistrada + VagaLiberada) publicados na mesma transação
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/Agendamento.java:32-76` — campo `janelaExpiraEm` já existe (Instant), getter já implementado; método `novo()` passa `janelaExpiraEm = null` (será preenchido em Story 1.2)
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/StatusAgendamento.java` — enum com valores `AGUARDANDO_JANELA`, `AGUARDANDO_CONFIRMACAO`, `CONFIRMADO`, `LIBERADO`
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/MotivoLiberacao.java` — enum com valores `{RECUSA, NAO_CONFIRMADO}`, adicionado em Story 1.4
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/AgendamentoRepositorio.java` — interface com métodos já existentes: `atualizarStatusComMotivo(id, statusEsperado, novoStatus, motivo)` (Story 1.4), `buscarPorId(id)` (Story 1.1); adicionar `buscarPendentesExpiracaoJanela(loteTamanho): List<Agendamento>`
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/persistence/AgendamentoRepositorioAdapter.java:23-77` — implementar query `buscarPendentesExpiracaoJanela` com SELECT ... FROM agendamentos WHERE status = 'AGUARDANDO_CONFIRMACAO' AND janela_expira_em <= now() ORDER BY id FOR UPDATE SKIP LOCKED LIMIT ?
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/EventoOutbox.java` — reaproveitar construtor e factory para eventos `AgendamentoNaoConfirmado` (novo) e `VagaLiberada` (reutilizado de Story 1.4)
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/AbrirJanelaDeConfirmacao.java:1-121` — padrão estrutural: @Scheduled + @Transactional, buscarPendentes() com SKIP LOCKED, loop com try-catch isolado, escrita condicional, publica evento(s) no outbox
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RecusarPresenca.java:128-154` — padrão de múltiplos eventos (RecusaRegistrada + VagaLiberada) publicados na mesma transação
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/Agendamento.java:32-76` — campo `janelaExpiraEm` já existe (Instant), getter já implementado; método `novo()` passa `janelaExpiraEm = null` (será preenchido em Story 1.2)
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/StatusAgendamento.java` — enum com valores `AGUARDANDO_JANELA`, `AGUARDANDO_CONFIRMACAO`, `CONFIRMADO`, `LIBERADO`
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/MotivoLiberacao.java` — enum com valores `{RECUSA, NAO_CONFIRMADO}`, adicionado em Story 1.4
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/AgendamentoRepositorio.java` — interface com métodos já existentes: `atualizarStatusComMotivo(id, statusEsperado, novoStatus, motivo)` (Story 1.4), `buscarPorId(id)` (Story 1.1); adicionar `buscarPendentesExpiracaoJanela(loteTamanho): List<Agendamento>`
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/persistence/AgendamentoRepositorioAdapter.java:23-77` — implementar query `buscarPendentesExpiracaoJanela` com SELECT ... FROM agendamentos WHERE status = 'AGUARDANDO_CONFIRMACAO' AND janela_expira_em <= now() ORDER BY id FOR UPDATE SKIP LOCKED LIMIT ?
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/EventoOutbox.java` — reaproveitar construtor e factory para eventos `AgendamentoNaoConfirmado` (novo) e `VagaLiberada` (reutilizado de Story 1.4)
 - `agendamento-confirmacao-service/src/test/java/.../AbrirJanelaDeConfirmacaoTest.java` — padrão para testes unitários do poller
 - `agendamento-confirmacao-service/src/test/java/.../AbrirJanelaDeConfirmacaoConcurrencyIntegrationTest.java` — padrão para testes de concorrência com Testcontainers (múltiplas threads, SKIP LOCKED)
 
@@ -68,7 +68,7 @@ context: []
 - [x] `agendamento-confirmacao-service/.../domain/EventoOutbox.java` ou equivalente -- documentar ou reutilizar payload shapes para `AgendamentoNaoConfirmado` (novo) e `VagaLiberada` (existente) com `{agendamentoId, pacienteId, motivo}` e `{agendamentoId, recursoId, dataHoraAgendamento}` -- coerência com AD-7 (vocabulário compartilhado de `motivo` nos eventos)
 - [x] `agendamento-confirmacao-service/src/test/java/.../application/command/ExpirarJanelaDeConfirmacaoTest.java` (novo) -- testes unitários: válida expiração, idempotência via 0 linhas afetadas, exceção durante busca, exception handling nunca propaga
 - [x] `agendamento-confirmacao-service/src/test/java/.../application/command/ExpirarJanelaDeConfirmacaoConcurrencyIntegrationTest.java` (novo) -- Testcontainers: duas threads do poller disputam o mesmo Agendamento, apenas uma transiciona, outra retorna silenciosamente; validar SKIP LOCKED behavior
-- [x] `agendamento-confirmacao-service/pom.xml` ou `application.yml` -- adicionar propriedade `filajusta.agendamento.expiracao-janela.poll-interval-ms=5000` (ou reutilizar a mesma de abertura); validar que @Scheduled lê a propriedade corretamente
+- [x] `agendamento-confirmacao-service/pom.xml` ou `application.yml` -- adicionar propriedade `confirmasus.agendamento.expiracao-janela.poll-interval-ms=5000` (ou reutilizar a mesma de abertura); validar que @Scheduled lê a propriedade corretamente
 - [x] `agendamento-confirmacao-service/.../AgendamentoConfirmacaoServiceApplication.java` -- garantir que `@EnableScheduling` está presente (já existe em AbrirJanelaDeConfirmacao)
 
 **Acceptance Criteria:**
@@ -98,7 +98,7 @@ context: []
 O poller `ExpirarJanelaDeConfirmacao` espelha `AbrirJanelaDeConfirmacao` (Story 1.2) em estrutura:
 
 ```java
-@Scheduled(fixedDelayString = "${filajusta.agendamento.expiracao-janela.poll-interval-ms:5000}")
+@Scheduled(fixedDelayString = "${confirmasus.agendamento.expiracao-janela.poll-interval-ms:5000}")
 @Transactional
 public void expirarJanelas() {
     List<Agendamento> pendentes;
@@ -145,5 +145,5 @@ private void processar(Agendamento agendamento) {
 
 **Commands:**
 - `mvn clean test -pl agendamento-confirmacao-service` -- todos os testes da service passam, incluindo testes unitários de `ExpirarJanelaDeConfirmacao`, concorrência (Testcontainers), e edge cases da I/O Matrix
-- `mvn verify -pl agendamento-confirmacao-service` -- JaCoCo ≥90% de cobertura de linha em `com.filajusta.agendamento.domain.*` (ou conforme policy do projeto)
+- `mvn verify -pl agendamento-confirmacao-service` -- JaCoCo ≥90% de cobertura de linha em `com.confirmasus.agendamento.domain.*` (ou conforme policy do projeto)
 - `mvn -pl agendamento-confirmacao-service org.pitest:pitest-maven:mutationCoverage` -- PIT mutation score (sob demanda; sem threshold mínimo)

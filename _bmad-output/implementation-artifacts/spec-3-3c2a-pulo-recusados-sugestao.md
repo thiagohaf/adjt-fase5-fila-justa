@@ -74,34 +74,34 @@ baseline_commit: 'bed5d84d8e24969b7fcf449deae43eebfde55c86'
 **Algoritmo de pulo (entry point)**
 
 - Guarda `n < filaGlobal.size()` evita consultar `recusados` quando a fila já esgotou só pela contagem de tiers -- achado do code review multi-agente.
-  [`ConsultarSugestaoRecurso.java:77-86`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarSugestaoRecurso.java#L77-L86)
+  [`ConsultarSugestaoRecurso.java:77-86`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecurso.java#L77-L86)
 
 - Construtor ganha a nova porta de leitura, mesmo molde das demais dependências do caso de uso.
-  [`ConsultarSugestaoRecurso.java:55-62`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarSugestaoRecurso.java#L55-L62)
+  [`ConsultarSugestaoRecurso.java:55-62`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecurso.java#L55-L62)
 
 **Porta e persistência (leitura em massa)**
 
 - Porta nova, irmã de leitura de `SugestaoRecusadaRepositorio` -- mesmo split CQRS já usado em `AlocacaoConsultaRepositorio`.
-  [`SugestaoRecusadaConsultaRepositorio.java:16-23`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/SugestaoRecusadaConsultaRepositorio.java#L16-L23)
+  [`SugestaoRecusadaConsultaRepositorio.java:16-23`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/SugestaoRecusadaConsultaRepositorio.java#L16-L23)
 
 - Query nativa `WHERE recurso_id = :recursoId` -- Spring Data devolve `Set` vazio sem linhas, nunca `null`.
-  [`SugestaoRecusadaJpaRepository.java:14-20`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/SugestaoRecusadaJpaRepository.java#L14-L20)
+  [`SugestaoRecusadaJpaRepository.java:14-20`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/SugestaoRecusadaJpaRepository.java#L14-L20)
 
 - Adapter fino, reusa o mesmo `SugestaoRecusadaJpaRepository` do adapter de escrita (3-3c1).
-  [`SugestaoRecusadaConsultaRepositorioAdapter.java:20-32`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/SugestaoRecusadaConsultaRepositorioAdapter.java#L20-L32)
+  [`SugestaoRecusadaConsultaRepositorioAdapter.java:20-32`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/SugestaoRecusadaConsultaRepositorioAdapter.java#L20-L32)
 
 **Wiring**
 
 - Bean `consultarSugestaoRecurso(...)` ganha a nova dependência.
-  [`MatchingAlocacaoServiceApplication.java:120-124`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/MatchingAlocacaoServiceApplication.java#L120-L124)
+  [`MatchingAlocacaoServiceApplication.java:120-124`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/MatchingAlocacaoServiceApplication.java#L120-L124)
 
 **Testes**
 
 - Cobre a I/O Matrix inteira via mocks: pulo, todos recusados, isolamento entre Recursos (prova negativa com `outroRecursoId`).
-  [`ConsultarSugestaoRecursoTest.java:178-226`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/query/ConsultarSugestaoRecursoTest.java#L178-L226)
+  [`ConsultarSugestaoRecursoTest.java:178-226`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecursoTest.java#L178-L226)
 
 - Prova a query nativa contra Postgres real: Set vazio, múltiplos recusados, isolamento por `recurso_id` via WHERE.
-  [`SugestaoRecusadaConsultaRepositorioAdapterIntegrationTest.java:61-105`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/SugestaoRecusadaConsultaRepositorioAdapterIntegrationTest.java#L61-L105)
+  [`SugestaoRecusadaConsultaRepositorioAdapterIntegrationTest.java:61-105`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/SugestaoRecusadaConsultaRepositorioAdapterIntegrationTest.java#L61-L105)
 
 - Prova ponta a ponta via HTTP: paciente recusado é pulado na resposta real do endpoint.
-  [`RecursoSugestaoControllerIntegrationTest.java:102-146`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/RecursoSugestaoControllerIntegrationTest.java#L102-L146)
+  [`RecursoSugestaoControllerIntegrationTest.java:102-146`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/RecursoSugestaoControllerIntegrationTest.java#L102-L146)

@@ -12,7 +12,7 @@ baseline_commit: '9098cd107e79c0c1513a8ac1474da1ccf0db7a2b'
 
 ## Intent
 
-**Problem:** Não existe hoje nenhum serviço de domínio no FilaJusta — só autenticação (Epic 1). Um Profissional de Triagem não tem como registrar dados clínicos de um Paciente nem obter o Score de prioridade que deveria ordenar a fila (FR-1, FR-3).
+**Problem:** Não existe hoje nenhum serviço de domínio no ConfirmaSus — só autenticação (Epic 1). Um Profissional de Triagem não tem como registrar dados clínicos de um Paciente nem obter o Score de prioridade que deveria ordenar a fila (FR-1, FR-3).
 
 **Approach:** Novo serviço `triagem-score-service` (Clean Architecture, Spring Boot MVC, schema Postgres próprio `triagem_score`) expõe `POST /v1/triagens`: valida CPF e sinais vitais, resolve/cria o Paciente por CPF de forma idempotente, calcula um Score determinístico versionado (algoritmo v1, `[ASSUMPTION]`) detalhado por fator contribuinte, persiste tudo na mesma transação e grava um evento `ScoreCalculado` em tabela outbox — sem publicar de fato. Verificável via `mvn test`, sem depender de ambiente AWS no ar; deploy (rota no gateway + CDK) é chore separado (`deferred-work.md`).
 
@@ -59,7 +59,7 @@ baseline_commit: '9098cd107e79c0c1513a8ac1474da1ccf0db7a2b'
 - [x] `triagem-score-service/.../infrastructure/persistence/db/migration/V1__create_triagem_schema.sql` -- schema `triagem_score`, tabelas `pacientes`, `triagens` (score + fatores em JSONB), `eventos_outbox`
 - [x] `triagem-score-service/.../infrastructure/persistence/*` -- entities/repos/adapters JPA para as 3 tabelas
 - [x] `triagem-score-service/.../infrastructure/web/{TriagemController,RegistrarTriagemRequest,RegistrarTriagemResponse,TriagemExceptionHandler}.java` -- `POST /v1/triagens`
-- [x] `triagem-score-service/src/main/resources/application.yml` -- `filajusta.triagem.limites.*` (faixas AD-11), datasource (schema `triagem_score`), porta app `8082`/mgmt `8091`
+- [x] `triagem-score-service/src/main/resources/application.yml` -- `confirmasus.triagem.limites.*` (faixas AD-11), datasource (schema `triagem_score`), porta app `8082`/mgmt `8091`
 - [x] `triagem-score-service/src/test/java/.../domain/*Test.java` -- unit tests dos value objects + `CalculadorDeScoreTest` cobrindo a I/O Matrix
 - [x] `triagem-score-service/src/test/java/.../RegistrarTriagemIntegrationTest.java` -- Testcontainers, cobre os 6 cenários da I/O Matrix ponta a ponta
 
@@ -91,36 +91,36 @@ Deploy fora desta spec: rota `/v1/triagens` no `gateway-service` e `buildTriagem
 **Fluxo de registro (orquestração)**
 
 - Entry point: orquestra validação → resolução idempotente do Paciente → cálculo do Score → persistência → outbox, tudo em uma transação.
-  [`RegistrarTriagem.java:58`](../../triagem-score-service/src/main/java/com/filajusta/triagem/application/command/RegistrarTriagem.java#L58)
+  [`RegistrarTriagem.java:58`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/application/command/RegistrarTriagem.java#L58)
 
 - Único endpoint REST do serviço; delega inteiramente ao use case acima.
-  [`TriagemController.java:30`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/web/TriagemController.java#L30)
+  [`TriagemController.java:30`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/web/TriagemController.java#L30)
 
 **Algoritmo de Score (v1, `[ASSUMPTION]`)**
 
 - Média das subnotas por sinal vital + peso de gravidade, normalizada para 0-100, versão fixa registrada.
-  [`CalculadorDeScore.java:25`](../../triagem-score-service/src/main/java/com/filajusta/triagem/domain/CalculadorDeScore.java#L25)
+  [`CalculadorDeScore.java:25`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/domain/CalculadorDeScore.java#L25)
 
 **Invariantes de domínio e correções da revisão adversarial**
 
 - Checksum de CPF (rejeita sequências com dígitos repetidos, que passariam o checksum ingênuo).
-  [`Cpf.java:16`](../../triagem-score-service/src/main/java/com/filajusta/triagem/domain/Cpf.java#L16)
+  [`Cpf.java:16`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/domain/Cpf.java#L16)
 
 - Patch: `Double.isNaN` explícito antes da comparação de faixa — `NaN` passava despercebido porque toda comparação `<`/`>` com `NaN` é `false`.
-  [`FaixaVital.java:31`](../../triagem-score-service/src/main/java/com/filajusta/triagem/domain/FaixaVital.java#L31)
+  [`FaixaVital.java:31`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/domain/FaixaVital.java#L31)
 
 - Patch: elemento `null` em `sintomas` agora vira `400` nomeado, em vez de `NPE` de `List.copyOf` (achado do edge-case-hunter).
-  [`Triagem.java:38`](../../triagem-score-service/src/main/java/com/filajusta/triagem/domain/Triagem.java#L38)
+  [`Triagem.java:38`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/domain/Triagem.java#L38)
 
 **Idempotência sob concorrência**
 
 - Patch: corrida de duas Triagens simultâneas para o mesmo CPF novo — a perdedora do `INSERT` agora recupera o Paciente da vencedora em vez de `500` opaco.
-  [`ResolverOuCriarPaciente.java:30`](../../triagem-score-service/src/main/java/com/filajusta/triagem/application/command/ResolverOuCriarPaciente.java#L30)
+  [`ResolverOuCriarPaciente.java:30`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/application/command/ResolverOuCriarPaciente.java#L30)
 
 **Erros RFC 7807**
 
 - Mapeia cada exceção de domínio para `400` nomeando o campo; `HttpMessageNotReadableException` cobre corpo ausente/malformado.
-  [`TriagemExceptionHandler.java:36`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/web/TriagemExceptionHandler.java#L36)
+  [`TriagemExceptionHandler.java:36`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/web/TriagemExceptionHandler.java#L36)
 
 **Persistência**
 
@@ -128,7 +128,7 @@ Deploy fora desta spec: rota `/v1/triagens` no `gateway-service` e `buildTriagem
   [`V1__create_triagem_schema.sql:39`](../../triagem-score-service/src/main/resources/db/migration/V1__create_triagem_schema.sql#L39)
 
 - Adapter padrão espelhando `auth-service` (porta em `application`, implementação em `infrastructure`).
-  [`PacienteRepositorioAdapter.java:1`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/PacienteRepositorioAdapter.java#L1)
+  [`PacienteRepositorioAdapter.java:1`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/PacienteRepositorioAdapter.java#L1)
 
 **Config e testes**
 
@@ -139,7 +139,7 @@ Deploy fora desta spec: rota `/v1/triagens` no `gateway-service` e `buildTriagem
   [`pom.xml:76`](../../pom.xml#L76)
 
 - Cobre os 6 cenários da I/O Matrix ponta a ponta via Testcontainers, incluindo os 4 novos casos da revisão (gravidade inválida, sinais vitais ausentes, corpo malformado, payload do outbox verificado por campo).
-  [`RegistrarTriagemIntegrationTest.java:1`](../../triagem-score-service/src/test/java/com/filajusta/triagem/RegistrarTriagemIntegrationTest.java#L1)
+  [`RegistrarTriagemIntegrationTest.java:1`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/RegistrarTriagemIntegrationTest.java#L1)
 
 - Testes Mockito isolando a corrida de concorrência sem precisar de Testcontainers.
-  [`ResolverOuCriarPacienteTest.java:1`](../../triagem-score-service/src/test/java/com/filajusta/triagem/application/command/ResolverOuCriarPacienteTest.java#L1)
+  [`ResolverOuCriarPacienteTest.java:1`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/application/command/ResolverOuCriarPacienteTest.java#L1)

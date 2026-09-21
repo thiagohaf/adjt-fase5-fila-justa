@@ -160,6 +160,10 @@ development_status:
   # 2026-09-13: 3-4b1 -> done (PR #43 confirmado mergeado em develop pelo
   # usuário).
   3-4b1-liberacao-real-recurso: done
+  # Story 3-4b2 iniciada em 2026-09-20 -- Consumer SQS para liberações agendadas
+  # Especificação criada (spec-3-4b2-consumer-liberacao-agendada.md) na mesma data.
+  # Depende de Story 3-4a2 (fila SQS) e Story 3-4b1 (comando LiberarRecurso).
+  3-4b2-consumer-liberacao-agendada: in-progress
   epic-3-retrospective: done
 
   epic-4: backlog
@@ -229,7 +233,7 @@ action_items:
     action: "Configurar JaCoCo (≥90% domínio) + PIT no triagem-score-service — já
       apontado como \"antes do fechamento do Epic 2\" na revisão da Story 2.1 e ainda
       não feito. RESOLVIDO 2026-09-08: jacoco-maven-plugin 0.8.13 (rule BUNDLE
-      restrita a com.filajusta.triagem.domain.*, mínimo 90% LINE) vinculado a
+      restrita a com.confirmasus.triagem.domain.*, mínimo 90% LINE) vinculado a
       test/verify — `mvn verify` confirmado passando (96,6% de cobertura de linha
       no domínio). pitest-maven 1.30.0 + pitest-junit5-plugin 1.2.2 configurados
       (targetClasses/targetTests = domain), não vinculados ao lifecycle por custo

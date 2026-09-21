@@ -41,7 +41,7 @@ context: []
 
 ## Code Map
 
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/Agendamento.java:75` -- adicionar `recusar()` retornando `LIBERADO` (espelho de `confirmar()`).
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/Agendamento.java:75` -- adicionar `recusar()` retornando `LIBERADO` (espelho de `confirmar()`).
 - `agendamento-confirmacao-service/.../domain/MotivoLiberacao.java` (novo) -- enum `{RECUSA, NAO_CONFIRMADO}`.
 - `agendamento-confirmacao-service/.../infrastructure/persistence/AgendamentoJpaEntity.java:18-45` -- field `String motivoLiberacao` mapeado para `motivo_liberacao`.
 - `agendamento-confirmacao-service/.../application/command/AgendamentoRepositorio.java:24-45` -- adicionar sobrecarga `boolean atualizarStatusComMotivo(Long id, StatusAgendamento statusEsperado, StatusAgendamento novoStatus, String motivoLiberacao)`.
@@ -90,35 +90,35 @@ context: []
 
 ## Suggested Review Order
 
-- [`RecusarPresenca.java:60`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RecusarPresenca.java#L60) -- orquestra transição + dois eventos.
-- [`RecusarPresenca.java:99`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RecusarPresenca.java#L99) -- retentativa única.
-- [`RecusarPresenca.java:115-125`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RecusarPresenca.java#L115) -- dois eventos no outbox.
-- [`AgendamentoRepositorioAdapter.java:80`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/persistence/AgendamentoRepositorioAdapter.java#L80) -- UPDATE condicional com motivo.
+- [`RecusarPresenca.java:60`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RecusarPresenca.java#L60) -- orquestra transição + dois eventos.
+- [`RecusarPresenca.java:99`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RecusarPresenca.java#L99) -- retentativa única.
+- [`RecusarPresenca.java:115-125`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RecusarPresenca.java#L115) -- dois eventos no outbox.
+- [`AgendamentoRepositorioAdapter.java:80`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/persistence/AgendamentoRepositorioAdapter.java#L80) -- UPDATE condicional com motivo.
 
 ## Suggested Review Order
 
 **Orquestração: Comando de Recusa**
 
 - Ponto de entrada: orquestra transição de estado + publicação de dois eventos atomicamente.
-  [`RecusarPresenca.java:60`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RecusarPresenca.java#L60)
+  [`RecusarPresenca.java:60`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RecusarPresenca.java#L60)
 
 **Escrita Condicional e Releitura (AD-4)**
 
 - Escrita condicional que atualiza status e motivoLiberacao na mesma cláusula WHERE.
-  [`AgendamentoRepositorioAdapter.java:90`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/persistence/AgendamentoRepositorioAdapter.java#L90)
+  [`AgendamentoRepositorioAdapter.java:90`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/persistence/AgendamentoRepositorioAdapter.java#L90)
 
 - Releitura pós-falha: decide entre sucesso silencioso, 409 ou retentativa.
-  [`RecusarPresenca.java:115`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RecusarPresenca.java#L115)
+  [`RecusarPresenca.java:115`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RecusarPresenca.java#L115)
 
 **Publicação de Dois Eventos (AD-3)**
 
 - RecusaRegistrada + VagaLiberada gravados no outbox na mesma transação.
-  [`RecusarPresenca.java:145`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/RecusarPresenca.java#L145)
+  [`RecusarPresenca.java:145`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/RecusarPresenca.java#L145)
 
 **Domínio: Tipo de Liberação**
 
 - Enum MotivoLiberacao com valores RECUSA e NAO_CONFIRMADO.
-  [`MotivoLiberacao.java`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/MotivoLiberacao.java)
+  [`MotivoLiberacao.java`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/MotivoLiberacao.java)
 
 **Persistência: JPA + Migration**
 
@@ -126,23 +126,23 @@ context: []
   [`V3__add_motivo_liberacao.sql`](../../../agendamento-confirmacao-service/src/main/resources/db/migration/V3__add_motivo_liberacao.sql)
 
 - Entity mapping e converter JPA para bidireção enum ↔ String.
-  [`AgendamentoJpaEntity.java:99`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/persistence/AgendamentoJpaEntity.java#L99)
+  [`AgendamentoJpaEntity.java:99`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/persistence/AgendamentoJpaEntity.java#L99)
 
 - Sobrecarga do repositório: atualizarStatusComMotivo() com UPDATE condicional.
-  [`AgendamentoRepositorio.java:52`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/AgendamentoRepositorio.java#L52)
+  [`AgendamentoRepositorio.java:52`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/AgendamentoRepositorio.java#L52)
 
 **HTTP Endpoint**
 
 - POST /v1/agendamentos/{id}/recusa expõe o comando.
-  [`AgendamentoController.java:65`](../../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/web/AgendamentoController.java#L65)
+  [`AgendamentoController.java:65`](../../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/web/AgendamentoController.java#L65)
 
 **Testes: Cobertura Completa**
 
 - Testes unitários da I/O Matrix (válida, duplicada, estados inválidos, id inexistente).
-  [`RecusarPresencaTest.java:51`](../../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/application/command/RecusarPresencaTest.java#L51)
+  [`RecusarPresencaTest.java:51`](../../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/application/command/RecusarPresencaTest.java#L51)
 
 - Teste de concorrência (Recusa vs. Recusa, Recusa vs. Confirmação) com Testcontainers.
-  [`RecusarPresencaConcurrencyIntegrationTest.java:65`](../../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/application/command/RecusarPresencaConcurrencyIntegrationTest.java#L65)
+  [`RecusarPresencaConcurrencyIntegrationTest.java:65`](../../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/application/command/RecusarPresencaConcurrencyIntegrationTest.java#L65)
 
 - Teste HTTP end-to-end com cenários 200/409/404, parametrizado.
-  [`AgendamentoControllerIntegrationTest.java:310`](../../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/AgendamentoControllerIntegrationTest.java#L310)
+  [`AgendamentoControllerIntegrationTest.java:310`](../../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/AgendamentoControllerIntegrationTest.java#L310)
