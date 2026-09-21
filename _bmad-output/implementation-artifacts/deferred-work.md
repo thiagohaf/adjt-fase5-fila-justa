@@ -655,3 +655,19 @@
 - source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
   summary: Comportamento em graceful shutdown não explícito
   evidence: Edge-case-hunter levantou que @Scheduled job não documenta se transações em voo são comitadas/rolleadas durante SIGTERM/shutdown. Padrão Spring Boot padrão (wait for in-flight + timeout), mas sem comentário no código explicando expectativa.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: OpenAPI/Swagger documentation para endpoints GET `/v1/auditoria/paciente/{id}` e `/v1/auditoria/agendamento/{id}`
+  evidence: Blind-hunter levantou falta de contrato formal OpenAPI nos endpoints. Real, porém nenhum outro serviço do projeto possui OpenAPI ainda (levantado em Epic 1); implementar como story de API documentation quando o padrão do projeto estiver definido.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: Logging de auditoria estruturado — registrar quem/quando consultou dados sensíveis (auditoria da auditoria)
+  evidence: Blind-hunter levantou ausência de logging quando endpoints são consultados. Real para compliance, mas fora do escopo do MVP de Story 4.2 (que é apenas fornecer consulta); registrar para quando houver requisito de compliance nível produção.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: Cache strategy para consultas read-only (X-Cache-Control, ETag, ou Redis) em endpoints de auditoria
+  evidence: Blind-hunter levantou não-otimização de consultas repetidas. Real para performance, mas nenhum otro serviço possui cache no projeto; implementar como story de performance quando requisito de volume for validado.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: Performance/load testing — validar endpoints sob volume de histórico grande (10k+ registros por paciente/agendamento)
+  evidence: Blind-hunter levantou ausência de testes de volume. Real, mas MVP não tem SLA de performance definido; implementar como story de hardening quando requisito de escala for conhecido.
