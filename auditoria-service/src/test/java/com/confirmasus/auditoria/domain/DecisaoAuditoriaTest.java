@@ -53,7 +53,8 @@ class DecisaoAuditoriaTest {
                     TipoDecisao.CONFIRMACAO,
                     null,
                     Instant.now(),
-                    Instant.now()
+                    Instant.now(),
+                    null
             );
         });
     }
@@ -70,7 +71,8 @@ class DecisaoAuditoriaTest {
                     null,
                     null,
                     Instant.now(),
-                    Instant.now()
+                    Instant.now(),
+                    null
             );
         });
     }
@@ -87,7 +89,8 @@ class DecisaoAuditoriaTest {
                 TipoDecisao.NOTIFICACAO,
                 null,
                 Instant.now(),
-                Instant.now()
+                Instant.now(),
+                null
         );
 
         assertNull(decisao.getAgendamentoId());
@@ -100,8 +103,8 @@ class DecisaoAuditoriaTest {
         UUID eventId = UUID.randomUUID();
         Instant now = Instant.now();
 
-        DecisaoAuditoria d1 = new DecisaoAuditoria(1L, eventId, 100L, 200L, TipoDecisao.CONFIRMACAO, null, now, now);
-        DecisaoAuditoria d2 = new DecisaoAuditoria(2L, eventId, 300L, 400L, TipoDecisao.RECUSA, null, now, now);
+        DecisaoAuditoria d1 = new DecisaoAuditoria(1L, eventId, 100L, 200L, TipoDecisao.CONFIRMACAO, null, now, now, null);
+        DecisaoAuditoria d2 = new DecisaoAuditoria(2L, eventId, 300L, 400L, TipoDecisao.RECUSA, null, now, now, null);
 
         // Mesmo eventId → equals() = true (mesmo com outros campos diferentes)
         assertEquals(d1, d2);
@@ -113,8 +116,8 @@ class DecisaoAuditoriaTest {
         UUID eventId = UUID.randomUUID();
         Instant now = Instant.now();
 
-        DecisaoAuditoria d1 = new DecisaoAuditoria(1L, eventId, 100L, 200L, TipoDecisao.CONFIRMACAO, null, now, now);
-        DecisaoAuditoria d2 = new DecisaoAuditoria(2L, eventId, 300L, 400L, TipoDecisao.RECUSA, null, now, now);
+        DecisaoAuditoria d1 = new DecisaoAuditoria(1L, eventId, 100L, 200L, TipoDecisao.CONFIRMACAO, null, now, now, null);
+        DecisaoAuditoria d2 = new DecisaoAuditoria(2L, eventId, 300L, 400L, TipoDecisao.RECUSA, null, now, now, null);
 
         assertEquals(d1.hashCode(), d2.hashCode());
     }
@@ -124,8 +127,8 @@ class DecisaoAuditoriaTest {
     void testarDiferentesEventIds() {
         Instant now = Instant.now();
 
-        DecisaoAuditoria d1 = new DecisaoAuditoria(1L, UUID.randomUUID(), 100L, 200L, TipoDecisao.CONFIRMACAO, null, now, now);
-        DecisaoAuditoria d2 = new DecisaoAuditoria(2L, UUID.randomUUID(), 300L, 400L, TipoDecisao.RECUSA, null, now, now);
+        DecisaoAuditoria d1 = new DecisaoAuditoria(1L, UUID.randomUUID(), 100L, 200L, TipoDecisao.CONFIRMACAO, null, now, now, null);
+        DecisaoAuditoria d2 = new DecisaoAuditoria(2L, UUID.randomUUID(), 300L, 400L, TipoDecisao.RECUSA, null, now, now, null);
 
         assertNotEquals(d1, d2);
     }
@@ -159,7 +162,7 @@ class DecisaoAuditoriaTest {
         Instant now = Instant.now();
 
         DecisaoAuditoria decisao = new DecisaoAuditoria(
-                1L, eventId, 100L, 200L, TipoDecisao.RECUSA, "motivo teste", now, now
+                1L, eventId, 100L, 200L, TipoDecisao.RECUSA, "motivo teste", now, now, null
         );
 
         String str = decisao.toString();

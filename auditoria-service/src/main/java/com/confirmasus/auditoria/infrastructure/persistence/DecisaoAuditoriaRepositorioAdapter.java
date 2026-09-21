@@ -3,7 +3,7 @@ package com.confirmasus.auditoria.infrastructure.persistence;
 import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import org.springframework.stereotype.Component;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.util.UUID;
@@ -35,6 +35,7 @@ class DecisaoAuditoriaRepositorioAdapter implements DecisaoAuditoriaRepositorio 
     @Override
     public void salvar(DecisaoAuditoria decisao) {
         // Converte domínio → JPA entity
+        // BUG FIX #8: payloadBruto agora preenchido pelo domínio
         DecisaoAuditoriaJpaEntity entity = new DecisaoAuditoriaJpaEntity(
                 decisao.getEventId(),
                 decisao.getAgendamentoId(),
@@ -43,7 +44,7 @@ class DecisaoAuditoriaRepositorioAdapter implements DecisaoAuditoriaRepositorio 
                 decisao.getMotivo(),
                 decisao.getTimestamp(),
                 decisao.getCriadoEm(),
-                null // payloadBruto preenchido pelo consumer job antes de chamar salvar
+                decisao.getPayloadBruto()
         );
         // DataIntegrityViolationException é capturada no consumer job
         jpaRepository.save(entity);
@@ -65,7 +66,8 @@ class DecisaoAuditoriaRepositorioAdapter implements DecisaoAuditoriaRepositorio 
                 entity.getTipoDecisao(),
                 entity.getMotivo(),
                 entity.getTimestamp(),
-                entity.getCriadoEm()
+                entity.getCriadoEm(),
+                entity.getPayloadBruto()
         );
     }
 }
