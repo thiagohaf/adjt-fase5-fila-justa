@@ -33,6 +33,7 @@ public final class DecisaoAuditoria {
     private final String motivo;
     private final Instant timestamp;
     private final Instant criadoEm;
+    private final String payloadBruto;
 
     /**
      * Construtor principal (usado pelo adapter de persistência pós-SELECT).
@@ -44,7 +45,8 @@ public final class DecisaoAuditoria {
                             TipoDecisao tipoDecisao,
                             String motivo,
                             Instant timestamp,
-                            Instant criadoEm) {
+                            Instant criadoEm,
+                            String payloadBruto) {
         this.id = id;
         this.eventId = Objects.requireNonNull(eventId, "eventId nao pode ser null");
         this.agendamentoId = agendamentoId; // nullable
@@ -53,6 +55,7 @@ public final class DecisaoAuditoria {
         this.motivo = motivo; // nullable
         this.timestamp = Objects.requireNonNull(timestamp, "timestamp nao pode ser null");
         this.criadoEm = Objects.requireNonNull(criadoEm, "criadoEm nao pode ser null");
+        this.payloadBruto = payloadBruto; // nullable
     }
 
     /**
@@ -66,7 +69,22 @@ public final class DecisaoAuditoria {
                                          String motivo,
                                          Instant timestamp,
                                          Instant agora) {
-        return new DecisaoAuditoria(null, eventId, agendamentoId, pacienteId, tipoDecisao, motivo, timestamp, agora);
+        return new DecisaoAuditoria(null, eventId, agendamentoId, pacienteId, tipoDecisao, motivo, timestamp, agora, null);
+    }
+
+    /**
+     * Construtor de domínio com payload bruto (usado pela aplicação ao processar um evento).
+     * BUG FIX #8: armazenar payload bruto para auditoria completa.
+     */
+    public static DecisaoAuditoria criar(UUID eventId,
+                                         Long agendamentoId,
+                                         Long pacienteId,
+                                         TipoDecisao tipoDecisao,
+                                         String motivo,
+                                         Instant timestamp,
+                                         Instant agora,
+                                         String payloadBruto) {
+        return new DecisaoAuditoria(null, eventId, agendamentoId, pacienteId, tipoDecisao, motivo, timestamp, agora, payloadBruto);
     }
 
     // ========== Getters ==========
@@ -103,6 +121,10 @@ public final class DecisaoAuditoria {
         return criadoEm;
     }
 
+    public String getPayloadBruto() {
+        return payloadBruto;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -127,6 +149,7 @@ public final class DecisaoAuditoria {
                 ", motivo='" + motivo + '\'' +
                 ", timestamp=" + timestamp +
                 ", criadoEm=" + criadoEm +
+                ", payloadBruto='" + payloadBruto + '\'' +
                 '}';
     }
 }

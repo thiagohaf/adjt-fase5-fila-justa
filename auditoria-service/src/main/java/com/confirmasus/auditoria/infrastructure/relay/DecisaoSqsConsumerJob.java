@@ -14,8 +14,10 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.MissingNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -90,8 +92,9 @@ class DecisaoSqsConsumerJob {
     private final int waitTimeSeconds;
 
     // Construtor para testes (Mockito)
+    // BUG FIX #6: queueUrl não pode ser vazio (""), usar URL válida para testes
     protected DecisaoSqsConsumerJob() {
-        this(null, null, null, null, "", 10, 1);
+        this(null, null, null, null, "https://sqs.us-east-1.amazonaws.com/123456789012/auditoria-decisoes.fifo", 10, 1);
     }
 
     DecisaoSqsConsumerJob(SqsClient sqsClient,
@@ -148,10 +151,11 @@ class DecisaoSqsConsumerJob {
             envelope = objectMapper.readTree(mensagem.body());
             validarEnvelope(envelope);
             eventId = UUID.fromString(envelope.get("eventId").asText());
+            // BUG FIX #9: MissingNode.asText() retorna "", usar instanceof para distinguir
             JsonNode correlationIdNode = envelope.get("correlationId");
-            correlationId = (correlationIdNode != null && !correlationIdNode.isNull())
+            correlationId = (!(correlationIdNode instanceof MissingNode) && !correlationIdNode.isNull())
                     ? correlationIdNode.asText() : null;
-        } catch (RuntimeException e) {
+        } catch (JsonProcessingException | RuntimeException e) {
             // I/O Matrix: "Mensagem malformada" -- log de erro, mensagem NÃO
             // removida; reentregue até maxReceiveCount, depois DLQ
             log.error("Mensagem malformada na fila SQS FIFO auditoria-decisoes.fifo "
@@ -175,6 +179,17 @@ class DecisaoSqsConsumerJob {
             // Extrai motivo do payload conforme tipo (nullable)
             String motivo = extrairMotivoDoPayload(payload, tipoDecisao);
 
+            // BUG FIX #8: serializar payload bruto para auditoria completa
+            String payloadBruto = null;
+            if (payload != null && !payload.isNull()) {
+                try {
+                    payloadBruto = objectMapper.writeValueAsString(payload);
+                } catch (JsonProcessingException e) {
+                    // Se falhar a serialização do payload, log mas continua (payload bruto opcional)
+                    log.warn("Falha ao serializar payload bruto (eventId={}), continuando sem payload bruto", eventId, e);
+                }
+            }
+
             // Cria e persiste a decisão
             DecisaoAuditoria decisao = DecisaoAuditoria.criar(
                     eventId,
@@ -183,7 +198,8 @@ class DecisaoSqsConsumerJob {
                     tipoDecisao,
                     motivo,
                     occurredAt,
-                    clock.instant()
+                    clock.instant(),
+                    payloadBruto
             );
 
             repositorio.salvar(decisao);
@@ -221,14 +237,30 @@ class DecisaoSqsConsumerJob {
 
     /**
      * Extrai um valor Long do payload de forma segura (nullable).
+     * BUG FIX #7: canConvertToLong() rejeita strings numéricas; tentar parsear string como Long
      */
     private static Long extrairLongDoPayload(JsonNode payload, String field) {
         if (payload == null) return null;
         JsonNode node = payload.get(field);
-        if (node == null || node.isNull() || !node.canConvertToLong()) {
+        if (node == null || node.isNull()) {
             return null;
         }
-        return node.asLong();
+
+        // Se for número direto, converter
+        if (node.isNumber()) {
+            return node.asLong();
+        }
+
+        // Se for string, tentar parsear como número
+        if (node.isTextual()) {
+            try {
+                return Long.parseLong(node.asText());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -255,18 +287,20 @@ class DecisaoSqsConsumerJob {
     /**
      * Valida o envelope base (eventId, eventType, occurredAt presentes).
      * Eventos com eventType desconhecido são aceitos e registrados como GENERICO.
+     *
+     * BUG FIX #5: Jackson retorna MissingNode (não null), usar isMissing() em vez de == null
      */
     private static void validarEnvelope(JsonNode envelope) {
         if (envelope == null || envelope.isNull()) {
             throw new IllegalArgumentException("corpo da mensagem nao e um JSON valido");
         }
-        if (envelope.get("eventId") == null) {
+        if (envelope.get("eventId") instanceof MissingNode) {
             throw new IllegalArgumentException("envelope sem eventId");
         }
-        if (envelope.get("eventType") == null) {
+        if (envelope.get("eventType") instanceof MissingNode) {
             throw new IllegalArgumentException("envelope sem eventType");
         }
-        if (envelope.get("occurredAt") == null) {
+        if (envelope.get("occurredAt") instanceof MissingNode) {
             throw new IllegalArgumentException("envelope sem occurredAt");
         }
     }
