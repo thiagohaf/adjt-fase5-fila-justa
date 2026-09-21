@@ -5,7 +5,8 @@
       "FileEdit(*)",
       "FileRead(*)",
       "Bash(mkdir -p /Users/thiagoferreira/.claude/plans)",
-      "Read(//Users/thiagoferreira/.claude/**)"
+      "Read(//Users/thiagoferreira/.claude/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/**)"
     ]
   }
 }

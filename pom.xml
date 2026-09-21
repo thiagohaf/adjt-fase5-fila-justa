@@ -79,11 +79,7 @@
     <module>agendamento-confirmacao-service</module>
     <module>triagem-score-service</module>
     <module>matching-alocacao-service</module>
-    <!--
-      Modulos deferidos (deferred-work.md): adicionar aqui quando a story
-      correspondente iniciar, sem outra refatoracao deste pom pai.
-      <module>auditoria-service</module>
-    -->
+    <module>auditoria-service</module>
   </modules>
 
 </project>
