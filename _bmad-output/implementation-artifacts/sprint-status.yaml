@@ -169,7 +169,7 @@ development_status:
   epic-4: in-progress
   4-1-registro-automático-de-decisões-no-log-auditável: done
   4-2-consulta-de-auditoria-por-paciente-ou-recurso: done
-  4-3-filtros-avançados-de-consulta-auditória: in-progress
+  4-3-filtros-avançados-de-consulta-auditória: done
   epic-4-retrospective: optional
 
   epic-5: backlog
