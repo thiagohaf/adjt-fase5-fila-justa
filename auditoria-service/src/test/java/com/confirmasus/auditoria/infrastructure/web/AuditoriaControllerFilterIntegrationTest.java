@@ -4,6 +4,7 @@ import com.confirmasus.auditoria.application.query.ConsultarAuditoriaAgendamento
 import com.confirmasus.auditoria.application.query.ConsultarAuditoriaPaciente;
 import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
+import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +26,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 /**
- * Testes de integração do AuditoriaController com filtros (Story 4.3).
+ * Testes de integração do AuditoriaController com filtros (Story 4.3 + 4.4a).
  *
  * <p>Valida:
  * <ul>
@@ -35,10 +36,11 @@ import static org.mockito.Mockito.when;
  *   <li>Compatibilidade Story 4.2 (sem filtros)
  *   <li>Tipos de resposta (simples vs. paginada)
  *   <li>Metadados de paginação (total, limit, offset)
+ *   <li>Filtro por status de agendamento (Story 4.4a)
  * </ul>
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("AuditoriaController - Filtros e Paginação (Story 4.3)")
+@DisplayName("AuditoriaController - Filtros e Paginação (Story 4.3 + 4.4a)")
 class AuditoriaControllerFilterIntegrationTest {
 
     @Mock
@@ -68,7 +70,7 @@ class AuditoriaControllerFilterIntegrationTest {
                 .thenReturn(List.of(decisao));
 
         // Act
-        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, null);
 
         // Assert
         assertTrue(resultado instanceof List);
@@ -89,13 +91,13 @@ class AuditoriaControllerFilterIntegrationTest {
         );
 
         DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> paginatedResult = new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(decisao), 1L);
-        when(consultarAuditoriaPaciente.consultarComFiltros(
-                eq(pacienteId), isNull(), isNull(), eq(tipoDecisao), eq(50), eq(0), any()
+        when(consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                eq(pacienteId), isNull(), isNull(), eq(tipoDecisao), isNull(), eq(50), eq(0), any()
         )).thenReturn(paginatedResult);
 
         // Act
         Object resultado = controller.consultarPaciente(
-                pacienteId, null, null, tipoDecisao, null, null, null
+                pacienteId, null, null, tipoDecisao, null, null, null, null
         );
 
         // Assert
@@ -117,7 +119,7 @@ class AuditoriaControllerFilterIntegrationTest {
 
         // Act & Assert
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                controller.consultarPaciente(pacienteId, startDate, endDate, null, null, null, null)
+                controller.consultarPaciente(pacienteId, startDate, endDate, null, null, null, null, null)
         );
         assertEquals("Data inicial não pode ser maior que data final", ex.getMessage());
     }
@@ -131,7 +133,7 @@ class AuditoriaControllerFilterIntegrationTest {
 
         // Act & Assert
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                controller.consultarPaciente(pacienteId, null, null, null, limit, null, null)
+                controller.consultarPaciente(pacienteId, null, null, null, null, limit, null, null)
         );
         assertEquals("Limit máximo é 200", ex.getMessage());
     }
@@ -153,13 +155,13 @@ class AuditoriaControllerFilterIntegrationTest {
         );
 
         DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> paginatedResult = new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(recusa), 1L);
-        when(consultarAuditoriaPaciente.consultarComFiltros(
-                eq(pacienteId), eq(startDate), eq(endDate), eq(tipoDecisao), eq(10), eq(0), any()
+        when(consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                eq(pacienteId), eq(startDate), eq(endDate), eq(tipoDecisao), isNull(), eq(10), eq(0), any()
         )).thenReturn(paginatedResult);
 
         // Act
         Object resultado = controller.consultarPaciente(
-                pacienteId, startDate, endDate, tipoDecisao, limit, offset, null
+                pacienteId, startDate, endDate, tipoDecisao, null, limit, offset, null
         );
 
         // Assert
@@ -189,13 +191,13 @@ class AuditoriaControllerFilterIntegrationTest {
         );
 
         DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> paginatedResult = new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(item1, item2), 2L);
-        when(consultarAuditoriaAgendamento.consultarComFiltros(
-                eq(agendamentoId), eq(startDate), eq(endDate), isNull(), eq(50), eq(0), any()
+        when(consultarAuditoriaAgendamento.consultarComFiltrosEStatusAgendamento(
+                eq(agendamentoId), eq(startDate), eq(endDate), isNull(), isNull(), eq(50), eq(0), any()
         )).thenReturn(paginatedResult);
 
         // Act
         Object resultado = controller.consultarAgendamento(
-                agendamentoId, startDate, endDate, null, null, null, null
+                agendamentoId, startDate, endDate, null, null, null, null, null
         );
 
         // Assert
@@ -223,13 +225,13 @@ class AuditoriaControllerFilterIntegrationTest {
         );
 
         var paginatedResult = new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(item1, item2), 100L);
-        when(consultarAuditoriaPaciente.consultarComFiltros(
-                eq(pacienteId), isNull(), isNull(), isNull(), eq(20), eq(40), any()
+        when(consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                eq(pacienteId), isNull(), isNull(), isNull(), isNull(), eq(20), eq(40), any()
         )).thenReturn(paginatedResult);
 
         // Act
         Object resultado = controller.consultarPaciente(
-                pacienteId, null, null, null, limit, offset, null
+                pacienteId, null, null, null, null, limit, offset, null
         );
 
         // Assert
@@ -250,13 +252,13 @@ class AuditoriaControllerFilterIntegrationTest {
         Instant endDate = Instant.parse("2026-12-31T23:59:59Z");
 
         DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> paginatedResult = new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(), 0L);
-        when(consultarAuditoriaPaciente.consultarComFiltros(
-                eq(pacienteId), eq(startDate), eq(endDate), isNull(), eq(50), eq(0), any()
+        when(consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                eq(pacienteId), eq(startDate), eq(endDate), isNull(), isNull(), eq(50), eq(0), any()
         )).thenReturn(paginatedResult);
 
         // Act
         Object resultado = controller.consultarPaciente(
-                pacienteId, startDate, endDate, null, null, null, null
+                pacienteId, startDate, endDate, null, null, null, null, null
         );
 
         // Assert
@@ -276,13 +278,13 @@ class AuditoriaControllerFilterIntegrationTest {
         TipoDecisao tipoDecisao = TipoDecisao.LIBERACAO;
 
         DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> paginatedResult = new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(), 0L);
-        when(consultarAuditoriaPaciente.consultarComFiltros(
-                eq(pacienteId), isNull(), isNull(), eq(tipoDecisao), eq(50), eq(0), any()
+        when(consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                eq(pacienteId), isNull(), isNull(), eq(tipoDecisao), isNull(), eq(50), eq(0), any()
         )).thenReturn(paginatedResult);
 
         // Act
         Object resultado = controller.consultarPaciente(
-                pacienteId, null, null, tipoDecisao, null, null, null
+                pacienteId, null, null, tipoDecisao, null, null, null, null
         );
 
         // Assert
@@ -299,13 +301,13 @@ class AuditoriaControllerFilterIntegrationTest {
         TipoDecisao tipoDecisao = TipoDecisao.RECUSA;
 
         DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> paginatedResult = new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(), 0L);
-        when(consultarAuditoriaPaciente.consultarComFiltros(
-                eq(pacienteId), isNull(), isNull(), eq(tipoDecisao), eq(50), eq(0), any()
+        when(consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                eq(pacienteId), isNull(), isNull(), eq(tipoDecisao), isNull(), eq(50), eq(0), any()
         )).thenReturn(paginatedResult);
 
         // Act
         Object resultado = controller.consultarPaciente(
-                pacienteId, null, null, tipoDecisao, null, null, null
+                pacienteId, null, null, tipoDecisao, null, null, null, null
         );
 
         // Assert
