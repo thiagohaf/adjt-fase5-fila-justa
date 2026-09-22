@@ -46,10 +46,10 @@
 
 ### Arquivos-chave
 
-- `triagem-score-service/src/main/java/com/filajusta/triagem/domain/CalculadorDeScore.java`  
+- `triagem-score-service/src/main/java/com/confirmasus/triagem/domain/CalculadorDeScore.java`  
   Algoritmo v1: média ponderada sinais vitais (normalização à faixa) + fator gravidade (LEVE=0, MODERADA=0.33, GRAVE=0.66, CRITICA=1)
 
-- `triagem-score-service/src/main/java/com/filajusta/triagem/application/command/RegistrarTriagem.java`  
+- `triagem-score-service/src/main/java/com/confirmasus/triagem/application/command/RegistrarTriagem.java`  
   Orquestração completa: validação → resolução paciente → cálculo → persistência + outbox
 
 - `triagem-score-service/src/main/resources/db/migration/V1__create_triagem_schema.sql`  
@@ -59,7 +59,7 @@
 
 ### Decisões Tomadas
 
-- **Faixas fisiológicas** (AD-11): centralizadas em `application.yml` (`filajusta.triagem.limites.*`)
+- **Faixas fisiológicas** (AD-11): centralizadas em `application.yml` (`confirmasus.triagem.limites.*`)
 - **Score:** subnota 0..1 por vital (distância normalizada à faixa) + peso gravidade  
 - **Idempotência:** SELECT + INSERT com constraint UNIQUE(cpf) como rede de segurança contra corridas
 - **Outbox:** gravado, não publicado ainda — relay/SNS fica para quando houver consumidor real (Epic 3+)

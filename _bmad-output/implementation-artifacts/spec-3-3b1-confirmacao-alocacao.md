@@ -45,7 +45,7 @@ baseline_commit: 'e83f50ebf19a0fea6f838ab601cf1206e58dd207'
 
 ## Code Map
 
-- `matching-alocacao-service/src/main/java/com/filajusta/matching/domain/Alocacao.java` (novo) -- domínio imutável, mesma forma de `Recurso.java`
+- `matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/Alocacao.java` (novo) -- domínio imutável, mesma forma de `Recurso.java`
 - `matching-alocacao-service/.../application/command/AlocacaoRepositorio.java` (novo, porta) -- `confirmar(Alocacao): Alocacao`, lança `RecursoJaAlocadoException`/`PacienteJaAlocadoException`
 - `matching-alocacao-service/.../application/command/RecursoJaAlocadoException.java`, `PacienteJaAlocadoException.java` (novos)
 - `matching-alocacao-service/.../application/command/CorrelationIdInvalidoException.java` (novo) -- mesma forma de `triagem-score-service/.../domain/CorrelationIdInvalidoException.java`
@@ -93,13 +93,13 @@ baseline_commit: 'e83f50ebf19a0fea6f838ab601cf1206e58dd207'
 **Orquestração e invariantes de negócio**
 
 - Entry point: orquestra as 3 escritas transacionais e checa Recurso disponível antes de tudo (patch do code review).
-  [`ConfirmarAlocacao.java:69`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/ConfirmarAlocacao.java#L69)
+  [`ConfirmarAlocacao.java:69`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/ConfirmarAlocacao.java#L69)
 
 - Recurso indisponível sem Alocação ativa vira 409 -- índice único sozinho não cobre este caso.
-  [`ConfirmarAlocacao.java:82`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/ConfirmarAlocacao.java#L82)
+  [`ConfirmarAlocacao.java:82`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/ConfirmarAlocacao.java#L82)
 
 - `pacienteId` valida positividade no próprio domínio, não só no DTO da web (AD-2).
-  [`Alocacao.java:33`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/domain/Alocacao.java#L33)
+  [`Alocacao.java:33`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/Alocacao.java#L33)
 
 **Concorrência via constraint de banco**
 
@@ -107,32 +107,32 @@ baseline_commit: 'e83f50ebf19a0fea6f838ab601cf1206e58dd207'
   [`V5__create_alocacao.sql:21`](../../matching-alocacao-service/src/main/resources/db/migration/V5__create_alocacao.sql#L21)
 
 - Traduz a violação de constraint (nome) para a exceção de domínio correta.
-  [`AlocacaoRepositorioAdapter.java:58`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/AlocacaoRepositorioAdapter.java#L58)
+  [`AlocacaoRepositorioAdapter.java:58`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoRepositorioAdapter.java#L58)
 
 - `marcarIndisponivel`: UPDATE idempotente de 1 coluna, chamado dentro da mesma transação da confirmação.
-  [`RecursoJpaRepository.java:63`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoJpaRepository.java#L63)
+  [`RecursoJpaRepository.java:63`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoJpaRepository.java#L63)
 
 **Superfície HTTP**
 
 - `POST /v1/recursos/{id}/alocacoes`: lê `X-Correlation-Id`, delega ao caso de uso, sem lógica própria.
-  [`AlocacaoController.java:42`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/AlocacaoController.java#L42)
+  [`AlocacaoController.java:42`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/AlocacaoController.java#L42)
 
 - Mensagem de validação reconstruída por campo (patch do code review) -- evita vazar texto interno do Spring.
-  [`RecursosExceptionHandler.java:54`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecursosExceptionHandler.java#L54)
+  [`RecursosExceptionHandler.java:54`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecursosExceptionHandler.java#L54)
 
 - Novos handlers de `409` (Recurso/Paciente já alocado) e `400` (correlationId inválido).
-  [`RecursosExceptionHandler.java:127`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/web/RecursosExceptionHandler.java#L127)
+  [`RecursosExceptionHandler.java:127`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/web/RecursosExceptionHandler.java#L127)
 
 **Testes e rastreamento**
 
 - Prova os 2 índices únicos rejeitando de fato contra Postgres real (Testcontainers), não só o mock.
-  [`AlocacaoRepositorioAdapterIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/AlocacaoRepositorioAdapterIntegrationTest.java#L1)
+  [`AlocacaoRepositorioAdapterIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoRepositorioAdapterIntegrationTest.java#L1)
 
 - Cobre a I/O Matrix completa no nível HTTP, incluindo o patch de mensagem de erro e o novo caso de indisponibilidade.
-  [`AlocacaoControllerIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/AlocacaoControllerIntegrationTest.java#L1)
+  [`AlocacaoControllerIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/AlocacaoControllerIntegrationTest.java#L1)
 
 - Orquestração com mocks: os 2 cenários de 409, Recurso inexistente/indisponível, correlationId inválido.
-  [`ConfirmarAlocacaoTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/command/ConfirmarAlocacaoTest.java#L1)
+  [`ConfirmarAlocacaoTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/command/ConfirmarAlocacaoTest.java#L1)
 
 - Split em cascata (3-3b1/3-3b2) e correção pós-merge de PR #30 (`sprint-status.yaml`).
   [`sprint-status.yaml:78`](../../_bmad-output/implementation-artifacts/sprint-status.yaml#L78)

@@ -27,7 +27,7 @@ baseline_commit: 'a1a35c80ce41f0e37352bf17d14232c7ff3245a8'
 
 **Ask First:** Nenhuma decisão adicional pendente — o tratamento de `alocacaoId` inexistente (idêntico a "já liberada") já está decidido em Design Notes.
 
-**Never:** Não criar `LiberacaoRecursoConsumerJob`, não tocar em `FilaJustaStack` (CDK) nem em `application.yml` — é escopo da Story 3-4b2 (deferida). Não criar endpoint REST de liberação manual. Não criar um novo relay SNS.
+**Never:** Não criar `LiberacaoRecursoConsumerJob`, não tocar em `ConfirmaSusStack` (CDK) nem em `application.yml` — é escopo da Story 3-4b2 (deferida). Não criar endpoint REST de liberação manual. Não criar um novo relay SNS.
 
 ## I/O & Edge-Case Matrix
 
@@ -85,41 +85,41 @@ A idempotência não distingue "já liberada" de "`alocacaoId` nunca existiu" �
 **Comando e transação real**
 
 - Entrada principal: orquestra o update condicional + `marcarDisponivel` + outbox numa única transação — agora um bean Spring de verdade (ver concern seguinte).
-  [`LiberarRecurso.java:67`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/LiberarRecurso.java#L67)
+  [`LiberarRecurso.java:67`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/LiberarRecurso.java#L67)
 
 - `@Bean` explícito (achado do code review): sem isto, `@Transactional` acima seria inerte — mesmo padrão de `confirmarAlocacao`.
-  [`MatchingAlocacaoServiceApplication.java:195`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/MatchingAlocacaoServiceApplication.java#L195)
+  [`MatchingAlocacaoServiceApplication.java:195`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/MatchingAlocacaoServiceApplication.java#L195)
 
 **Update condicional idempotente (Alocação)**
 
 - Novo estado terminal `LIBERADA`, atingido só a partir de `ATIVA`.
-  [`Alocacao.java:32`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/domain/Alocacao.java#L32)
+  [`Alocacao.java:32`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/Alocacao.java#L32)
 
 - Porta: contrato de idempotência documentado (`true`/`false` por linhas afetadas).
-  [`AlocacaoRepositorio.java:34`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/AlocacaoRepositorio.java#L34)
+  [`AlocacaoRepositorio.java:34`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/AlocacaoRepositorio.java#L34)
 
 - UPDATE nativo condicional `WHERE status='ATIVA'` -- é este WHERE que garante exclusão mútua sob concorrência real, sem lock otimista.
-  [`AlocacaoJpaRepository.java:53`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/AlocacaoJpaRepository.java#L53)
+  [`AlocacaoJpaRepository.java:53`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoJpaRepository.java#L53)
 
 - Adapter: traduz linhas afetadas em `boolean`.
-  [`AlocacaoRepositorioAdapter.java:62`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/AlocacaoRepositorioAdapter.java#L62)
+  [`AlocacaoRepositorioAdapter.java:62`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/AlocacaoRepositorioAdapter.java#L62)
 
 **Liberação do Recurso (espelho de marcarIndisponivel)**
 
 - Porta: espelho direto e deliberadamente simétrico de `marcarIndisponivel`.
-  [`RecursoRepositorio.java:51`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/RecursoRepositorio.java#L51)
+  [`RecursoRepositorio.java:51`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/RecursoRepositorio.java#L51)
 
 - JPQL simples, void, sem WHERE condicional -- idempotente por natureza (mandato da spec).
-  [`RecursoJpaRepository.java:71`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoJpaRepository.java#L71)
+  [`RecursoJpaRepository.java:71`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoJpaRepository.java#L71)
 
 - Adapter: delega direto, sem lógica extra.
-  [`RecursoRepositorioAdapter.java:49`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/RecursoRepositorioAdapter.java#L49)
+  [`RecursoRepositorioAdapter.java:49`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/RecursoRepositorioAdapter.java#L49)
 
 **Testes**
 
 - Unitário: cobre HAPPY_PATH e JA_LIBERADA_OU_INEXISTENTE da I/O Matrix com mocks das 3 portas.
-  [`LiberarRecursoTest.java:28`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/command/LiberarRecursoTest.java#L28)
+  [`LiberarRecursoTest.java:28`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/command/LiberarRecursoTest.java#L28)
 
 - Concorrência real (Postgres via Testcontainers): 8 threads liberando a mesma `alocacaoId` -- prova CONCORRENCIA_REAL da I/O Matrix.
-  [`LiberarRecursoRepositorioAdapterIntegrationTest.java:102`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/LiberarRecursoRepositorioAdapterIntegrationTest.java#L102)
+  [`LiberarRecursoRepositorioAdapterIntegrationTest.java:102`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/LiberarRecursoRepositorioAdapterIntegrationTest.java#L102)
 

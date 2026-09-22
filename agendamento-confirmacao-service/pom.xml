@@ -5,8 +5,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.filajusta</groupId>
-    <artifactId>fila-justa-parent</artifactId>
+    <groupId>com.confirmasus</groupId>
+    <artifactId>confirmasus-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
@@ -16,8 +16,8 @@
 
   <name>agendamento-confirmacao-service</name>
   <description>
-    Servico de dominio do FilaJusta (Epic 1) -- renomeado/podado do extinto
-    triagem-score-service (produto FilaJusta descartado, AD-1). Story 1.1
+    Servico de dominio do ConfirmaSUS (Epic 1) -- renomeado/podado do extinto
+    triagem-score-service (produto anterior descartado, AD-1). Story 1.1
     expoe POST /v1/agendamentos: resolve/cria o Paciente por CPF de forma
     idempotente (reaproveitado sem alteracao de logica) e registra um
     Agendamento (estado inicial AGUARDANDO_JANELA), validando recursoId
@@ -174,7 +174,7 @@
                 <rule>
                   <element>BUNDLE</element>
                   <includes>
-                    <include>com.filajusta.agendamento.domain.*</include>
+                    <include>com.confirmasus.agendamento.domain.*</include>
                   </includes>
                   <limits>
                     <limit>
@@ -189,7 +189,7 @@
                 <rule>
                   <element>BUNDLE</element>
                   <includes>
-                    <include>com.filajusta.agendamento.application.command.*</include>
+                    <include>com.confirmasus.agendamento.application.command.*</include>
                   </includes>
                   <limits>
                     <limit>
@@ -220,10 +220,10 @@
         </dependencies>
         <configuration>
           <targetClasses>
-            <param>com.filajusta.agendamento.domain.*</param>
+            <param>com.confirmasus.agendamento.domain.*</param>
           </targetClasses>
           <targetTests>
-            <param>com.filajusta.agendamento.domain.*</param>
+            <param>com.confirmasus.agendamento.domain.*</param>
           </targetTests>
         </configuration>
       </plugin>

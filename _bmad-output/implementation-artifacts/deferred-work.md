@@ -63,7 +63,7 @@
   evidence: Achado pelo review adversarial (blind-hunter). Levantado como contexto útil para a entrega deferida de validação de JWT no gateway (já registrada acima) — não bloqueia AC-1/AC-2 desta story, mas evita retrabalho no formato do token quando a validação for implementada.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-autenticacao-usuario-auth-service.md`
-  summary: `cloudMapNamespace != null` em `FilaJustaStack.java` (guarda contra `getDefaultCloudMapNamespace()` retornar null) nunca foi explicado em comentário nem testado — se esse branch for de fato tomado algum dia, a mesma corrida de propagação do Cloud Map documentada para `postgresService`/`authService` fica sem proteção, silenciosamente.
+  summary: `cloudMapNamespace != null` em `ConfirmaSusStack.java` (guarda contra `getDefaultCloudMapNamespace()` retornar null) nunca foi explicado em comentário nem testado — se esse branch for de fato tomado algum dia, a mesma corrida de propagação do Cloud Map documentada para `postgresService`/`authService` fica sem proteção, silenciosamente.
   evidence: Achado pelo review adversarial (blind-hunter/edge-case-hunter). Pré-existente da Story 1.1 (o mesmo padrão já protegia `postgresService`; esta story só replicou para `authService`) — surgiu incidentalmente nesta review, não foi introduzido por esta mudança.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-2-validacao-jwt-gateway.md`
@@ -91,7 +91,7 @@
   evidence: Achado pelo review adversarial (edge-case-hunter). Não testável nem reproduzível hoje — nenhum serviço de domínio existe ainda (Epic 2+) e o stub de teste usado (`CorrelationIdFilterTest`) só ecoa o header recebido no corpo JSON, nunca como header de resposta próprio. Revisitar quando o primeiro serviço downstream real responder com seus próprios headers.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
-  summary: Deploy do `triagem-score-service` — rota `POST /v1/triagens` no `gateway-service` (`application.yml`, ao lado da rota de login) e `buildTriagemScoreService(...)` em `infra-cdk/.../FilaJustaStack.java` (mirror de `buildAuthService(...)`, Service Connect + secrets do DB).
+  summary: Deploy do `triagem-score-service` — rota `POST /v1/triagens` no `gateway-service` (`application.yml`, ao lado da rota de login) e `buildTriagemScoreService(...)` em `infra-cdk/.../ConfirmaSusStack.java` (mirror de `buildAuthService(...)`, Service Connect + secrets do DB).
   evidence: Spec original (domínio + persistência + endpoint + deploy) excedeu 1600 tokens (~2669, cl100k). Escopo reduzido ao que os ACs da Story 2.1 de fato exigem e o `mvn test` consegue verificar sozinho (sem precisar de ambiente AWS no ar); deploy fica como chore próprio pós-merge — é também a rota que, uma vez existindo, torna testável ao vivo o action item 2 da retrospectiva do Epic 1 (AC-3/AC-4 do gateway).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-triagem-score.md`
@@ -154,7 +154,7 @@
   evidence: Achado pelo blind-hunter review da Story 3.0. Combinado com o comportamento atual de "parar o lote inteiro no primeiro erro" (já corrigido para parar só o paciente afetado), uma linha realmente permanente ainda trava indefinidamente sem alarme. Implementar quarentena/retry-cap é escopo maior que esta story (single-goal); vale uma story/chore própria antes de operar em produção.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
-  summary: Tópico SNS FIFO `score-calculado.fifo` (`FilaJustaStack.java`) criado sem chave KMS — dados clínicos/identificação de paciente (`pacienteId`, score, sintomas) trafegam sem criptografia at-rest gerenciada por chave própria (SNS já criptografa em trânsito e com a chave gerenciada pela AWS por padrão, mas não há CMK dedicada).
+  summary: Tópico SNS FIFO `score-calculado.fifo` (`ConfirmaSusStack.java`) criado sem chave KMS — dados clínicos/identificação de paciente (`pacienteId`, score, sintomas) trafegam sem criptografia at-rest gerenciada por chave própria (SNS já criptografa em trânsito e com a chave gerenciada pela AWS por padrão, mas não há CMK dedicada).
   evidence: Achado pelo blind-hunter review da Story 3.0. Decisão de segurança/compliance que provavelmente afeta todos os tópicos/filas futuros de Epic 3/4 igualmente — melhor decidir uma vez, como padrão de infra, do que por tópico.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
@@ -163,18 +163,18 @@
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
   summary: Nomes de recursos novos no CDK (`score-calculado.fifo`, `TriagemScoreServiceTaskRole`) são fixos, sem qualificador de ambiente — colidiriam se o mesmo stack for implantado mais de uma vez na mesma conta/região (ex.: staging + prod).
-  evidence: Achado pelo blind-hunter review da Story 3.0. Mesmo padrão já usado pelos recursos existentes do Epic 1 em `FilaJustaStack.java` (nenhum tem qualificador de ambiente hoje) — não é uma regressão introduzida por esta story, é um gap sistêmico da stack toda; melhor resolver uma vez para todos os recursos do que só para os novos.
+  evidence: Achado pelo blind-hunter review da Story 3.0. Mesmo padrão já usado pelos recursos existentes do Epic 1 em `ConfirmaSusStack.java` (nenhum tem qualificador de ambiente hoje) — não é uma regressão introduzida por esta story, é um gap sistêmico da stack toda; melhor resolver uma vez para todos os recursos do que só para os novos.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
   summary: `EventoOutboxRepositorioAdapter` (métodos `buscarNaoPublicados`/`marcarComoPublicado`/`paraDominio`) não tem teste unitário dedicado — só é exercitado indiretamente via os testes de integração do job e do controller.
   evidence: Achado pelo blind-hunter review da Story 3.0. Comportamento já coberto na prática (90 testes verdes, incluindo o caminho feliz e a corrida entre instâncias), mas um teste focado no adapter tornaria regressões futuras mais fáceis de localizar.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
-  summary: O novo `CfnOutput` `ScoreCalculadoTopicArn` (`FilaJustaStack.java`) não tem asserção de teste dedicada, diferente do padrão já usado para os outputs existentes do stack.
+  summary: O novo `CfnOutput` `ScoreCalculadoTopicArn` (`ConfirmaSusStack.java`) não tem asserção de teste dedicada, diferente do padrão já usado para os outputs existentes do stack.
   evidence: Achado pelo blind-hunter review da Story 3.0. Baixo risco (CDK falha o synth se o output referenciar algo inválido), mas fica como lacuna de cobertura de teste.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-0-relay-sns-score-calculado.md`
-  summary: Configuração `filajusta.triagem.relay.*` é lida via `@Value` bruto em duas classes (`RelaySnsClientConfig`, `RelaySnsPublisherJob`) com valores-padrão duplicados contra os já definidos em `application.yml`, em vez de um único `@ConfigurationProperties`.
+  summary: Configuração `confirmasus.triagem.relay.*` é lida via `@Value` bruto em duas classes (`RelaySnsClientConfig`, `RelaySnsPublisherJob`) com valores-padrão duplicados contra os já definidos em `application.yml`, em vez de um único `@ConfigurationProperties`.
   evidence: Achado pelo blind-hunter review da Story 3.0. Puramente manutenibilidade — fácil de divergir conforme mais configs forem adicionadas ao relay, mas não é um bug hoje.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1b-replica-score-consumidor-sqs-fifo.md`
@@ -218,7 +218,7 @@
   evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
-  summary: `filajusta.aging.k`/`teto` são injetados via `@Value` solto num `@Bean` factory method em vez de um `@ConfigurationProperties` record -- inconsistente com o estilo mais estruturado usado na config do relay.
+  summary: `confirmasus.aging.k`/`teto` são injetados via `@Value` solto num `@Bean` factory method em vez de um `@ConfigurationProperties` record -- inconsistente com o estilo mais estruturado usado na config do relay.
   evidence: Achado pelo review adversarial (bmad-build step-04, blind-hunter) sobre o diff da Story 3.1c. Nit de consistência de estilo, sem bug funcional associado.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1c-consulta-fila-priorizada-bootstrap.md`
@@ -366,7 +366,7 @@
   evidence: Achado pelo edge-case-hunter, verificado no código (`EventoOutbox.java`) e na migration (`V4__create_eventos_outbox.sql`). Confirmado como pré-existente e idêntico em `triagem-score-service/.../domain/EventoOutbox.java` e suas migrations `V1`/`V2` desde as Stories 2.1/3.0 -- não introduzido por esta story.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3a-infraestrutura-outbox-matching-alocacao.md`
-  summary: `filajusta.matching.outbox-relay.enabled: true` por padrão com `topic-arn` vazio faz qualquer `mvn spring-boot:run`/subida local direta (fora dos testes, que sobrescrevem a propriedade) falhar rápido com `IllegalStateException` -- não há `docker-compose`/`application-local.yml` no repo fornecendo um valor seguro para desenvolvimento local.
+  summary: `confirmasus.matching.outbox-relay.enabled: true` por padrão com `topic-arn` vazio faz qualquer `mvn spring-boot:run`/subida local direta (fora dos testes, que sobrescrevem a propriedade) falhar rápido com `IllegalStateException` -- não há `docker-compose`/`application-local.yml` no repo fornecendo um valor seguro para desenvolvimento local.
   evidence: Achado pelo blind-hunter. Confirmado como pré-existente e idêntico em `triagem-score-service` (mesmo default `enabled: true` + `topic-arn` vazio) desde a Story 3.0 -- não introduzido por esta story, e nunca antes registrado em deferred-work.md.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3a-infraestrutura-outbox-matching-alocacao.md`
@@ -539,7 +539,7 @@
   evidence: Spec draft da 3-4 completa (agendamento+publicação+consumo+liberação) mediu ~3053 tokens, quase 2x o teto de 1600 -- decisão do usuário no checkpoint de token count do `bmad-build` (2026-09-13), mesmo padrão de split já usado em 3.1, 3.2 e 3.3 deste epico. 3-4a (esta spec, escopo restante) cobre só agendar+publicar a mensagem de liberação; 3-4b depende de 3-4a estar mergeada (precisa da fila SQS standard e da tabela `liberacao_agendada` existirem).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4a-agendamento-liberacao-recurso.md`
-  summary: Story 3-4a2 (publicação de fato da liberação agendada) -- `LiberacaoAgendadaRelayJob` (polling `@Scheduled` + `SqsClient.sendMessage(...).delaySeconds(...)`, molde de `RelaySnsPublisherJob`), `LiberacaoAgendadaSqsClientConfig`, nova fila SQS standard `liberacao-recurso` + DLQ no `FilaJustaStack` (CDK, `maxReceiveCount=5`, `grantSendMessage` para `MatchingAlocacaoServiceTaskRole`), bloco `filajusta.matching.liberacao-agendada-relay.*` em `application.yml`, e teste de integração LocalStack (`LiberacaoAgendadaRelayJobIntegrationTest`) provando que a mensagem chega na fila com `DelaySeconds` correto e `enviado_em` é marcado.
+  summary: Story 3-4a2 (publicação de fato da liberação agendada) -- `LiberacaoAgendadaRelayJob` (polling `@Scheduled` + `SqsClient.sendMessage(...).delaySeconds(...)`, molde de `RelaySnsPublisherJob`), `LiberacaoAgendadaSqsClientConfig`, nova fila SQS standard `liberacao-recurso` + DLQ no `ConfirmaSusStack` (CDK, `maxReceiveCount=5`, `grantSendMessage` para `MatchingAlocacaoServiceTaskRole`), bloco `confirmasus.matching.liberacao-agendada-relay.*` em `application.yml`, e teste de integração LocalStack (`LiberacaoAgendadaRelayJobIntegrationTest`) provando que a mensagem chega na fila com `DelaySeconds` correto e `enviado_em` é marcado.
   evidence: Spec 3-4a (agendar+publicar) mediu ~2622 tokens, ainda acima do teto de 1600 mesmo após o 1º split de 3-4 -- decisão do usuário no 2º checkpoint de token count do `bmad-build` (2026-09-13). 3-4a1 (persistência: domínio/porto/JPA/migration `liberacao_agendada` + `ConfirmarAlocacao` gravando a linha) cobre a fronteira que já existe hoje; 3-4a2 depende de 3-4a1 mergeada (precisa do porto `LiberacaoAgendadaRepositorio#buscarPendentes` existir). 3-4b (consumo/liberação real do Recurso) permanece deferida separadamente (entrada anterior neste arquivo) e depende de 3-4a2.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4a1-persistencia-liberacao-agendada.md`
@@ -571,7 +571,7 @@
   evidence: Achado pelo blind-hunter. Mesmo modelo de retry infinito por ciclo já usado pelo `outbox-relay` (Story 3-3a) -- gap sistêmico pré-existente no padrão de relay deste serviço, não introduzido especificamente por esta story.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4b1-liberacao-real-recurso.md`
-  summary: Story 3-4b2 (consumidor real da fila `liberacao-agendada`) -- `LiberacaoRecursoConsumerJob` (molde de `ScoreCalculadoConsumerJob`, reusa o bean `liberacaoAgendadaSqsClient` via `@Qualifier`), bloco de config `filajusta.matching.liberacao-recurso-consumer.*`, e `liberacaoAgendadaQueue.grantConsumeMessages(matchingAlocacaoServiceTaskRole)` no `FilaJustaStack` (CDK) -- liga a fila SQS já existente ao comando `LiberarRecurso` da 3-4b1.
+  summary: Story 3-4b2 (consumidor real da fila `liberacao-agendada`) -- `LiberacaoRecursoConsumerJob` (molde de `ScoreCalculadoConsumerJob`, reusa o bean `liberacaoAgendadaSqsClient` via `@Qualifier`), bloco de config `confirmasus.matching.liberacao-recurso-consumer.*`, e `liberacaoAgendadaQueue.grantConsumeMessages(matchingAlocacaoServiceTaskRole)` no `ConfirmaSusStack` (CDK) -- liga a fila SQS já existente ao comando `LiberarRecurso` da 3-4b1.
   evidence: Spec draft da 3-4b completa (comando+persistência+consumidor SQS+CDK) mediu ~3171 tokens, quase 2x o teto de 1600 -- decisão do usuário no checkpoint de token count do `bmad-build` (2026-09-13), mesmo padrão de split já usado em 3.1, 3.2, 3.3 e 3-4a deste épico. 3-4b1 (spec narrowed) cobre só o comando `LiberarRecurso` + persistência (`Alocacao.liberar`, `Recurso.marcarDisponivel`) + evento `RecursoLiberado` no outbox + teste de concorrência real; 3-4b2 depende de 3-4b1 estar mergeada (precisa do comando `LiberarRecurso` existir para o consumidor chamar).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-4b1-liberacao-real-recurso.md`
@@ -639,3 +639,39 @@
 - source_spec: `spec-1-4-recusa-ativa-e-liberacao-imediata-da-vaga.md`
   summary: CHECK constraint ausente no banco para validar enum de motivoLiberacao
   evidence: Coluna `motivo_liberacao VARCHAR(32) NULL` criada sem constraint de domínio; validação existe no código (enum), mas não na camada de banco — trade-off aceitável (validação em código + testes suficientes), mas gap de design registrado para futuro
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Circuit breaker / backoff ausente para falhas em cascata de LiberarRecurso
+  evidence: Blind-hunter identificou que se `LiberarRecurso.liberar()` falha repetidamente (ex.: DB indisponível), consumer tenta no mesmo rate (5s fixo) sem exponential backoff ou circuit breaker — risco de amplificação de carga. Atual: mensagem reenviada sem delay, SQS já gerencia retry via ApproximateReceiveCount + DLQ. Upgrade futuro para padrão Resilience4j se volume de erro for problema operacional.
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Micrometer metrics e alertas ausentes no consumer
+  evidence: Blind-hunter apontou falta de observabilidade (métricas de DLQ size, taxa de rejeição, latência de processamento). Atual: logging estruturado (messageId, alocacaoId, outcome). Upgrade futuro integrar com Micrometer (mX.justa.liberacao.consumer.* + alertas) quando observabilidade centralizada for strategy do projeto.
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Plano de evolução de schema (version >= 2) não documentado
+  evidence: Spec declara tolerância a version != 1 → DLQ, mas sem documentação de como migrar consumidores para version=2 quando necessário (ex.: novo campo obrigatório). Actual: version aditivo (campos extras ignorados) funciona, mas major version demanda análise de contrato. Registrado para discussão quando houver breaking change.
+
+- source_spec: `spec-3-4b2-consumer-liberacao-agendada.md`
+  summary: Comportamento em graceful shutdown não explícito
+  evidence: Edge-case-hunter levantou que @Scheduled job não documenta se transações em voo são comitadas/rolleadas durante SIGTERM/shutdown. Padrão Spring Boot padrão (wait for in-flight + timeout), mas sem comentário no código explicando expectativa.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: OpenAPI/Swagger documentation para endpoints GET `/v1/auditoria/paciente/{id}` e `/v1/auditoria/agendamento/{id}`
+  evidence: Blind-hunter levantou falta de contrato formal OpenAPI nos endpoints. Real, porém nenhum outro serviço do projeto possui OpenAPI ainda (levantado em Epic 1); implementar como story de API documentation quando o padrão do projeto estiver definido.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: Logging de auditoria estruturado — registrar quem/quando consultou dados sensíveis (auditoria da auditoria)
+  evidence: Blind-hunter levantou ausência de logging quando endpoints são consultados. Real para compliance, mas fora do escopo do MVP de Story 4.2 (que é apenas fornecer consulta); registrar para quando houver requisito de compliance nível produção.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: Cache strategy para consultas read-only (X-Cache-Control, ETag, ou Redis) em endpoints de auditoria
+  evidence: Blind-hunter levantou não-otimização de consultas repetidas. Real para performance, mas nenhum otro serviço possui cache no projeto; implementar como story de performance quando requisito de volume for validado.
+
+- source_spec: `spec-4-2-consulta-auditoria.md`
+  summary: Performance/load testing — validar endpoints sob volume de histórico grande (10k+ registros por paciente/agendamento)
+  evidence: Blind-hunter levantou ausência de testes de volume. Real, mas MVP não tem SLA de performance definido; implementar como story de hardening quando requisito de escala for conhecido.
+
+- source_spec: `spec-4-4-filtros-adicionais-agendamento.md` (split da intent original)
+  summary: Story 4.4b — Filtro de `tipoPaciente` em consultas de auditoria (PRIORITARIO, REGULAR, etc.)
+  evidence: A spec original de filtros adicionais (4.4) excedeu 1600 tokens porque deixa em aberto 3 questões críticas sobre contrato com agendamento-service e paciente-service. Split proposto: 4.4a (statusAgendamento) assume contrato já resolvido; 4.4b (tipoPaciente) fica deferred até paciente-service exposar campo de tipo e a interface ser clara. Depende de Story 4.4a estar pronta.

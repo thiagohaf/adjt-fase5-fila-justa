@@ -35,10 +35,10 @@ baseline_commit: 'dd1c7bc1f0df3bf29cb8968eeeb24dc961e51a33'
 
 ## Code Map
 
-- `triagem-score-service/src/main/java/com/filajusta/triagem/application/query/ConsultarTriagem.java` -- padrão de query use case a espelhar
-- `triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/web/TriagemController.java:35` -- padrão de controller REST a espelhar (novo path `/internal/scores`)
-- `triagem-score-service/src/main/java/com/filajusta/triagem/domain/Score.java` -- entidade já existente, reaproveitar na resposta
-- `triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/` -- repositório JPA existente, leitura simples sem query nova complexa
+- `triagem-score-service/src/main/java/com/confirmasus/triagem/application/query/ConsultarTriagem.java` -- padrão de query use case a espelhar
+- `triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/web/TriagemController.java:35` -- padrão de controller REST a espelhar (novo path `/internal/scores`)
+- `triagem-score-service/src/main/java/com/confirmasus/triagem/domain/Score.java` -- entidade já existente, reaproveitar na resposta
+- `triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/` -- repositório JPA existente, leitura simples sem query nova complexa
 - `_bmad-output/implementation-artifacts/spec-2-2-consulta-triagem-score-fatores-contribuintes.md:25` -- registro do adiamento original deste endpoint
 
 ## Tasks & Acceptance
@@ -54,8 +54,8 @@ baseline_commit: 'dd1c7bc1f0df3bf29cb8968eeeb24dc961e51a33'
 
 ### Review Findings
 
-- [x] [Review][Patch] `ScoresAtuaisRepositorioAdapter.paraScoreAtual` fazia cast/deref direto de `pacienteId`/`scoreValor`/`algoritmoVersao`/`fatores` sem checar null/tipo -- uma linha malformada em `eventos_outbox` (JSON inválido, campo ausente, tipo errado) derrubava a resposta inteira de `GET /internal/scores` com NPE/ClassCastException não tratada, quebrando o bootstrap a frio inteiro do `matching-alocacao-service` por causa de UM registro ruim. Corrigido: `listarTodos()` isola a falha por linha (try/catch por evento, mesmo padrão de `RelaySnsPublisherJob`) -- loga o `eventId` da linha problemática e a pula, sem interromper a listagem; `paraScoreAtual` agora valida os campos explicitamente antes de castar, lançando uma exceção nomeando o `eventId` em vez de propagar NPE/ClassCastException cru [triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java]. Coberto por `ScoresAtuaisRepositorioAdapterTest` (payload válido, campo ausente, JSON inválido, todas as linhas malformadas) [triagem-score-service/src/test/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java]
-- [x] [Review][Patch] Nenhum teste cobria "Score já publicado pelo relay continua aparecendo em `/internal/scores`" -- a query `findByEventTypeOrderByOccurredAtAsc` ignora `publicado_em` de propósito (Design Notes), mas sem teste um filtro `WHERE publicadoEm IS NULL` adicionado por engano no futuro (erro fácil, a query irmã `buscarPendentesParaAtualizar` usa exatamente esse filtro para outro propósito) faria todo Score já relayado sumir silenciosamente sem nenhum teste quebrar. Corrigido: novo teste `scoreJaPublicadoPeloRelayContinuaAparecendoNaListagem` marca a linha do outbox como publicada via `EventoOutboxRepositorio.marcarComoPublicado` (relay real não usado -- mais simples, mesmo padrão já aceito no serviço de autowireiar repositórios direto num teste de integração) e confirma que a entrada continua na listagem [triagem-score-service/src/test/java/com/filajusta/triagem/ListarScoresAtuaisIntegrationTest.java]. Achado colateral durante a aplicação: o Postgres/contexto Spring é compartilhado entre os métodos `@Test` desta classe (cache de contexto), então os 3 testes passaram a interferir entre si (contagens de linha vazando de um teste para o outro) -- corrigido com `@BeforeEach` truncando as tabelas do schema `triagem_score` antes de cada teste
+- [x] [Review][Patch] `ScoresAtuaisRepositorioAdapter.paraScoreAtual` fazia cast/deref direto de `pacienteId`/`scoreValor`/`algoritmoVersao`/`fatores` sem checar null/tipo -- uma linha malformada em `eventos_outbox` (JSON inválido, campo ausente, tipo errado) derrubava a resposta inteira de `GET /internal/scores` com NPE/ClassCastException não tratada, quebrando o bootstrap a frio inteiro do `matching-alocacao-service` por causa de UM registro ruim. Corrigido: `listarTodos()` isola a falha por linha (try/catch por evento, mesmo padrão de `RelaySnsPublisherJob`) -- loga o `eventId` da linha problemática e a pula, sem interromper a listagem; `paraScoreAtual` agora valida os campos explicitamente antes de castar, lançando uma exceção nomeando o `eventId` em vez de propagar NPE/ClassCastException cru [triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java]. Coberto por `ScoresAtuaisRepositorioAdapterTest` (payload válido, campo ausente, JSON inválido, todas as linhas malformadas) [triagem-score-service/src/test/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java]
+- [x] [Review][Patch] Nenhum teste cobria "Score já publicado pelo relay continua aparecendo em `/internal/scores`" -- a query `findByEventTypeOrderByOccurredAtAsc` ignora `publicado_em` de propósito (Design Notes), mas sem teste um filtro `WHERE publicadoEm IS NULL` adicionado por engano no futuro (erro fácil, a query irmã `buscarPendentesParaAtualizar` usa exatamente esse filtro para outro propósito) faria todo Score já relayado sumir silenciosamente sem nenhum teste quebrar. Corrigido: novo teste `scoreJaPublicadoPeloRelayContinuaAparecendoNaListagem` marca a linha do outbox como publicada via `EventoOutboxRepositorio.marcarComoPublicado` (relay real não usado -- mais simples, mesmo padrão já aceito no serviço de autowireiar repositórios direto num teste de integração) e confirma que a entrada continua na listagem [triagem-score-service/src/test/java/com/confirmasus/triagem/ListarScoresAtuaisIntegrationTest.java]. Achado colateral durante a aplicação: o Postgres/contexto Spring é compartilhado entre os métodos `@Test` desta classe (cache de contexto), então os 3 testes passaram a interferir entre si (contagens de linha vazando de um teste para o outro) -- corrigido com `@BeforeEach` truncando as tabelas do schema `triagem_score` antes de cada teste
 
 ## Spec Change Log
 
@@ -79,46 +79,46 @@ Resposta reaproveita o mesmo padrão de DTO aninhado (`ScoreResponse`/`FatorCont
 **Endpoint e caso de uso**
 
 - Entrada: `GET /internal/scores` -- delega ao caso de uso e mapeia a resposta, sem lógica própria.
-  [`ScoresInternalController.java:30`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/web/ScoresInternalController.java#L30)
+  [`ScoresInternalController.java:30`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/web/ScoresInternalController.java#L30)
 
 - Caso de uso de leitura: delega direto à porta, sem transformação -- fiel ao padrão de `ConsultarTriagem`.
-  [`ListarScoresAtuais.java:30`](../../triagem-score-service/src/main/java/com/filajusta/triagem/application/query/ListarScoresAtuais.java#L30)
+  [`ListarScoresAtuais.java:30`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/application/query/ListarScoresAtuais.java#L30)
 
 **Resiliência por linha (achado do code review)**
 
 - `listarTodos()` isola a falha de uma linha malformada em vez de derrubar `GET /internal/scores` inteiro -- mesmo padrão de `RelaySnsPublisherJob`.
-  [`ScoresAtuaisRepositorioAdapter.java:64`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L64)
+  [`ScoresAtuaisRepositorioAdapter.java:64`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L64)
 
 - Validação explícita dos campos do payload antes de castar -- vira exceção nomeando o `eventId`, nunca NPE/ClassCastException cru.
-  [`ScoresAtuaisRepositorioAdapter.java:98`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L98)
+  [`ScoresAtuaisRepositorioAdapter.java:98`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L98)
 
 **Fonte de dados (decisão de design)**
 
 - Lê `eventos_outbox`, não `triagens` -- única tabela com `eventId`/`occurredAt` do evento junto do Score, sem join novo.
-  [`ScoresAtuaisRepositorioAdapter.java:16`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L16)
+  [`ScoresAtuaisRepositorioAdapter.java:16`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapter.java#L16)
 
 - Query derivada ignora `publicado_em` de propósito -- um Score é "atual" mesmo antes do relay publicar no SNS.
-  [`EventoOutboxJpaRepository.java:47`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/persistence/EventoOutboxJpaRepository.java#L47)
+  [`EventoOutboxJpaRepository.java:47`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/persistence/EventoOutboxJpaRepository.java#L47)
 
 **Contrato de leitura**
 
 - Porta de saída: um método, sem paginação nem filtros (Boundaries da spec).
-  [`ScoresAtuaisRepositorio.java:14`](../../triagem-score-service/src/main/java/com/filajusta/triagem/application/query/ScoresAtuaisRepositorio.java#L14)
+  [`ScoresAtuaisRepositorio.java:14`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/application/query/ScoresAtuaisRepositorio.java#L14)
 
 - Projeção de leitura: uma linha por evento `ScoreCalculado`, sem deduplicação por paciente (ver Design Notes).
-  [`ScoreAtual.java:24`](../../triagem-score-service/src/main/java/com/filajusta/triagem/application/query/ScoreAtual.java#L24)
+  [`ScoreAtual.java:24`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/application/query/ScoreAtual.java#L24)
 
 - DTO de resposta: mesmo padrão aninhado já usado em `RegistrarTriagemResponse`/`ConsultarTriagemResponse`.
-  [`ScoreAtualResponse.java:19`](../../triagem-score-service/src/main/java/com/filajusta/triagem/infrastructure/web/ScoreAtualResponse.java#L19)
+  [`ScoreAtualResponse.java:19`](../../triagem-score-service/src/main/java/com/confirmasus/triagem/infrastructure/web/ScoreAtualResponse.java#L19)
 
 **Testes**
 
 - Unitário do adapter: payload válido, campo ausente, JSON inválido, todas as linhas malformadas.
-  [`ScoresAtuaisRepositorioAdapterTest.java:1`](../../triagem-score-service/src/test/java/com/filajusta/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L1)
+  [`ScoresAtuaisRepositorioAdapterTest.java:1`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/infrastructure/persistence/ScoresAtuaisRepositorioAdapterTest.java#L1)
 
 - Integração ponta a ponta: banco vazio, N Triagens, e Score já publicado pelo relay (achado do review).
-  [`ListarScoresAtuaisIntegrationTest.java:1`](../../triagem-score-service/src/test/java/com/filajusta/triagem/ListarScoresAtuaisIntegrationTest.java#L1)
+  [`ListarScoresAtuaisIntegrationTest.java:1`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/ListarScoresAtuaisIntegrationTest.java#L1)
 
 - Unitário do caso de uso: delega e devolve exatamente o que a porta retornar.
-  [`ListarScoresAtuaisTest.java:1`](../../triagem-score-service/src/test/java/com/filajusta/triagem/application/query/ListarScoresAtuaisTest.java#L1)
+  [`ListarScoresAtuaisTest.java:1`](../../triagem-score-service/src/test/java/com/confirmasus/triagem/application/query/ListarScoresAtuaisTest.java#L1)
 - Executado após os 2 patches do code review: `mvn -pl triagem-score-service -am verify` -- BUILD SUCCESS, 109 testes (0 falhas/erros), incluindo `ListarScoresAtuaisTest` (2), `ListarScoresAtuaisIntegrationTest` (3) e o novo `ScoresAtuaisRepositorioAdapterTest` (4)

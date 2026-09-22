@@ -10,7 +10,7 @@ inputDocuments:
 
 ## Overview
 
-Este documento decompõe o PRD (`prd-Fase5-2026-09-16`), a Arquitetura final (`ARCHITECTURE-SPINE.md`, 13 ADs) e o SPEC distilado (`spec-confirmasus/SPEC.md`, CAP-1..14) do ConfirmaSUS em epics e stories implementáveis. Não há documento de UX — o MVP é backend-only (Swagger/Postman), conforme Non-Goals do PRD §5. Este documento **substitui** `epics-filajusta-2026-09-05.md` (arquivado), do produto anterior descontinuado por restrição legal.
+Este documento decompõe o PRD (`prd-Fase5-2026-09-16`), a Arquitetura final (`ARCHITECTURE-SPINE.md`, 13 ADs) e o SPEC distilado (`spec-confirmasus/SPEC.md`, CAP-1..14) do ConfirmaSUS em epics e stories implementáveis. Não há documento de UX — o MVP é backend-only (Swagger/Postman), conforme Non-Goals do PRD §5. Substitui a decomposição de epics anterior do produto descontinuado por restrição legal.
 
 ## Requirements Inventory
 

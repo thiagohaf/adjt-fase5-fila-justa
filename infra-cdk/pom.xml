@@ -5,8 +5,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.filajusta</groupId>
-    <artifactId>fila-justa-parent</artifactId>
+    <groupId>com.confirmasus</groupId>
+    <artifactId>confirmasus-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
@@ -59,7 +59,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <version>3.6.1</version>
         <configuration>
-          <mainClass>com.filajusta.infra.InfraApp</mainClass>
+          <mainClass>com.confirmasus.infra.InfraApp</mainClass>
         </configuration>
       </plugin>
     </plugins>

@@ -42,7 +42,7 @@ baseline_commit: 'd4ad3e958bd5841cdd76c1d606f72d228a276ee8'
 
 ## Code Map
 
-Base: `matching-alocacao-service/src/{main,test}/java/com/filajusta/matching/`
+Base: `matching-alocacao-service/src/{main,test}/java/com/confirmasus/matching/`
 
 - `main/application/query/ConsultarFilaPriorizada.java:49-84` (mod.) -- novo campo `AlocacaoConsultaRepositorio`; `.filter` entre `.stream()` (77) e `.map` (78)
 - `main/application/query/AlocacaoConsultaRepositorio.java` (só consumido) -- `Set<Long> pacientesComAlocacaoAtiva()`
@@ -87,22 +87,22 @@ Set<Long> alocados = alocacaoConsultaRepositorio.pacientesComAlocacaoAtiva();
 **Filtro na fila (entry point)**
 
 - Lê o `Set` uma única vez e filtra antes do `.map`/`.sorted` -- núcleo da mudança de comportamento.
-  [`ConsultarFilaPriorizada.java:93-95`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarFilaPriorizada.java#L93-L95)
+  [`ConsultarFilaPriorizada.java:93-95`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarFilaPriorizada.java#L93-L95)
 
 **Wiring do novo porto**
 
 - `@Bean` ganha o parâmetro `AlocacaoConsultaRepositorio` e repassa ao construtor -- fecha a injeção ponta a ponta.
-  [`MatchingAlocacaoServiceApplication.java:98-101`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/MatchingAlocacaoServiceApplication.java#L98-L101)
+  [`MatchingAlocacaoServiceApplication.java:98-101`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/MatchingAlocacaoServiceApplication.java#L98-L101)
 
 **Consequência herdada (patch do code review)**
 
 - Javadoc deixa explícito que `ConsultarSugestaoRecurso` herda o filtro por reutilizar `consultar()`, sem lógica duplicada.
-  [`ConsultarSugestaoRecurso.java:14-18`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarSugestaoRecurso.java#L14-L18)
+  [`ConsultarSugestaoRecurso.java:14-18`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecurso.java#L14-L18)
 
 **Testes**
 
 - Cobre os 4 cenários da I/O Matrix mais o boundary "chamado 1x por consultar()".
-  [`ConsultarFilaPriorizadaTest.java:200-343`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/query/ConsultarFilaPriorizadaTest.java#L200-L343)
+  [`ConsultarFilaPriorizadaTest.java:200-343`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/query/ConsultarFilaPriorizadaTest.java#L200-L343)
 
 - Prova ponta a ponta contra Postgres real (Testcontainers), não só mock.
-  [`FilaBootstrapIntegrationTest.java:261-318`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/FilaBootstrapIntegrationTest.java#L261-L318)
+  [`FilaBootstrapIntegrationTest.java:261-318`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/FilaBootstrapIntegrationTest.java#L261-L318)

@@ -4,17 +4,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>com.filajusta</groupId>
-  <artifactId>fila-justa-parent</artifactId>
+  <groupId>com.confirmasus</groupId>
+  <artifactId>confirmasus-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>FilaJusta — Parent</name>
+  <name>ConfirmaSUS — Parent</name>
   <description>
-    Projeto Maven multi-modulo raiz do FilaJusta (adjt-fase5-fila-justa).
+    Projeto Maven multi-modulo raiz do ConfirmaSUS (adjt-fase5-confirmasus).
     Modulos ja adicionados: gateway-service, auth-service, infra-cdk,
     agendamento-confirmacao-service (Epic 1 -- renomeado/podado do extinto
-    triagem-score-service, produto FilaJusta descartado, AD-1),
+    triagem-score-service, produto anterior descartado, AD-1),
     matching-alocacao-service (Epic 3). Modulos deferidos (ver
     _bmad-output/implementation-artifacts/deferred-work.md), a adicionar como
     preparacao da primeira story de cada epic que os toca:
@@ -79,11 +79,7 @@
     <module>agendamento-confirmacao-service</module>
     <module>triagem-score-service</module>
     <module>matching-alocacao-service</module>
-    <!--
-      Modulos deferidos (deferred-work.md): adicionar aqui quando a story
-      correspondente iniciar, sem outra refatoracao deste pom pai.
-      <module>auditoria-service</module>
-    -->
+    <module>auditoria-service</module>
   </modules>
 
 </project>

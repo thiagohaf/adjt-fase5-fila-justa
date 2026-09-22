@@ -38,11 +38,11 @@ baseline_commit: 'dd1c7bc1f0df3bf29cb8968eeeb24dc961e51a33'
 ## Code Map
 
 - `pom.xml:80` -- módulo comentado -- descomentar
-- `triagem-score-service/pom.xml` -- deps+JaCoCo(90%)+PIT -- replicar em `matching-alocacao-service/pom.xml`, pacote `com.filajusta.matching.*`
+- `triagem-score-service/pom.xml` -- deps+JaCoCo(90%)+PIT -- replicar em `matching-alocacao-service/pom.xml`, pacote `com.confirmasus.matching.*`
 - `.../infrastructure/relay/RelaySnsPublisherJob.java:64-207` + `RelaySnsClientConfig.java:44-70` -- estilo de poller/cliente AWS a seguir; **sem consumidor SQS real no projeto ainda** -- desenhar `ScoreCalculadoConsumerJob` do zero
 - `.../db/migration/V1__create_triagem_schema.sql:4` -- padrão de migration -- criar `V1__create_matching_schema.sql` (`matching_alocacao`, tabela `score_replica`: `paciente_id` PK, `score`, `occurred_at`, `event_id`, `updated_at`)
 - `.../test/.../RelaySnsPublisherJobIntegrationTest.java:71` -- LocalStack `localstack/localstack:4.12.0` -- reusar
-- `infra-cdk/.../FilaJustaStack.java:204-238` (`buildScoreCalculadoTopic`/`buildTriagemScoreServiceTaskRole`) -- mirror: fila SQS FIFO consumidora + subscription + DLQ + task role `grantConsumeMessages`
+- `infra-cdk/.../ConfirmaSusStack.java:204-238` (`buildScoreCalculadoTopic`/`buildTriagemScoreServiceTaskRole`) -- mirror: fila SQS FIFO consumidora + subscription + DLQ + task role `grantConsumeMessages`
 - `epic-3-context.md` (Technical Decisions) -- semântica de upsert já fixada
 
 ## Tasks & Acceptance
@@ -54,7 +54,7 @@ baseline_commit: 'dd1c7bc1f0df3bf29cb8968eeeb24dc961e51a33'
 - [x] `.../application/command/AtualizarScoreReplica.java` + porta `ScoreReplicaRepositorio` -- caso de uso de upsert
 - [x] `.../infrastructure/persistence/*` -- JPA entity + adapter da réplica (upsert idempotente)
 - [x] `.../infrastructure/relay/ScoreCalculadoConsumerJob.java` -- poller `@Scheduled`, `SqsClient.receiveMessage`, parse do envelope, upsert, `deleteMessage` só após sucesso
-- [x] `infra-cdk/.../FilaJustaStack.java` -- fila SQS FIFO + subscription + DLQ + task role de consumo
+- [x] `infra-cdk/.../ConfirmaSusStack.java` -- fila SQS FIFO + subscription + DLQ + task role de consumo
 - [x] Teste unitário do upsert (last-write-wins, tie-break por `eventId`) -- cobre a I/O Matrix
 - [x] Teste de integração Testcontainers-Postgres (upsert idempotente) + Testcontainers-LocalStack (consumo ponta a ponta, `localstack:4.12.0`)
 
@@ -64,7 +64,7 @@ baseline_commit: 'dd1c7bc1f0df3bf29cb8968eeeb24dc961e51a33'
 
 ## Spec Change Log
 
-- 2026-09-10: Aplicados os 9 patches apontados pelo code review multi-agente (severidade `patch`): (1) `wait-time-seconds` agora limitado a `0..20` (teto do SQS); (2) timeout do `SqsClient` (`ScoreCalculadoSqsClientConfig`) elevado de 10s para 30s, folgando acima do long-poll de até 20s; (3) `validarEnvelope` agora rejeita `scoreValor` não numérico (antes `asInt()` de um valor não numérico virava `0` silenciosamente) -- coberto por teste unitário novo; (4) fila SQS FIFO consumidora (`infra-cdk`) ganhou `visibilityTimeout` explícito de 60s (antes usava o default de 30s do SQS); (5) os `log.error` de falha de upsert/delete em `ScoreCalculadoConsumerJob.processar` agora citam `eventId`/`correlationId` de domínio, não só o `messageId` do SQS; (6) novo teste de domínio prova que o desempate por `eventId` segue a ordem lexicográfica da string mesmo num par de UUIDs onde isso discorda de `UUID#compareTo(UUID)`; (7) o teste de IAM do CDK agora trava `sqs:DeleteMessage` além de `sqs:ReceiveMessage`; (8) novo teste prova que `filajusta.matching.relay.enabled=false` realmente impede a criação do `SqsClient`/`ScoreCalculadoConsumerJob` no contexto Spring; (9) javadoc de `ScoreCalculadoSqsClientConfig` corrigido -- a região não cai na cadeia default do SDK neste serviço (`application.yml` sempre popula `filajusta.matching.relay.region` via `${AWS_REGION:us-east-1}`). `matching-alocacao-service` passou de 31 para 34 testes (patches 3, 6 e 8 adicionaram um teste cada); `infra-cdk` permanece com 23 (patch 7 só reforçou uma asserção existente).
+- 2026-09-10: Aplicados os 9 patches apontados pelo code review multi-agente (severidade `patch`): (1) `wait-time-seconds` agora limitado a `0..20` (teto do SQS); (2) timeout do `SqsClient` (`ScoreCalculadoSqsClientConfig`) elevado de 10s para 30s, folgando acima do long-poll de até 20s; (3) `validarEnvelope` agora rejeita `scoreValor` não numérico (antes `asInt()` de um valor não numérico virava `0` silenciosamente) -- coberto por teste unitário novo; (4) fila SQS FIFO consumidora (`infra-cdk`) ganhou `visibilityTimeout` explícito de 60s (antes usava o default de 30s do SQS); (5) os `log.error` de falha de upsert/delete em `ScoreCalculadoConsumerJob.processar` agora citam `eventId`/`correlationId` de domínio, não só o `messageId` do SQS; (6) novo teste de domínio prova que o desempate por `eventId` segue a ordem lexicográfica da string mesmo num par de UUIDs onde isso discorda de `UUID#compareTo(UUID)`; (7) o teste de IAM do CDK agora trava `sqs:DeleteMessage` além de `sqs:ReceiveMessage`; (8) novo teste prova que `confirmasus.matching.relay.enabled=false` realmente impede a criação do `SqsClient`/`ScoreCalculadoConsumerJob` no contexto Spring; (9) javadoc de `ScoreCalculadoSqsClientConfig` corrigido -- a região não cai na cadeia default do SDK neste serviço (`application.yml` sempre popula `confirmasus.matching.relay.region` via `${AWS_REGION:us-east-1}`). `matching-alocacao-service` passou de 31 para 34 testes (patches 3, 6 e 8 adicionaram um teste cada); `infra-cdk` permanece com 23 (patch 7 só reforçou uma asserção existente).
 
 ## Design Notes
 
@@ -83,32 +83,32 @@ baseline_commit: 'dd1c7bc1f0df3bf29cb8968eeeb24dc961e51a33'
 **Consumidor SQS (entrada)**
 
 - Poller `@Scheduled`: lê o lote, delega a `processar()` por mensagem -- todo o resto do arquivo existe para sustentar este método.
-  [`ScoreCalculadoConsumerJob.java:96`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L96)
+  [`ScoreCalculadoConsumerJob.java:96`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L96)
 
 - `processar()`: valida envelope, faz upsert, só remove da fila após confirmação -- núcleo da garantia "nunca antes" das Boundaries.
-  [`ScoreCalculadoConsumerJob.java:118`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L118)
+  [`ScoreCalculadoConsumerJob.java:118`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L118)
 
 - `validarEnvelope()`: rejeita `scoreValor` não numérico em vez de deixar `asInt()` virar `0` silenciosamente (achado do code review).
-  [`ScoreCalculadoConsumerJob.java:181`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L181)
+  [`ScoreCalculadoConsumerJob.java:181`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L181)
 
 - Logs de falha agora citam `eventId`/`correlationId` de domínio, não só `messageId` do SQS (achado do code review) -- correlacionável com o lado `triagem-score-service`.
-  [`ScoreCalculadoConsumerJob.java:157`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L157)
+  [`ScoreCalculadoConsumerJob.java:157`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L157)
 
 **Upsert idempotente (decisão de design)**
 
 - `maisRecenteQue()`: regra pura de last-write-wins -- compara `eventId` por string, não `UUID#compareTo`, para concordar com a ordem de bytes do Postgres.
-  [`ScoreReplica.java:71`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/domain/ScoreReplica.java#L71)
+  [`ScoreReplica.java:71`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/ScoreReplica.java#L71)
 
 - `INSERT ... ON CONFLICT ... WHERE`: a garantia atômica real contra corrida entre instâncias do consumidor vive na query nativa, não em comparação no lado Java.
-  [`ScoreReplicaJpaRepository.java:26`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/ScoreReplicaJpaRepository.java#L26)
+  [`ScoreReplicaJpaRepository.java:26`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/ScoreReplicaJpaRepository.java#L26)
 
 **Infra (CDK)**
 
 - Fila SQS FIFO consumidora + DLQ (`maxReceiveCount=5`) + `visibilityTimeout` explícito de 60s (achado do code review) -- assina `score-calculado.fifo`.
-  [`FilaJustaStack.java:260`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L260)
+  [`ConfirmaSusStack.java:260`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L260)
 
 - Task role com `grantConsumeMessages` -- IAM mínimo para o consumidor, mirror do papel de publish da Story 3.0.
-  [`FilaJustaStack.java:301`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L301)
+  [`ConfirmaSusStack.java:301`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L301)
 
 **Esqueleto e schema**
 
@@ -116,15 +116,15 @@ baseline_commit: 'dd1c7bc1f0df3bf29cb8968eeeb24dc961e51a33'
   [`V1__create_matching_schema.sql:1`](../../matching-alocacao-service/src/main/resources/db/migration/V1__create_matching_schema.sql#L1)
 
 - `AtualizarScoreReplica`: caso de uso fino, só delega ao adapter -- sem lógica própria além de construir o candidato.
-  [`AtualizarScoreReplica.java:1`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/AtualizarScoreReplica.java#L1)
+  [`AtualizarScoreReplica.java:1`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/AtualizarScoreReplica.java#L1)
 
 **Testes**
 
 - Domínio: aging/tie-break, incluindo o par de UUIDs que discorda de `UUID#compareTo` (achado do code review).
-  [`ScoreReplicaTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/domain/ScoreReplicaTest.java#L1)
+  [`ScoreReplicaTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/domain/ScoreReplicaTest.java#L1)
 
 - Consumidor: casos mockados de SQS (payload malformado, falha transitória, `relay.enabled=false`).
-  [`ScoreCalculadoConsumerJobTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoConsumerJobTest.java#L1)
+  [`ScoreCalculadoConsumerJobTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoConsumerJobTest.java#L1)
 
 - Integração ponta a ponta: Testcontainers-Postgres + LocalStack, `localstack:4.12.0`.
-  [`ScoreCalculadoConsumerJobIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/ScoreCalculadoConsumerJobIntegrationTest.java#L1)
+  [`ScoreCalculadoConsumerJobIntegrationTest.java:1`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/ScoreCalculadoConsumerJobIntegrationTest.java#L1)

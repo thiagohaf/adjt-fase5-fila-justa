@@ -42,9 +42,9 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 - `.../infrastructure/persistence/` -- `UsuarioJpaEntity` (schema `auth`), repositório Spring Data, adapter; `db/migration/V1__create_auth_schema_and_users.sql` (tabela `usuarios`, 3 usuários com hash BCrypt: regulador/triagem/auditor)
 - `.../infrastructure/security/JwtTokenIssuer.java` -- jjwt HS256, claims `sub`/`role`/`iat`/`exp`
 - `.../infrastructure/web/AuthController.java` + `@RestControllerAdvice` -- `POST /v1/auth/login`; `401` RFC 7807
-- `auth-service/src/main/resources/application.yml` -- datasource (`jdbc:postgresql://postgres.filajusta.local:5432/filajusta`, credenciais do secret admin da Story 1.1), `spring.flyway.schemas=auth`, `filajusta.jwt.secret`/`expiration-seconds`
-- `gateway-service/src/main/resources/application.yml:11` -- + rota pública `/v1/auth/login` → `http://auth-service.filajusta.local:8081`, sem filtro
-- `infra-cdk/.../FilaJustaStack.java:360` (`buildAuthService`) -- + `serviceConnectConfiguration` (DNS `auth-service:8081`, padrão de `buildPostgresService` L308-315) + dependência no `cloudMapNamespace` (mesma corrida da Story 1.1); secret `JwtSecret`; env vars de datasource reusando `dbSecret` (L84)
+- `auth-service/src/main/resources/application.yml` -- datasource (`jdbc:postgresql://postgres.confirmasus.local:5432/confirmasus`, credenciais do secret admin da Story 1.1), `spring.flyway.schemas=auth`, `confirmasus.jwt.secret`/`expiration-seconds`
+- `gateway-service/src/main/resources/application.yml:11` -- + rota pública `/v1/auth/login` → `http://auth-service.confirmasus.local:8081`, sem filtro
+- `infra-cdk/.../ConfirmaSusStack.java:360` (`buildAuthService`) -- + `serviceConnectConfiguration` (DNS `auth-service:8081`, padrão de `buildPostgresService` L308-315) + dependência no `cloudMapNamespace` (mesma corrida da Story 1.1); secret `JwtSecret`; env vars de datasource reusando `dbSecret` (L84)
 
 ## Tasks & Acceptance
 
@@ -56,7 +56,7 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 - [x] `infrastructure/web/AuthController.java` + advice -- `POST /v1/auth/login`, `401` RFC 7807
 - [x] `auth-service/application.yml` -- datasource, Flyway, segredo JWT
 - [x] `gateway-service/application.yml` -- rota pública de login (AD-14)
-- [x] `infra-cdk/FilaJustaStack.java` -- Service Connect, secret `JwtSecret`, env vars de datasource
+- [x] `infra-cdk/ConfirmaSusStack.java` -- Service Connect, secret `JwtSecret`, env vars de datasource
 - [x] Teste de integração `auth-service` -- válido → `200`+JWT; senha errada/inexistente → `401` idêntico
 
 **Acceptance Criteria:**
@@ -67,8 +67,8 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 
 - 2026-09-07 — Spec original excedia 1600 tokens (2969: emissão+validação JWT+correlationId+RFC7807-gateway). Validação/correlationId/RFC7807-gateway (AC-3/AC-4) → `deferred-work.md`. Esta spec: só emissão (AC-1/AC-2).
 - 2026-09-07/08 — Verificação end-to-end rodada contra a conta AWS real (118308531450/us-east-1), com autorização explícita do usuário. Após os 4 patches da review adversarial, os 2 ACs (login válido → 200+JWT; inválido → 401) mais os 2 ACs herdados da Story 1.1 (health-check público, bypass negado) passaram ao vivo. 2 bugs de infraestrutura reais encontrados e corrigidos nesse processo, nenhum coberto pela suíte de testes existente (que roda tudo local/Testcontainers, sem tocar Service Connect real):
-  1. Hostname errado no DNS interno do Service Connect: `postgres.filajusta.local`/`auth-service.filajusta.local` (qualificado com o namespace) nunca resolve — o Envoy do Service Connect resolve pela string exata do `dnsName` configurado, que é curta (`postgres`/`auth-service`, sem sufixo). Corrigido em `auth-service/application.yml` (datasource) e `gateway-service/application.yml` (rota de login).
-  2. `gateway-service` nunca tinha `serviceConnectConfiguration` no CDK — sem o sidecar Envoy, não resolve NENHUM dnsName do Service Connect (nem com o hostname corrigido). `POST /v1/auth/login` retornava `500` (`UnknownHostException: Failed to resolve 'auth-service'`, NXDOMAIN) mesmo após o fix #1. Corrigido adicionando `serviceConnectConfiguration` (só como cliente, sem publicar nada) em `buildGatewayService` (`FilaJustaStack.java`).
+  1. Hostname errado no DNS interno do Service Connect: `postgres.confirmasus.local`/`auth-service.confirmasus.local` (qualificado com o namespace) nunca resolve — o Envoy do Service Connect resolve pela string exata do `dnsName` configurado, que é curta (`postgres`/`auth-service`, sem sufixo). Corrigido em `auth-service/application.yml` (datasource) e `gateway-service/application.yml` (rota de login).
+  2. `gateway-service` nunca tinha `serviceConnectConfiguration` no CDK — sem o sidecar Envoy, não resolve NENHUM dnsName do Service Connect (nem com o hostname corrigido). `POST /v1/auth/login` retornava `500` (`UnknownHostException: Failed to resolve 'auth-service'`, NXDOMAIN) mesmo após o fix #1. Corrigido adicionando `serviceConnectConfiguration` (só como cliente, sem publicar nada) em `buildGatewayService` (`ConfirmaSusStack.java`).
   Efeito colateral do fix #2: `gateway-service` ganhou um attachment `ServiceConnect` na task ECS, quebrando a suposição de `attachments[0]` = ENI em `deploy.sh`/`scripts/smoke-test.sh` (já quebrada para `auth-service` desde que ele ganhou Service Connect nesta story) — ambos os scripts corrigidos para filtrar por `type==ElasticNetworkInterface`. Também corrigido um bug no próprio `smoke-test.sh`: duas chamadas `curl` separadas (corpo + status) para o mesmo login, uma delas com timeout de 5s curto demais para o boot a frio do JVM/BCrypt — unificado em uma única chamada.
   KEEP: a abordagem de infra (Service Connect para `auth-service`↔Postgres e gateway↔`auth-service`, schema `auth` sem role dedicado) estava correta desde o início — os 2 bugs eram de configuração (hostname, client enrollment), não de arquitetura. `mvn clean test` (25 testes) revalidado após cada fix — todos verdes.
 
@@ -91,34 +91,34 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 ## Suggested Review Order
 
 - Ponto de entrada do login — único endpoint público do `auth-service`.
-  [`AuthController.java:24`](../../auth-service/src/main/java/com/filajusta/auth/infrastructure/web/AuthController.java#L24)
+  [`AuthController.java:24`](../../auth-service/src/main/java/com/confirmasus/auth/infrastructure/web/AuthController.java#L24)
 
 **Caso de uso e domínio (Clean Architecture)**
 
 - Núcleo do login: busca usuário, compara hash, emite token — mesma exceção para os dois tipos de falha (não vaza qual ocorreu).
-  [`AutenticarUsuario.java:29`](../../auth-service/src/main/java/com/filajusta/auth/application/query/AutenticarUsuario.java#L29)
+  [`AutenticarUsuario.java:29`](../../auth-service/src/main/java/com/confirmasus/auth/application/query/AutenticarUsuario.java#L29)
 - Agregado de domínio puro, sem framework (AD-2).
-  [`Usuario.java:10`](../../auth-service/src/main/java/com/filajusta/auth/domain/Usuario.java#L10)
+  [`Usuario.java:10`](../../auth-service/src/main/java/com/confirmasus/auth/domain/Usuario.java#L10)
 - Exceção única para credencial inválida (usuário inexistente ou senha errada).
-  [`CredencialInvalidaException.java:10`](../../auth-service/src/main/java/com/filajusta/auth/application/query/CredencialInvalidaException.java#L10)
+  [`CredencialInvalidaException.java:10`](../../auth-service/src/main/java/com/confirmasus/auth/application/query/CredencialInvalidaException.java#L10)
 - Porta de saída para emissão de token (implementada em `infrastructure/security`).
-  [`TokenIssuer.java:10`](../../auth-service/src/main/java/com/filajusta/auth/application/query/TokenIssuer.java#L10)
+  [`TokenIssuer.java:10`](../../auth-service/src/main/java/com/confirmasus/auth/application/query/TokenIssuer.java#L10)
 - Porta de saída para busca de usuário (implementada em `infrastructure/persistence`).
-  [`UsuarioRepositorio.java:11`](../../auth-service/src/main/java/com/filajusta/auth/application/query/UsuarioRepositorio.java#L11)
+  [`UsuarioRepositorio.java:11`](../../auth-service/src/main/java/com/confirmasus/auth/application/query/UsuarioRepositorio.java#L11)
 
 **Validação e erros RFC 7807 (patch da review adversarial)**
 
 - `@NotBlank` em username/password — sem isso, campo ausente vazava como 500 não-RFC-7807.
-  [`LoginRequest.java:14`](../../auth-service/src/main/java/com/filajusta/auth/infrastructure/web/LoginRequest.java#L14)
+  [`LoginRequest.java:14`](../../auth-service/src/main/java/com/confirmasus/auth/infrastructure/web/LoginRequest.java#L14)
 - 3 handlers: credencial inválida → 401, requisição inválida → 400, fallback inesperado → 500 — todos RFC 7807.
-  [`AuthExceptionHandler.java:28`](../../auth-service/src/main/java/com/filajusta/auth/infrastructure/web/AuthExceptionHandler.java#L28)
+  [`AuthExceptionHandler.java:28`](../../auth-service/src/main/java/com/confirmasus/auth/infrastructure/web/AuthExceptionHandler.java#L28)
 
 **Emissão de JWT**
 
 - HS256 via jjwt; guarda contra `expiration-seconds` ≤ 0 (patch da review) evita token já expirado na emissão.
-  [`JwtTokenIssuer.java:28`](../../auth-service/src/main/java/com/filajusta/auth/infrastructure/security/JwtTokenIssuer.java#L28)
+  [`JwtTokenIssuer.java:28`](../../auth-service/src/main/java/com/confirmasus/auth/infrastructure/security/JwtTokenIssuer.java#L28)
 - Claims emitidos (`sub`/`role`/`iat`/`exp`).
-  [`JwtTokenIssuer.java:41`](../../auth-service/src/main/java/com/filajusta/auth/infrastructure/security/JwtTokenIssuer.java#L41)
+  [`JwtTokenIssuer.java:41`](../../auth-service/src/main/java/com/confirmasus/auth/infrastructure/security/JwtTokenIssuer.java#L41)
 
 **Persistência (schema `auth`, AD-9)**
 
@@ -127,9 +127,9 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 - 3 usuários sintéticos com hash BCrypt pré-computado (regulador/triagem/auditor).
   [`V1__create_auth_schema_and_users.sql:21`](../../auth-service/src/main/resources/db/migration/V1__create_auth_schema_and_users.sql#L21)
 - Mapeamento JPA da tabela `auth.usuarios`.
-  [`UsuarioJpaEntity.java:18`](../../auth-service/src/main/java/com/filajusta/auth/infrastructure/persistence/UsuarioJpaEntity.java#L18)
+  [`UsuarioJpaEntity.java:18`](../../auth-service/src/main/java/com/confirmasus/auth/infrastructure/persistence/UsuarioJpaEntity.java#L18)
 - Adapter que liga a porta de domínio ao Spring Data.
-  [`UsuarioRepositorioAdapter.java:23`](../../auth-service/src/main/java/com/filajusta/auth/infrastructure/persistence/UsuarioRepositorioAdapter.java#L23)
+  [`UsuarioRepositorioAdapter.java:23`](../../auth-service/src/main/java/com/confirmasus/auth/infrastructure/persistence/UsuarioRepositorioAdapter.java#L23)
 
 **Roteamento público no gateway (AD-14)**
 
@@ -139,21 +139,21 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/epic-1-context.m
 **Infraestrutura (CDK)**
 
 - Secret `JwtSecret` (HS256, compartilhado com o gateway, deferido).
-  [`FilaJustaStack.java:223`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L223)
+  [`ConfirmaSusStack.java:223`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L223)
 - Service Connect do `auth-service` (DNS interno) — como o gateway alcança o login.
-  [`FilaJustaStack.java:439`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L439)
+  [`ConfirmaSusStack.java:439`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L439)
 - Credenciais do Postgres (reusando o secret admin) e o novo `JwtSecret` injetados no `auth-service`.
-  [`FilaJustaStack.java:165`](../../infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java#L165)
+  [`ConfirmaSusStack.java:165`](../../infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java#L165)
 
 **Testes (peripherals)**
 
 - Cobre a I/O Matrix completa: login válido (3 usuários), senha errada, usuário inexistente, campos ausentes.
-  [`AuthLoginIntegrationTest.java:72`](../../auth-service/src/test/java/com/filajusta/auth/AuthLoginIntegrationTest.java#L72)
+  [`AuthLoginIntegrationTest.java:72`](../../auth-service/src/test/java/com/confirmasus/auth/AuthLoginIntegrationTest.java#L72)
 - Prova que a rota do gateway de fato encaminha para o `auth-service` (patch da review — sem isso, um typo na rota não seria pego por nenhum teste).
-  [`AuthLoginRouteTest.java:31`](../../gateway-service/src/test/java/com/filajusta/gateway/AuthLoginRouteTest.java#L31)
+  [`AuthLoginRouteTest.java:31`](../../gateway-service/src/test/java/com/confirmasus/gateway/AuthLoginRouteTest.java#L31)
 - Verifica Service Connect DNS e injeção dos 3 secrets via CDK.
-  [`FilaJustaStackTest.java:141`](../../infra-cdk/src/test/java/com/filajusta/infra/FilaJustaStackTest.java#L141)
+  [`ConfirmaSusStackTest.java:141`](../../infra-cdk/src/test/java/com/confirmasus/infra/ConfirmaSusStackTest.java#L141)
 - Dependências novas (JPA, Postgres driver, Flyway, jjwt, validation, BCrypt).
   [`pom.xml:44`](../../auth-service/pom.xml#L44)
 - Raiz de composição: liga as portas `application.query` aos adapters de `infrastructure`.
-  [`AuthServiceApplication.java:28`](../../auth-service/src/main/java/com/filajusta/auth/AuthServiceApplication.java#L28)
+  [`AuthServiceApplication.java:28`](../../auth-service/src/main/java/com/confirmasus/auth/AuthServiceApplication.java#L28)

@@ -80,35 +80,35 @@ baseline_commit: 'f01861d0bb5f4ac174238137dc68401bb1ecfcbd'
 **Desempate residual na fila (entrada)**
 
 - Comparator encadeado `prioridadeEfetiva` desc → `occurredAt` asc → `numeroSequencialTriagem` asc, nulls-last -- núcleo do AC de AD-5.
-  [`ConsultarFilaPriorizada.java:81`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarFilaPriorizada.java#L81)
+  [`ConsultarFilaPriorizada.java:81`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarFilaPriorizada.java#L81)
 
 - `ItemFila` ganha o campo e o propaga a partir de `ScoreReplica` na fábrica `de(...)`.
-  [`ConsultarFilaPriorizada.java:86`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarFilaPriorizada.java#L86)
+  [`ConsultarFilaPriorizada.java:86`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarFilaPriorizada.java#L86)
 
 **Escrita em `ScoreReplica` (domínio + persistência)**
 
 - Novo campo nullable no construtor -- campo de carga, nunca entra em `maisRecenteQue`.
-  [`ScoreReplica.java:48`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/domain/ScoreReplica.java#L48)
+  [`ScoreReplica.java:48`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/domain/ScoreReplica.java#L48)
 
 - Patch 1 do code review: `COALESCE(excluded.*, score_replica.*)` preserva valor conhecido quando o vencedor da tupla chega com `null`.
-  [`ScoreReplicaJpaRepository.java:42`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/ScoreReplicaJpaRepository.java#L42)
+  [`ScoreReplicaJpaRepository.java:42`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/ScoreReplicaJpaRepository.java#L42)
 
 - Query de leitura (`GET /v1/fila`) passa a repassar o campo da entidade JPA de volta ao domínio -- necessário para o desempate funcionar, adição fora do Code Map original.
-  [`FilaRepositorioAdapter.java:47`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/FilaRepositorioAdapter.java#L47)
+  [`FilaRepositorioAdapter.java:47`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/FilaRepositorioAdapter.java#L47)
 
 **Duas origens de escrita (bootstrap + consumidor SQS)**
 
 - Patch 2 do code review: `isIntegralNumber()`/`canConvertToLong()` evita truncar silenciosamente um `triagemId` fracionário ou fora da faixa de `long`.
-  [`ScoreCalculadoConsumerJob.java:203`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L203)
+  [`ScoreCalculadoConsumerJob.java:203`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L203)
 
 - Extração lida fora de `validarEnvelope` -- ausência/formato inválido nunca rejeita o evento inteiro.
-  [`ScoreCalculadoConsumerJob.java:156`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L156)
+  [`ScoreCalculadoConsumerJob.java:156`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/relay/ScoreCalculadoConsumerJob.java#L156)
 
 - Bootstrap síncrono repassa o campo do DTO ao caso de uso, mesmo padrão do consumidor.
-  [`ScoreBootstrapService.java:80`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/bootstrap/ScoreBootstrapService.java#L80)
+  [`ScoreBootstrapService.java:80`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/bootstrap/ScoreBootstrapService.java#L80)
 
 - DTO de desserialização ganha o campo nullable, mapeado por nome via Jackson.
-  [`ScoreInternalDto.java:28`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/bootstrap/ScoreInternalDto.java#L28)
+  [`ScoreInternalDto.java:28`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/bootstrap/ScoreInternalDto.java#L28)
 
 **Peripherals**
 

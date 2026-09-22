@@ -3,7 +3,22 @@
     "allow": [
       "Bash(*)",
       "FileEdit(*)",
-      "FileRead(*)"
+      "FileRead(*)",
+      "Bash(mkdir -p /Users/thiagoferreira/.claude/plans)",
+      "Read(//Users/thiagoferreira/.claude/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/auditoria-service/src/main/java/com/confirmasus/auditoria/infrastructure/relay/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/auditoria-service/src/main/java/com/confirmasus/auditoria/infrastructure/persistence/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/_bmad-output/implementation-artifacts/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/auditoria-service/src/test/java/com/confirmasus/auditoria/application/query/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/auditoria-service/src/test/java/com/confirmasus/auditoria/infrastructure/web/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/auditoria-service/src/main/java/com/confirmasus/auditoria/domain/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/auditoria-service/src/main/java/com/confirmasus/auditoria/application/port/**)",
+      "Read(//Users/thiagoferreira/Documents/FIAP/Fase\\\\\\\\ 5/auditoria-service/src/main/java/com/confirmasus/auditoria/infrastructure/web/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/thiagoferreira/Documents/FIAP/Fase\\ 5/auditoria-service/src/main/java/com/confirmasus/auditoria/application/port",
+      "/Users/thiagoferreira/.claude"
     ]
   }
 }

@@ -78,47 +78,47 @@ baseline_commit: 'fc951f5cb935c5132d3abc9f6b543b0870192156'
 **Rastreamento AD-10 (entry point)**
 
 - `@Transactional` não-`readOnly` -- precisa aceitar a escrita de bootstrap de `ConsultarFilaPriorizada` na mesma transação.
-  [`ConsultarSugestaoRecurso.java:113`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarSugestaoRecurso.java#L113)
+  [`ConsultarSugestaoRecurso.java:113`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecurso.java#L113)
 
 - Chama `registrar` direto (sem pré-ler o valor anterior); só publica `SugestaoGerada` quando `registrar` retorna `true`.
-  [`ConsultarSugestaoRecurso.java:145-153`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/query/ConsultarSugestaoRecurso.java#L145-L153)
+  [`ConsultarSugestaoRecurso.java:145-153`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecurso.java#L145-L153)
 
 **Compare-and-set atômico (fecha a corrida de eventos duplicados)**
 
 - `WHERE paciente_id <> excluded.paciente_id` no upsert nativo -- só conta como linha afetada quando o valor de fato muda.
-  [`UltimaSugestaoRegistradaJpaRepository.java:42-44`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/UltimaSugestaoRegistradaJpaRepository.java#L42-L44)
+  [`UltimaSugestaoRegistradaJpaRepository.java:42-44`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/UltimaSugestaoRegistradaJpaRepository.java#L42-L44)
 
 - Adapter devolve `linhasAfetadas > 0` como o `boolean` que decide a publicação do evento.
-  [`UltimaSugestaoRegistradaRepositorioAdapter.java:41`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapter.java#L41)
+  [`UltimaSugestaoRegistradaRepositorioAdapter.java:41`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapter.java#L41)
 
 - Porto muda de `void` para `boolean` -- contrato agora expõe se a escrita de fato aconteceu.
-  [`UltimaSugestaoRegistradaRepositorio.java:49`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/application/command/UltimaSugestaoRegistradaRepositorio.java#L49)
+  [`UltimaSugestaoRegistradaRepositorio.java:49`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/application/command/UltimaSugestaoRegistradaRepositorio.java#L49)
 
 **Wiring**
 
 - Bean `consultarSugestaoRecurso` ganha as 3 dependências novas.
-  [`MatchingAlocacaoServiceApplication.java:124`](../../matching-alocacao-service/src/main/java/com/filajusta/matching/MatchingAlocacaoServiceApplication.java#L124)
+  [`MatchingAlocacaoServiceApplication.java:124`](../../matching-alocacao-service/src/main/java/com/confirmasus/matching/MatchingAlocacaoServiceApplication.java#L124)
 
 **Testes -- prova de concorrência real**
 
 - N threads via `ExecutorService`/`CountDownLatch` contra Postgres real -- exatamente 1 retorna `true`, fechando a duplicação de eventos.
-  [`UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java:137`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java#L137)
+  [`UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java:137`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/infrastructure/persistence/UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest.java#L137)
 
 **Testes E2E (HTTP + Postgres real)**
 
 - Transição real `A→B` -- 2 eventos `SugestaoGerada` distintos, mesma linha de `ultima_sugestao_registrada` atualizada.
-  [`RecursoSugestaoControllerIntegrationTest.java:297`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/RecursoSugestaoControllerIntegrationTest.java#L297)
+  [`RecursoSugestaoControllerIntegrationTest.java:297`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/RecursoSugestaoControllerIntegrationTest.java#L297)
 
 - Bootstrap a frio através deste endpoint -- prova que `@Transactional` não-`readOnly` aceita a escrita de bootstrap.
-  [`RecursoSugestaoControllerIntegrationTest.java:410`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/RecursoSugestaoControllerIntegrationTest.java#L410)
+  [`RecursoSugestaoControllerIntegrationTest.java:410`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/RecursoSugestaoControllerIntegrationTest.java#L410)
 
 - Assert do campo `sugeridoEm` do payload publicado (não só `pacienteId`).
-  [`RecursoSugestaoControllerIntegrationTest.java:331-333`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/RecursoSugestaoControllerIntegrationTest.java#L331-L333)
+  [`RecursoSugestaoControllerIntegrationTest.java:331-333`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/RecursoSugestaoControllerIntegrationTest.java#L331-L333)
 
 **Testes unitários**
 
 - Primeira sugestão registra e publica -- cobre a I/O Matrix com mocks.
-  [`ConsultarSugestaoRecursoTest.java:267`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/query/ConsultarSugestaoRecursoTest.java#L267)
+  [`ConsultarSugestaoRecursoTest.java:267`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecursoTest.java#L267)
 
 - 2 chamadas sequenciais ao caso de uso -- nome corrigido no review para não sugerir concorrência real (essa fica no teste do adapter).
-  [`ConsultarSugestaoRecursoTest.java:336`](../../matching-alocacao-service/src/test/java/com/filajusta/matching/application/query/ConsultarSugestaoRecursoTest.java#L336)
+  [`ConsultarSugestaoRecursoTest.java:336`](../../matching-alocacao-service/src/test/java/com/confirmasus/matching/application/query/ConsultarSugestaoRecursoTest.java#L336)

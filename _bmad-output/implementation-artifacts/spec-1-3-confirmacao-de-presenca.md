@@ -39,7 +39,7 @@ baseline_commit: 'c32f5185ba7f06b934adf4d98a35fe099d9b0e18'
 
 ## Code Map
 
-- `agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/domain/Agendamento.java:75` -- `abrirJanela()` é o molde a copiar; adicionar `confirmar()` retornando cópia com `status = CONFIRMADO`.
+- `agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/domain/Agendamento.java:75` -- `abrirJanela()` é o molde a copiar; adicionar `confirmar()` retornando cópia com `status = CONFIRMADO`.
 - `agendamento-confirmacao-service/.../domain/StatusAgendamento.java:12-17` -- enum já contém `CONFIRMADO`; nenhuma alteração.
 - `agendamento-confirmacao-service/.../domain/EventoOutbox.java:25-92` -- reaproveitar `comId(...)` para montar o evento `ConfirmacaoRegistrada`, sem alteração.
 - `agendamento-confirmacao-service/.../application/command/AbrirJanelaDeConfirmacao.java:46-121` -- precedente estrutural direto: `@Transactional`, escrita condicional + outbox na mesma transação, `EVENT_TYPE` como constante, `correlationId = "agendamento-" + id`.
@@ -90,37 +90,37 @@ baseline_commit: 'c32f5185ba7f06b934adf4d98a35fe099d9b0e18'
 **Caso de uso `ConfirmarPresenca`**
 
 - Ponto de entrada: comando que orquestra a transição de estado inteira dentro de uma única transação.
-  [`ConfirmarPresenca.java:60`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/ConfirmarPresenca.java#L60)
+  [`ConfirmarPresenca.java:60`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/ConfirmarPresenca.java#L60)
 
 - Após patch de revisão: retentativa única quando a janela abre entre a escrita condicional falhar e a releitura.
-  [`ConfirmarPresenca.java:99`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/ConfirmarPresenca.java#L99)
+  [`ConfirmarPresenca.java:99`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/ConfirmarPresenca.java#L99)
 
 **Escrita condicional e releitura de estado (AD-4)**
 
 - Nova porta de releitura por id, necessária para decidir sucesso silencioso vs. `409` vs. `404`.
-  [`AgendamentoRepositorio.java:57`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/AgendamentoRepositorio.java#L57)
+  [`AgendamentoRepositorio.java:57`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/AgendamentoRepositorio.java#L57)
 
 - Mensagem de conflito distinguindo janela não aberta vs. vaga liberada.
-  [`AgendamentoForaDaJanelaException.java:24`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/application/command/AgendamentoForaDaJanelaException.java#L24)
+  [`AgendamentoForaDaJanelaException.java:24`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/application/command/AgendamentoForaDaJanelaException.java#L24)
 
 **Camada web — novo endpoint e tratamento de erro**
 
 - Novo endpoint `POST /v1/agendamentos/{id}/confirmacao`, sem corpo de resposta.
-  [`AgendamentoController.java:45`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/web/AgendamentoController.java#L45)
+  [`AgendamentoController.java:45`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/web/AgendamentoController.java#L45)
 
 - Handlers de `404`/`409` no molde RFC 7807 de `matching-alocacao-service`.
-  [`AgendamentoExceptionHandler.java:84`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/web/AgendamentoExceptionHandler.java#L84)
+  [`AgendamentoExceptionHandler.java:84`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/web/AgendamentoExceptionHandler.java#L84)
 
 - Patch de revisão: `id` malformado no path agora vira `400` em vez de `500` genérico.
-  [`AgendamentoExceptionHandler.java:112`](../../agendamento-confirmacao-service/src/main/java/com/filajusta/agendamento/infrastructure/web/AgendamentoExceptionHandler.java#L112)
+  [`AgendamentoExceptionHandler.java:112`](../../agendamento-confirmacao-service/src/main/java/com/confirmasus/agendamento/infrastructure/web/AgendamentoExceptionHandler.java#L112)
 
 **Testes**
 
 - Cobertura da I/O Matrix inteira (válida, duplicada, janela não aberta, liberada, inexistente) + retentativa da corrida.
-  [`ConfirmarPresencaTest.java:73`](../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/application/command/ConfirmarPresencaTest.java#L73)
+  [`ConfirmarPresencaTest.java:73`](../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/application/command/ConfirmarPresencaTest.java#L73)
 
 - Prova de exclusão mútua contra Postgres real (8 threads concorrentes no mesmo `agendamentoId`).
-  [`ConfirmarPresencaConcurrencyIntegrationTest.java:59`](../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/application/command/ConfirmarPresencaConcurrencyIntegrationTest.java#L59)
+  [`ConfirmarPresencaConcurrencyIntegrationTest.java:59`](../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/application/command/ConfirmarPresencaConcurrencyIntegrationTest.java#L59)
 
 - Contrato HTTP ponta a ponta, incluindo o caso de `id` malformado do patch.
-  [`AgendamentoControllerIntegrationTest.java:260`](../../agendamento-confirmacao-service/src/test/java/com/filajusta/agendamento/AgendamentoControllerIntegrationTest.java#L260)
+  [`AgendamentoControllerIntegrationTest.java:260`](../../agendamento-confirmacao-service/src/test/java/com/confirmasus/agendamento/AgendamentoControllerIntegrationTest.java#L260)
