@@ -4,6 +4,7 @@ import com.confirmasus.auditoria.application.query.ConsultarAuditoriaAgendamento
 import com.confirmasus.auditoria.application.query.ConsultarAuditoriaPaciente;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.domain.StatusAgendamento;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,7 +73,7 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao1, decisao2, decisao3));
 
         // Act
-        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, null);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -96,7 +97,7 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaPaciente.consultar(eq(pacienteId), any(Optional.class))).thenReturn(List.of());
 
         // Act
-        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, null);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -127,7 +128,7 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao1, decisao2));
 
         // Act
-        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null, null);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -151,7 +152,7 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaAgendamento.consultar(eq(agendamentoId), any(Optional.class))).thenReturn(List.of());
 
         // Act
-        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null, null);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -181,7 +182,7 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaPaciente.consultar(eq(pacienteId), any(Optional.class))).thenReturn(decisoes);
 
         // Act
-        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, null);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -210,7 +211,7 @@ class AuditoriaControllerIntegrationTest {
         when(consultarAuditoriaAgendamento.consultar(eq(agendamentoId), any(Optional.class))).thenReturn(decisoes);
 
         // Act
-        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null, null);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -238,7 +239,7 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao));
 
         // Act
-        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, correlationId);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, correlationId);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -266,7 +267,7 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of(decisao));
 
         // Act
-        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, correlationId);
+        Object resultado = controller.consultarAgendamento(agendamentoId, null, null, null, null, null, null, correlationId);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
@@ -286,7 +287,7 @@ class AuditoriaControllerIntegrationTest {
                 .thenReturn(List.of());
 
         // Act
-        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, null);
 
         // Assert
         assertThat(resultado).isInstanceOf(List.class);
