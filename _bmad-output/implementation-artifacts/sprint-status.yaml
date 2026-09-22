@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-07-2026 03:15
-last_updated: 09-22-2026 10:45
+last_updated: 09-21-2026 22:42
 project: Fase 5
 project_key: NOKEY
 tracking_system: file-system
@@ -171,7 +171,8 @@ development_status:
   4-2-consulta-de-auditoria-por-paciente-ou-recurso: done
   4-3-filtros-avançados-de-consulta-auditória: done
   4-4-filtro-status-agendamento: done
-  epic-4-retrospective: optional
+  4-4b-filtro-tipo-paciente: done
+  epic-4-retrospective: done
 
   epic-5: backlog
   5-1-carga-de-dados-sintéticos-via-camada-adaptadora: backlog
@@ -218,8 +219,8 @@ action_items:
     action: "Decidir e registrar o destino dos endpoints gRPC internos (ResolveCpfParaId,
       ObterCpfMascarado) declarados no Technical Decisions do epic-2-context.md —
       hoje sem implementação nem registro de adiamento. DECISÃO 2026-09-08: manter
-      a declaração no epic-2-context.md e adiar a implementação até o primeiro
-      consumidor real precisar (Epic 3/4) — registrado em deferred-work.md."
+      a declaração no epic-2-context.md e adiar a implementação até o primeiro consumidor
+      real precisar (Epic 3/4) — registrado em deferred-work.md."
     owner: "ThiagoFerreira"
     status: done
     ref: "_bmad-output/implementation-artifacts/deferred-work.md#deferred-from-retrospectiva-do-epic-2-2026-09-08-epic-2-retro-2026-09-08md"
@@ -234,15 +235,13 @@ action_items:
     epic: 2
     action: "Configurar JaCoCo (≥90% domínio) + PIT no triagem-score-service — já
       apontado como \"antes do fechamento do Epic 2\" na revisão da Story 2.1 e ainda
-      não feito. RESOLVIDO 2026-09-08: jacoco-maven-plugin 0.8.13 (rule BUNDLE
-      restrita a com.confirmasus.triagem.domain.*, mínimo 90% LINE) vinculado a
-      test/verify — `mvn verify` confirmado passando (96,6% de cobertura de linha
-      no domínio). pitest-maven 1.30.0 + pitest-junit5-plugin 1.2.2 configurados
-      (targetClasses/targetTests = domain), não vinculados ao lifecycle por custo
-      — rodar sob demanda via
-      `mvn -pl triagem-score-service -am org.pitest:pitest-maven:mutationCoverage`
-      (confirmado rodando: 74% mutation score na 1ª execução, sem threshold
-      mínimo imposto)."
+      não feito. RESOLVIDO 2026-09-08: jacoco-maven-plugin 0.8.13 (rule BUNDLE restrita
+      a com.confirmasus.triagem.domain.*, mínimo 90% LINE) vinculado a test/verify
+      — `mvn verify` confirmado passando (96,6% de cobertura de linha no domínio).
+      pitest-maven 1.30.0 + pitest-junit5-plugin 1.2.2 configurados (targetClasses/targetTests
+      = domain), não vinculados ao lifecycle por custo — rodar sob demanda via `mvn
+      -pl triagem-score-service -am org.pitest:pitest-maven:mutationCoverage` (confirmado
+      rodando: 74% mutation score na 1ª execução, sem threshold mínimo imposto)."
     owner: "ThiagoFerreira"
     status: done
     ref: "triagem-score-service/pom.xml"
@@ -255,3 +254,17 @@ action_items:
     owner: "ThiagoFerreira"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-08.md"
+  - id: "epic-4-retro-item-9-upgrade-jacoco-para-0-8-13-quando-dispon"
+    epic: 4
+    action: "Upgrade JaCoCo para 0.8.13+ quando disponível em Maven Central para resolver
+      incompatibilidade com Java 25"
+    owner: "DevOps/Tech Lead"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-21.md"
+  - id: "epic-4-retro-item-10-executar-teste-manual-de-smoke-curl-post"
+    epic: 4
+    action: "Executar teste manual de smoke (curl/Postman) do filtro statusAgendamento
+      (Story 4.4a) antes de merge para master"
+    owner: "QA/Desenvolvedor"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-21.md"
