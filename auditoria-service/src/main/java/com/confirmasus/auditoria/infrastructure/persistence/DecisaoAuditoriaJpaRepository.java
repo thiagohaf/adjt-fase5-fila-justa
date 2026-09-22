@@ -180,4 +180,150 @@ public interface DecisaoAuditoriaJpaRepository extends JpaRepository<DecisaoAudi
             @Param("endDate") Instant endDate,
             @Param("tipoDecisao") String tipoDecisao
     );
+
+    /**
+     * Busca decisões de um paciente com filtros opcionais e filtro de status de agendamento (Story 4.4a).
+     *
+     * <p>Usa SQL nativo com JOIN à tabela agendamento_confirmacao.agendamentos para filtrar por statusAgendamento.
+     * Todos os filtros são opcionais (null = sem filtro, ignorado no WHERE).
+     * Se agendamento foi deletado, não retorna o registro (LEFT JOIN + IS NOT NULL no JOIN).
+     * Retorna apenas os registros no range [offset, offset+limit).
+     *
+     * <p>Paginação SQL-based (não stream.skip().limit()): O(1) em RAM, independente do tamanho do dataset.
+     *
+     * @param pacienteId o ID do paciente
+     * @param startDate data inicial (inclusive, nullable)
+     * @param endDate data final (inclusive, nullable)
+     * @param tipoDecisao tipo de decisão (nullable)
+     * @param statusAgendamento status do agendamento (nullable)
+     * @param offset quantidade de registros a pular
+     * @param limit quantidade de registros a retornar
+     * @return lista de entidades paginadas e ordenadas por timestamp crescente
+     */
+    @Query(value = """
+            SELECT d.id, d.evento_id, d.agendamento_id, d.paciente_id, d.tipo_decisao,
+                   d.motivo, d.timestamp, d.criado_em, d.payload_bruto
+            FROM auditoria.decisao_auditoria d
+            LEFT JOIN agendamento_confirmacao.agendamentos a ON d.agendamento_id = a.id
+            WHERE d.paciente_id = :pacienteId
+            AND (:startDate IS NULL OR d.timestamp >= :startDate)
+            AND (:endDate IS NULL OR d.timestamp <= :endDate)
+            AND (:tipoDecisao IS NULL OR d.tipo_decisao = CAST(:tipoDecisao AS VARCHAR))
+            AND (:statusAgendamento IS NULL OR a.status = CAST(:statusAgendamento AS VARCHAR))
+            ORDER BY d.timestamp ASC
+            LIMIT :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<DecisaoAuditoriaJpaEntity> findByPacienteIdWithFiltersAndStatusAgendamento(
+            @Param("pacienteId") Long pacienteId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate,
+            @Param("tipoDecisao") String tipoDecisao,
+            @Param("statusAgendamento") String statusAgendamento,
+            @Param("offset") int offset,
+            @Param("limit") int limit
+    );
+
+    /**
+     * Conta decisões de um paciente com filtros opcionais e filtro de status de agendamento (Story 4.4a).
+     *
+     * <p>Mesmos WHERE clauses que findByPacienteIdWithFiltersAndStatusAgendamento, mas SEM LIMIT/OFFSET.
+     * Retorna o total de registros que satisfazem os filtros.
+     *
+     * @param pacienteId o ID do paciente
+     * @param startDate data inicial (inclusive, nullable)
+     * @param endDate data final (inclusive, nullable)
+     * @param tipoDecisao tipo de decisão (nullable)
+     * @param statusAgendamento status do agendamento (nullable)
+     * @return total de registros que satisfazem os filtros
+     */
+    @Query(value = """
+            SELECT COUNT(d.id)
+            FROM auditoria.decisao_auditoria d
+            LEFT JOIN agendamento_confirmacao.agendamentos a ON d.agendamento_id = a.id
+            WHERE d.paciente_id = :pacienteId
+            AND (:startDate IS NULL OR d.timestamp >= :startDate)
+            AND (:endDate IS NULL OR d.timestamp <= :endDate)
+            AND (:tipoDecisao IS NULL OR d.tipo_decisao = CAST(:tipoDecisao AS VARCHAR))
+            AND (:statusAgendamento IS NULL OR a.status = CAST(:statusAgendamento AS VARCHAR))
+            """, nativeQuery = true)
+    long countByPacienteIdWithFiltersAndStatusAgendamento(
+            @Param("pacienteId") Long pacienteId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate,
+            @Param("tipoDecisao") String tipoDecisao,
+            @Param("statusAgendamento") String statusAgendamento
+    );
+
+    /**
+     * Busca decisões de um agendamento com filtros opcionais e filtro de status de agendamento (Story 4.4a).
+     *
+     * <p>Usa SQL nativo com JOIN à tabela agendamento_confirmacao.agendamentos para filtrar por statusAgendamento.
+     * Todos os filtros são opcionais (null = sem filtro, ignorado no WHERE).
+     * Se agendamento foi deletado, não retorna o registro (LEFT JOIN + IS NOT NULL no JOIN).
+     * Retorna apenas os registros no range [offset, offset+limit).
+     *
+     * <p>Paginação SQL-based (não stream.skip().limit()): O(1) em RAM, independente do tamanho do dataset.
+     *
+     * @param agendamentoId o ID do agendamento
+     * @param startDate data inicial (inclusive, nullable)
+     * @param endDate data final (inclusive, nullable)
+     * @param tipoDecisao tipo de decisão (nullable)
+     * @param statusAgendamento status do agendamento (nullable)
+     * @param offset quantidade de registros a pular
+     * @param limit quantidade de registros a retornar
+     * @return lista de entidades paginadas e ordenadas por timestamp crescente
+     */
+    @Query(value = """
+            SELECT d.id, d.evento_id, d.agendamento_id, d.paciente_id, d.tipo_decisao,
+                   d.motivo, d.timestamp, d.criado_em, d.payload_bruto
+            FROM auditoria.decisao_auditoria d
+            LEFT JOIN agendamento_confirmacao.agendamentos a ON d.agendamento_id = a.id
+            WHERE d.agendamento_id = :agendamentoId
+            AND (:startDate IS NULL OR d.timestamp >= :startDate)
+            AND (:endDate IS NULL OR d.timestamp <= :endDate)
+            AND (:tipoDecisao IS NULL OR d.tipo_decisao = CAST(:tipoDecisao AS VARCHAR))
+            AND (:statusAgendamento IS NULL OR a.status = CAST(:statusAgendamento AS VARCHAR))
+            ORDER BY d.timestamp ASC
+            LIMIT :limit OFFSET :offset
+            """, nativeQuery = true)
+    List<DecisaoAuditoriaJpaEntity> findByAgendamentoIdWithFiltersAndStatusAgendamento(
+            @Param("agendamentoId") Long agendamentoId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate,
+            @Param("tipoDecisao") String tipoDecisao,
+            @Param("statusAgendamento") String statusAgendamento,
+            @Param("offset") int offset,
+            @Param("limit") int limit
+    );
+
+    /**
+     * Conta decisões de um agendamento com filtros opcionais e filtro de status de agendamento (Story 4.4a).
+     *
+     * <p>Mesmos WHERE clauses que findByAgendamentoIdWithFiltersAndStatusAgendamento, mas SEM LIMIT/OFFSET.
+     * Retorna o total de registros que satisfazem os filtros.
+     *
+     * @param agendamentoId o ID do agendamento
+     * @param startDate data inicial (inclusive, nullable)
+     * @param endDate data final (inclusive, nullable)
+     * @param tipoDecisao tipo de decisão (nullable)
+     * @param statusAgendamento status do agendamento (nullable)
+     * @return total de registros que satisfazem os filtros
+     */
+    @Query(value = """
+            SELECT COUNT(d.id)
+            FROM auditoria.decisao_auditoria d
+            LEFT JOIN agendamento_confirmacao.agendamentos a ON d.agendamento_id = a.id
+            WHERE d.agendamento_id = :agendamentoId
+            AND (:startDate IS NULL OR d.timestamp >= :startDate)
+            AND (:endDate IS NULL OR d.timestamp <= :endDate)
+            AND (:tipoDecisao IS NULL OR d.tipo_decisao = CAST(:tipoDecisao AS VARCHAR))
+            AND (:statusAgendamento IS NULL OR a.status = CAST(:statusAgendamento AS VARCHAR))
+            """, nativeQuery = true)
+    long countByAgendamentoIdWithFiltersAndStatusAgendamento(
+            @Param("agendamentoId") Long agendamentoId,
+            @Param("startDate") Instant startDate,
+            @Param("endDate") Instant endDate,
+            @Param("tipoDecisao") String tipoDecisao,
+            @Param("statusAgendamento") String statusAgendamento
+    );
 }

@@ -671,3 +671,7 @@
 - source_spec: `spec-4-2-consulta-auditoria.md`
   summary: Performance/load testing — validar endpoints sob volume de histórico grande (10k+ registros por paciente/agendamento)
   evidence: Blind-hunter levantou ausência de testes de volume. Real, mas MVP não tem SLA de performance definido; implementar como story de hardening quando requisito de escala for conhecido.
+
+- source_spec: `spec-4-4-filtros-adicionais-agendamento.md` (split da intent original)
+  summary: Story 4.4b — Filtro de `tipoPaciente` em consultas de auditoria (PRIORITARIO, REGULAR, etc.)
+  evidence: A spec original de filtros adicionais (4.4) excedeu 1600 tokens porque deixa em aberto 3 questões críticas sobre contrato com agendamento-service e paciente-service. Split proposto: 4.4a (statusAgendamento) assume contrato já resolvido; 4.4b (tipoPaciente) fica deferred até paciente-service exposar campo de tipo e a interface ser clara. Depende de Story 4.4a estar pronta.

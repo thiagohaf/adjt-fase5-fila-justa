@@ -2,6 +2,7 @@ package com.confirmasus.auditoria.application.query;
 
 import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
+import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
@@ -133,6 +134,61 @@ public class ConsultarAuditoriaAgendamento {
             DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> resultado =
                     decisaoAuditoriaRepositorio.findByAgendamentoIdWithFilters(
                             agendamentoId, startDate, endDate, tipoDecisao, limit, offset
+                    );
+
+            // Null-check defensivo
+            return resultado != null ? resultado : new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(), 0L);
+        } finally {
+            // Limpa MDC após processamento
+            MDC.remove("X-Correlation-Id");
+        }
+    }
+
+    /**
+     * Consulta com filtros opcionais, incluindo status de agendamento, e paginação (Story 4.4a).
+     *
+     * <p>Propaga {@code X-Correlation-Id} ao MDC para structured logging conforme NFR-2.
+     *
+     * <p>Filtros são compostos com AND logic: todos os critérios fornecidos devem ser satisfeitos.
+     * Se agendamento foi deletado, não retorna o registro.
+     *
+     * @param agendamentoId o ID do agendamento (validado antes de chegar aqui)
+     * @param startDate data inicial do range (inclusive, nullable)
+     * @param endDate data final do range (inclusive, nullable)
+     * @param tipoDecisao tipo de decisão para filtrar (nullable)
+     * @param statusAgendamento status do agendamento para filtrar (nullable)
+     * @param limit quantidade máxima de registros (1-200, já validado no controller)
+     * @param offset posição inicial para paginação (>= 0, já validado no controller)
+     * @param correlationId o ID de correlação opcional para rastreamento distribuído
+     * @return resultado paginado com items e total
+     */
+    @Transactional(readOnly = true)
+    public DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> consultarComFiltrosEStatusAgendamento(
+            Long agendamentoId,
+            Instant startDate,
+            Instant endDate,
+            TipoDecisao tipoDecisao,
+            StatusAgendamento statusAgendamento,
+            int limit,
+            int offset,
+            Optional<String> correlationId
+    ) {
+        // Propaga X-Correlation-Id ao MDC
+        correlationId.ifPresentOrElse(
+                id -> MDC.put("X-Correlation-Id", id),
+                () -> MDC.remove("X-Correlation-Id")
+        );
+
+        try {
+            // Valida entrada
+            if (agendamentoId == null || agendamentoId <= 0) {
+                return new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(), 0L);
+            }
+
+            // Delega ao repositório com filtros
+            DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> resultado =
+                    decisaoAuditoriaRepositorio.findByAgendamentoIdWithFiltersAndStatusAgendamento(
+                            agendamentoId, startDate, endDate, tipoDecisao, statusAgendamento, limit, offset
                     );
 
             // Null-check defensivo
