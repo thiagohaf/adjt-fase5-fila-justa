@@ -70,7 +70,7 @@ class AuditoriaControllerFilterIntegrationTest {
                 .thenReturn(List.of(decisao));
 
         // Act
-        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, null);
+        Object resultado = controller.consultarPaciente(pacienteId, null, null, null, null, null, null, null, null);
 
         // Assert
         assertTrue(resultado instanceof List);

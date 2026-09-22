@@ -4,6 +4,7 @@ import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.domain.TipoPaciente;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -229,6 +230,98 @@ class DecisaoAuditoriaRepositorioAdapter implements DecisaoAuditoriaRepositorio 
         // Busca itens paginados com filtros (paginação via SQL LIMIT/OFFSET)
         List<DecisaoAuditoriaJpaEntity> entities = jpaRepository.findByAgendamentoIdWithFiltersAndStatusAgendamento(
                 agendamentoId, startDate, endDate, tipoDecisaoStr, statusAgendamentoStr, offset, limit
+        );
+
+        // Converte entidades para domínio
+        List<DecisaoAuditoria> items = entities.stream()
+                .map(this::paraDominio)
+                .toList();
+
+        return new PaginatedResult<>(items, total);
+    }
+
+    @Override
+    public PaginatedResult<DecisaoAuditoria> findByPacienteIdWithFiltersAndStatusAgendamentoAndTipoPaciente(Long pacienteId,
+                                                                                                              Instant startDate,
+                                                                                                              Instant endDate,
+                                                                                                              TipoDecisao tipoDecisao,
+                                                                                                              StatusAgendamento statusAgendamento,
+                                                                                                              TipoPaciente tipoPaciente,
+                                                                                                              int limit,
+                                                                                                              int offset) {
+        // Valida entrada
+        if (pacienteId == null || pacienteId <= 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Converte TipoDecisao para String para SQL nativo (null se não filtrado)
+        String tipoDecisaoStr = tipoDecisao != null ? tipoDecisao.name() : null;
+
+        // Converte StatusAgendamento para String para SQL nativo (null se não filtrado)
+        String statusAgendamentoStr = statusAgendamento != null ? statusAgendamento.name() : null;
+
+        // Converte TipoPaciente para String para SQL nativo (null se não filtrado)
+        String tipoPacienteStr = tipoPaciente != null ? tipoPaciente.name() : null;
+
+        // Conta total com filtros (SEM paginação)
+        long total = jpaRepository.countByPacienteIdWithFiltersAndStatusAgendamentoAndTipoPaciente(
+                pacienteId, startDate, endDate, tipoDecisaoStr, statusAgendamentoStr, tipoPacienteStr
+        );
+
+        // Se total é 0, retorna vazio sem fazer select
+        if (total == 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Busca itens paginados com filtros (paginação via SQL LIMIT/OFFSET)
+        List<DecisaoAuditoriaJpaEntity> entities = jpaRepository.findByPacienteIdWithFiltersAndStatusAgendamentoAndTipoPaciente(
+                pacienteId, startDate, endDate, tipoDecisaoStr, statusAgendamentoStr, tipoPacienteStr, offset, limit
+        );
+
+        // Converte entidades para domínio
+        List<DecisaoAuditoria> items = entities.stream()
+                .map(this::paraDominio)
+                .toList();
+
+        return new PaginatedResult<>(items, total);
+    }
+
+    @Override
+    public PaginatedResult<DecisaoAuditoria> findByAgendamentoIdWithFiltersAndStatusAgendamentoAndTipoPaciente(Long agendamentoId,
+                                                                                                                 Instant startDate,
+                                                                                                                 Instant endDate,
+                                                                                                                 TipoDecisao tipoDecisao,
+                                                                                                                 StatusAgendamento statusAgendamento,
+                                                                                                                 TipoPaciente tipoPaciente,
+                                                                                                                 int limit,
+                                                                                                                 int offset) {
+        // Valida entrada
+        if (agendamentoId == null || agendamentoId <= 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Converte TipoDecisao para String para SQL nativo (null se não filtrado)
+        String tipoDecisaoStr = tipoDecisao != null ? tipoDecisao.name() : null;
+
+        // Converte StatusAgendamento para String para SQL nativo (null se não filtrado)
+        String statusAgendamentoStr = statusAgendamento != null ? statusAgendamento.name() : null;
+
+        // Converte TipoPaciente para String para SQL nativo (null se não filtrado)
+        String tipoPacienteStr = tipoPaciente != null ? tipoPaciente.name() : null;
+
+        // Conta total com filtros (SEM paginação)
+        long total = jpaRepository.countByAgendamentoIdWithFiltersAndStatusAgendamentoAndTipoPaciente(
+                agendamentoId, startDate, endDate, tipoDecisaoStr, statusAgendamentoStr, tipoPacienteStr
+        );
+
+        // Se total é 0, retorna vazio sem fazer select
+        if (total == 0) {
+            return new PaginatedResult<>(List.of(), 0L);
+        }
+
+        // Busca itens paginados com filtros (paginação via SQL LIMIT/OFFSET)
+        List<DecisaoAuditoriaJpaEntity> entities = jpaRepository.findByAgendamentoIdWithFiltersAndStatusAgendamentoAndTipoPaciente(
+                agendamentoId, startDate, endDate, tipoDecisaoStr, statusAgendamentoStr, tipoPacienteStr, offset, limit
         );
 
         // Converte entidades para domínio

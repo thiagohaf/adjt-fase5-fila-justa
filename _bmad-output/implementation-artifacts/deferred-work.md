@@ -675,3 +675,17 @@
 - source_spec: `spec-4-4-filtros-adicionais-agendamento.md` (split da intent original)
   summary: Story 4.4b — Filtro de `tipoPaciente` em consultas de auditoria (PRIORITARIO, REGULAR, etc.)
   evidence: A spec original de filtros adicionais (4.4) excedeu 1600 tokens porque deixa em aberto 3 questões críticas sobre contrato com agendamento-service e paciente-service. Split proposto: 4.4a (statusAgendamento) assume contrato já resolvido; 4.4b (tipoPaciente) fica deferred até paciente-service exposar campo de tipo e a interface ser clara. Depende de Story 4.4a estar pronta.
+
+## Deferred from Retrospective do Epic 4 (epic-4-retro-2026-09-21.md)
+
+- source_spec: `epic-4-retro-2026-09-21.md` (Action Item 1)
+  summary: Upgrade JaCoCo para 0.8.13+ para resolver incompatibilidade com Java 25
+  evidence: JaCoCo 0.8.12 falha ao gerar report em Java 25 (incompatibilidade conhecida, será resolvida em 0.8.13 upstream). Nenhum impacto funcional — testes rodam e cobertura está implementada (inspecionada como ≥90% domain/application), apenas report não é gerado. Deferred: próximo ciclo de dependências ou quando 0.8.13 disponível em Maven Central.
+
+- source_spec: `epic-4-retro-2026-09-21.md` (Action Item 2)
+  summary: Teste manual de smoke (curl/Postman) do filtro statusAgendamento (Story 4.4a)
+  evidence: Cobertura de testes (unit + integration) valida statusAgendamento filter e dicotomia de response, mas E2E não foi exercitado (requer environment completo com eventos de triagem/matching/alocacao sendo publicados + auditoria-service rodando). Recomendado antes de merge para `master` se o workflow o requer; pode ser feito na mesma sessão de merge ou em QA staging.
+
+- source_spec: `epic-4-retro-2026-09-21.md` (Open Question 3)
+  summary: Resilience de LEFT JOIN com agendamento-service durante queries de auditoria
+  evidence: Story 4.4a implementa LEFT JOIN síncrono com `agendamento_confirmacao.agendamentos` durante query. Se agendamento-service estiver fora, queries falham. Para auditoria (read-side), aceitável no MVP, mas considerar denormalização (snapshot de statusAgendamento populado ao consumir evento) se latência/disponibilidade for problema em scale.

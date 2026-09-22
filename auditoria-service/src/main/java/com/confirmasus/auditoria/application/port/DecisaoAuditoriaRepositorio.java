@@ -3,6 +3,7 @@ package com.confirmasus.auditoria.application.port;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.domain.TipoPaciente;
 
 import java.time.Instant;
 import java.util.List;
@@ -138,6 +139,58 @@ public interface DecisaoAuditoriaRepositorio {
                                                                                           StatusAgendamento statusAgendamento,
                                                                                           int limit,
                                                                                           int offset);
+
+    /**
+     * Busca decisões de um paciente com filtros opcionais, incluindo status de agendamento e tipo de paciente, e paginação (Story 4.4b).
+     *
+     * <p>Retorna resultado contendo lista paginada e total de registros que satisfazem os filtros.
+     * Filtros são compostos com AND logic (todos devem ser satisfeitos).
+     * Se agendamento ou paciente foi deletado, não retorna o registro.
+     *
+     * @param pacienteId o ID do paciente
+     * @param startDate data inicial do range (nullable, inclusivo)
+     * @param endDate data final do range (nullable, inclusivo)
+     * @param tipoDecisao tipo de decisão para filtrar (nullable)
+     * @param statusAgendamento status do agendamento para filtrar (nullable)
+     * @param tipoPaciente tipo de paciente para filtrar (nullable)
+     * @param limit quantidade de registros a retornar (1-200)
+     * @param offset posição inicial (0 = primeiro registro)
+     * @return resultado com items paginados e total de registros
+     */
+    PaginatedResult<DecisaoAuditoria> findByPacienteIdWithFiltersAndStatusAgendamentoAndTipoPaciente(Long pacienteId,
+                                                                                                      Instant startDate,
+                                                                                                      Instant endDate,
+                                                                                                      TipoDecisao tipoDecisao,
+                                                                                                      StatusAgendamento statusAgendamento,
+                                                                                                      TipoPaciente tipoPaciente,
+                                                                                                      int limit,
+                                                                                                      int offset);
+
+    /**
+     * Busca decisões de um agendamento com filtros opcionais, incluindo status de agendamento e tipo de paciente, e paginação (Story 4.4b).
+     *
+     * <p>Retorna resultado contendo lista paginada e total de registros que satisfazem os filtros.
+     * Filtros são compostos com AND logic (todos devem ser satisfeitos).
+     * Se agendamento ou paciente foi deletado, não retorna o registro.
+     *
+     * @param agendamentoId o ID do agendamento
+     * @param startDate data inicial do range (nullable, inclusivo)
+     * @param endDate data final do range (nullable, inclusivo)
+     * @param tipoDecisao tipo de decisão para filtrar (nullable)
+     * @param statusAgendamento status do agendamento para filtrar (nullable)
+     * @param tipoPaciente tipo de paciente para filtrar (nullable)
+     * @param limit quantidade de registros a retornar (1-200)
+     * @param offset posição inicial (0 = primeiro registro)
+     * @return resultado com items paginados e total de registros
+     */
+    PaginatedResult<DecisaoAuditoria> findByAgendamentoIdWithFiltersAndStatusAgendamentoAndTipoPaciente(Long agendamentoId,
+                                                                                                        Instant startDate,
+                                                                                                        Instant endDate,
+                                                                                                        TipoDecisao tipoDecisao,
+                                                                                                        StatusAgendamento statusAgendamento,
+                                                                                                        TipoPaciente tipoPaciente,
+                                                                                                        int limit,
+                                                                                                        int offset);
 
     /**
      * Encapsula resultado de consulta paginada com metadados.
