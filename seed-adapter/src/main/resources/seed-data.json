@@ -35,5 +35,67 @@
       "especificidadeRank": 2,
       "disponivel": true
     }
+  ],
+  "agendamentos": [
+    {
+      "cpf": "11144477735",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440001",
+      "dataHoraAgendamento": "2026-10-01T14:00:00Z",
+      "estado": "AGUARDANDO_JANELA"
+    },
+    {
+      "cpf": "11144477736",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440002",
+      "dataHoraAgendamento": "2026-10-02T10:30:00Z",
+      "estado": "AGUARDANDO_CONFIRMACAO"
+    },
+    {
+      "cpf": "11144477737",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440001",
+      "dataHoraAgendamento": "2026-10-03T16:45:00Z",
+      "estado": "CONFIRMADO"
+    },
+    {
+      "cpf": "11144477738",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440003",
+      "dataHoraAgendamento": "2026-10-04T09:15:00Z",
+      "estado": "LIBERADO"
+    },
+    {
+      "cpf": "11144477739",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440004",
+      "dataHoraAgendamento": "2026-10-05T13:00:00Z",
+      "estado": "AGUARDANDO_JANELA"
+    },
+    {
+      "cpf": "11144477740",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440005",
+      "dataHoraAgendamento": "2026-10-06T11:30:00Z",
+      "estado": "CONFIRMADO"
+    },
+    {
+      "cpf": "11144477741",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440002",
+      "dataHoraAgendamento": "2026-10-07T15:20:00Z",
+      "estado": "LIBERADO"
+    },
+    {
+      "cpf": "11144477742",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440003",
+      "dataHoraAgendamento": "2026-10-08T08:45:00Z",
+      "estado": "AGUARDANDO_CONFIRMACAO"
+    },
+    {
+      "cpf": "11144477743",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440001",
+      "dataHoraAgendamento": "2026-10-09T14:30:00Z",
+      "estado": "CONFIRMADO"
+    },
+    {
+      "cpf": "11144477744",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440004",
+      "dataHoraAgendamento": "2026-10-10T12:00:00Z",
+      "estado": "LIBERADO"
+    }
   ]
 }
