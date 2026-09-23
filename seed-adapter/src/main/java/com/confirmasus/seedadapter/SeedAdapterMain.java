@@ -4,13 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Entrada principal do seed-adapter (Story 5.1).
+ * Entrada principal do seed-adapter (Stories 5.1, 5.2, 5.3+).
  *
  * Job de deploy-time que:
  * 1. Obtém credenciais técnicas de variáveis de ambiente
  * 2. Cria AuthClient e obtém JWT
- * 3. Cria RecursoClient
- * 4. Executa SeedDataLoader
+ * 3. Cria RecursoClient, AgendamentoClient
+ * 4. Executa SeedDataLoader com pipeline completo (Recursos → Agendamentos → Lista de Espera)
  * 5. Aborta com erro claro se qualquer serviço indisponível
  *
  * <p>Credenciais esperadas (env vars):
@@ -51,12 +51,13 @@ public class SeedAdapterMain {
             // Cria clients
             AuthClient authClient = new AuthClient(authServiceUrl, username, password);
             RecursoClient recursoClient = new RecursoClient(gatewayServiceUrl, authClient);
-            SeedDataLoader loader = new SeedDataLoader(recursoClient);
+            AgendamentoClient agendamentoClient = new AgendamentoClient(gatewayServiceUrl, authClient);
+            SeedDataLoader loader = new SeedDataLoader(recursoClient, agendamentoClient);
 
-            // Executa carga
+            // Executa carga com pipeline completo: Recursos → Agendamentos → (Lista de Espera)
             loader.carregar();
 
-            logger.info("Seed-adapter executado com sucesso");
+            logger.info("Seed-adapter executado com sucesso (Recursos, Agendamentos, e etapas subsequentes)");
             System.exit(0);
         } catch (IllegalStateException e) {
             logger.error("Falha explícita no seed-adapter: {}", e.getMessage(), e);
