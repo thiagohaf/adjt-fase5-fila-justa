@@ -78,6 +78,9 @@ public class AgendamentoClient {
                 }
 
                 if (statusCode == 201) {
+                    if (responseBody == null || responseBody.isEmpty()) {
+                        throw new IllegalStateException("Gateway retornou 201 mas corpo vazio");
+                    }
                     Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
                     String agendamentoIdStr = (String) agendamentoResponse.get("agendamentoId");
 
@@ -92,14 +95,16 @@ public class AgendamentoClient {
                 } else if (statusCode == 409) {
                     // Duplicata: agendamento já existe (idempotência)
                     // Tenta extrair agendamentoId da resposta de conflito
-                    Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
-                    String agendamentoIdStr = (String) agendamentoResponse.get("agendamentoId");
+                    if (responseBody != null && !responseBody.isEmpty()) {
+                        Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
+                        String agendamentoIdStr = (String) agendamentoResponse.get("agendamentoId");
 
-                    if (agendamentoIdStr != null && !agendamentoIdStr.isEmpty()) {
-                        UUID agendamentoId = UUID.fromString(agendamentoIdStr);
-                        logger.info("Agendamento já existe (409): agendamentoId={}, cpf={}, recursoId={} — prosseguindo",
-                                agendamentoId, maskCpf(cpf), recursoId);
-                        return agendamentoId;
+                        if (agendamentoIdStr != null && !agendamentoIdStr.isEmpty()) {
+                            UUID agendamentoId = UUID.fromString(agendamentoIdStr);
+                            logger.info("Agendamento já existe (409): agendamentoId={}, cpf={}, recursoId={} — prosseguindo",
+                                    agendamentoId, maskCpf(cpf), recursoId);
+                            return agendamentoId;
+                        }
                     }
 
                     throw new IllegalStateException(
@@ -134,6 +139,7 @@ public class AgendamentoClient {
      *
      * @param agendamentoId UUID do agendamento já criado
      * @param estadoDesejado nome do estado alvo (enum: AGUARDANDO_JANELA, AGUARDANDO_CONFIRMACAO, CONFIRMADO, LIBERADO)
+     * @throws IllegalArgumentException se estadoDesejado é inválido (não é um estado conhecida)
      * @throws IllegalStateException se gateway indisponível ou transição falhar
      */
     public void transicionarParaEstado(UUID agendamentoId, String estadoDesejado) {
