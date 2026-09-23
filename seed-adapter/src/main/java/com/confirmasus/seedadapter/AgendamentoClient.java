@@ -73,54 +73,72 @@ public class AgendamentoClient {
             return client.execute(post, response -> {
                 int statusCode = response.getCode();
                 String responseBody = "";
-                if (response.getEntity() != null) {
-                    responseBody = new String(response.getEntity().getContent().readAllBytes());
+                try {
+                    if (response.getEntity() != null && response.getEntity().getContent() != null) {
+                        responseBody = new String(response.getEntity().getContent().readAllBytes());
+                    }
+                } catch (IOException e) {
+                    throw new IllegalStateException("Erro ao ler corpo da resposta: " + e.getMessage(), e);
                 }
 
                 if (statusCode == 201) {
-                    if (responseBody == null || responseBody.isEmpty()) {
+                    if (responseBody.isEmpty()) {
                         throw new IllegalStateException("Gateway retornou 201 mas corpo vazio");
                     }
-                    Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
-                    String agendamentoIdStr = (String) agendamentoResponse.get("agendamentoId");
+                    try {
+                        Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
+                        Object agendamentoIdObj = agendamentoResponse.get("agendamentoId");
 
-                    if (agendamentoIdStr == null || agendamentoIdStr.isEmpty()) {
-                        throw new IllegalStateException("Gateway retornou agendamentoId vazio");
+                        if (agendamentoIdObj == null) {
+                            throw new IllegalStateException("Gateway retornou agendamentoId ausente");
+                        }
+
+                        String agendamentoIdStr = String.valueOf(agendamentoIdObj);
+                        if (agendamentoIdStr.isEmpty()) {
+                            throw new IllegalStateException("Gateway retornou agendamentoId vazio");
+                        }
+
+                        UUID agendamentoId = UUID.fromString(agendamentoIdStr);
+                        logger.info("Agendamento criado com sucesso: agendamentoId={}, cpf={}, recursoId={}",
+                                agendamentoId, maskCpf(cpf), recursoId);
+                        return agendamentoId;
+                    } catch (IllegalArgumentException | com.fasterxml.jackson.core.JsonProcessingException e) {
+                        throw new IllegalStateException("Erro ao processar resposta 201: " + e.getMessage(), e);
                     }
-
-                    UUID agendamentoId = UUID.fromString(agendamentoIdStr);
-                    logger.info("Agendamento criado com sucesso: agendamentoId={}, cpf={}, recursoId={}",
-                            agendamentoId, maskCpf(cpf), recursoId);
-                    return agendamentoId;
                 } else if (statusCode == 409) {
                     // Duplicata: agendamento já existe (idempotência)
-                    // Tenta extrair agendamentoId da resposta de conflito
-                    if (responseBody != null && !responseBody.isEmpty()) {
-                        Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
-                        String agendamentoIdStr = (String) agendamentoResponse.get("agendamentoId");
+                    if (!responseBody.isEmpty()) {
+                        try {
+                            Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
+                            Object agendamentoIdObj = agendamentoResponse.get("agendamentoId");
 
-                        if (agendamentoIdStr != null && !agendamentoIdStr.isEmpty()) {
-                            UUID agendamentoId = UUID.fromString(agendamentoIdStr);
-                            logger.info("Agendamento já existe (409): agendamentoId={}, cpf={}, recursoId={} — prosseguindo",
-                                    agendamentoId, maskCpf(cpf), recursoId);
-                            return agendamentoId;
+                            if (agendamentoIdObj != null) {
+                                String agendamentoIdStr = String.valueOf(agendamentoIdObj);
+                                if (!agendamentoIdStr.isEmpty()) {
+                                    UUID agendamentoId = UUID.fromString(agendamentoIdStr);
+                                    logger.info("Agendamento já existe (409): agendamentoId={}, cpf={}, recursoId={} — prosseguindo",
+                                            agendamentoId, maskCpf(cpf), recursoId);
+                                    return agendamentoId;
+                                }
+                            }
+                        } catch (IllegalArgumentException | com.fasterxml.jackson.core.JsonProcessingException e) {
+                            logger.warn("Erro ao processar resposta 409: {}", e.getMessage());
                         }
                     }
 
                     throw new IllegalStateException(
-                            "Duplicata detectada (409) mas agendamentoId não retornado: " + responseBody);
+                            "Duplicata detectada (409) mas agendamentoId não retornado");
                 } else if (statusCode == 422) {
-                    // Validação falhou (CPF inválido, recursoId não encontrado, dataHora no passado, etc)
-                    logger.warn("Validação falhou (422) para agendamento cpf={}, recursoId={}: {}",
-                            maskCpf(cpf), recursoId, responseBody);
+                    logger.warn("Validação falhou (422) para agendamento cpf={}, recursoId={}",
+                            maskCpf(cpf), recursoId);
                     throw new IllegalStateException(
                             "Validação falhou para Agendamento cpf=" + maskCpf(cpf) + ", recursoId=" + recursoId);
                 } else if (statusCode >= 500) {
                     throw new IllegalStateException(
-                            "Gateway indisponível (status " + statusCode + "): " + responseBody);
+                            "Gateway indisponível (status " + statusCode + ")");
                 } else {
                     throw new IllegalStateException(
-                            "Falha ao criar Agendamento (status " + statusCode + "): " + responseBody);
+                            "Falha ao criar Agendamento (status " + statusCode + ")");
                 }
             });
         } catch (IOException e) {
@@ -231,8 +249,12 @@ public class AgendamentoClient {
             client.execute(post, response -> {
                 int statusCode = response.getCode();
                 String responseBody = "";
-                if (response.getEntity() != null) {
-                    responseBody = new String(response.getEntity().getContent().readAllBytes());
+                try {
+                    if (response.getEntity() != null && response.getEntity().getContent() != null) {
+                        responseBody = new String(response.getEntity().getContent().readAllBytes());
+                    }
+                } catch (IOException e) {
+                    logger.warn("Erro ao ler corpo de resposta para {}: {}", acao, e.getMessage());
                 }
 
                 if (statusCode == 200 || statusCode == 201) {
@@ -240,15 +262,14 @@ public class AgendamentoClient {
                     return null;
                 } else if (statusCode == 422) {
                     throw new IllegalStateException(
-                            acao + " falhou (422) para agendamento " + agendamentoId + ": " + responseBody);
+                            acao + " falhou (422) para agendamento " + agendamentoId);
                 } else if (statusCode >= 500) {
                     throw new IllegalStateException(
                             "Gateway indisponível (status " + statusCode + ") ao executar " + acao +
-                            " para agendamento " + agendamentoId + ": " + responseBody);
+                            " para agendamento " + agendamentoId);
                 } else {
                     throw new IllegalStateException(
-                            acao + " falhou (status " + statusCode + ") para agendamento " + agendamentoId +
-                            ": " + responseBody);
+                            acao + " falhou (status " + statusCode + ") para agendamento " + agendamentoId);
                 }
             });
         } catch (IOException e) {
