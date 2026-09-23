@@ -9,8 +9,8 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 /**
- * Mapeamento JPA de {@code matching_alocacao.recurso} (Story 3.2b2). Só
- * usado para leitura ({@link RecursoJpaRepository#findByCodigoRecurso}) --
+ * Mapeamento JPA de {@code matching_alocacao.recurso} (Story 3.2b2, expandido
+ * em Story 5.1). Só usado para leitura ({@link RecursoJpaRepository#findByCodigoRecurso}) --
  * a escrita de produção passa pelo upsert nativo ({@code
  * RecursoJpaRepository#upsert}), não por {@code save()} desta entidade
  * (mesmo padrão de {@code ScoreReplicaJpaEntity}).
@@ -32,6 +32,12 @@ public class RecursoJpaEntity {
     @Column(nullable = false)
     private boolean disponivel;
 
+    @Column(name = "especialidade")
+    private String especialidade;
+
+    @Column(name = "unidade")
+    private String unidade;
+
     protected RecursoJpaEntity() {
         // Exigido pelo JPA.
     }
@@ -52,6 +58,14 @@ public class RecursoJpaEntity {
         return disponivel;
     }
 
+    public String getEspecialidade() {
+        return especialidade;
+    }
+
+    public String getUnidade() {
+        return unidade;
+    }
+
     /**
      * Mapeia para o domínio {@link Recurso} -- compartilhado por
      * {@link RecursoRepositorioAdapter} (comando, Story 3.2b2) e
@@ -59,6 +73,6 @@ public class RecursoJpaEntity {
      * não duplicar a mesma tradução entidade→domínio nos dois adapters.
      */
     Recurso paraDominio() {
-        return new Recurso(recursoId, codigoRecurso, especificidadeRank, disponivel);
+        return new Recurso(recursoId, codigoRecurso, especificidadeRank, disponivel, especialidade, unidade);
     }
 }

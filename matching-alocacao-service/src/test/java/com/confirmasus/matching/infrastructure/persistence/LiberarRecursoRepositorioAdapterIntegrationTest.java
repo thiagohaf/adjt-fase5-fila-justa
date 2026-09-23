@@ -109,7 +109,7 @@ class LiberarRecursoRepositorioAdapterIntegrationTest {
         // quando chamado atraves do adapter que a declara (mesmo raciocinio
         // de UltimaSugestaoRegistradaRepositorioAdapterIntegrationTest, que
         // so usa o jpaRepository para leituras/deleteAll, nunca escrita).
-        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-CONCORRENCIA-LIBERACAO", 1, false));
+        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-CONCORRENCIA-LIBERACAO", 1, false, null, null));
         alocacaoRepositorio.confirmar(new Alocacao(alocacaoId, recursoId, pacienteId, Alocacao.STATUS_ATIVA,
                 Instant.now()));
 

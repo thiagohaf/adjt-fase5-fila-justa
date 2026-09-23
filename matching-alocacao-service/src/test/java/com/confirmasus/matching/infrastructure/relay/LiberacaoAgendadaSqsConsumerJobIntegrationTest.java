@@ -9,15 +9,9 @@ import com.confirmasus.matching.domain.Recurso;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -136,7 +130,7 @@ class LiberacaoAgendadaSqsConsumerJobIntegrationTest {
         String correlationId = "corr-" + alocacaoId;
         long pacienteId = 123L;
 
-        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-001", 1, false));
+        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-001", 1, false, null, null));
         alocacaoRepositorio.confirmar(new Alocacao(
                 alocacaoId, recursoId, pacienteId, Alocacao.STATUS_ATIVA, Instant.now()));
 
@@ -171,7 +165,7 @@ class LiberacaoAgendadaSqsConsumerJobIntegrationTest {
         long pacienteId = 456L;
 
         // Preparar: Alocação e Recurso
-        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-002", 1, false));
+        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-002", 1, false, null, null));
         alocacaoRepositorio.confirmar(new Alocacao(
                 alocacaoId, recursoId, pacienteId, Alocacao.STATUS_ATIVA, Instant.now()));
 
@@ -213,7 +207,7 @@ class LiberacaoAgendadaSqsConsumerJobIntegrationTest {
         long pacienteId = 789L;
 
         // Preparar: Alocação já LIBERADA e Recurso já disponível
-        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-003", 1, true));
+        recursoRepositorio.upsert(new Recurso(recursoId, "LEITO-003", 1, true, null, null));
         alocacaoRepositorio.confirmar(new Alocacao(
                 alocacaoId, recursoId, pacienteId, Alocacao.STATUS_LIBERADA, Instant.now()));
 

@@ -30,7 +30,8 @@ class RecursoRepositorioAdapter implements RecursoRepositorio {
     @Transactional
     public Recurso upsert(Recurso recurso) {
         jpaRepository.upsert(recurso.getRecursoId(), recurso.getCodigoRecurso(),
-                recurso.getEspecificidadeRank(), recurso.isDisponivel());
+                recurso.getEspecificidadeRank(), recurso.isDisponivel(),
+                recurso.getEspecialidade(), recurso.getUnidade());
 
         RecursoJpaEntity persistido = jpaRepository.findByCodigoRecurso(recurso.getCodigoRecurso())
                 .orElseThrow(() -> new IllegalStateException(

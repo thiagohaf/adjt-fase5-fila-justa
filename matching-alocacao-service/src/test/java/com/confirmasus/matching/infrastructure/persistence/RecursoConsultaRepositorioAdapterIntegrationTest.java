@@ -72,7 +72,7 @@ class RecursoConsultaRepositorioAdapterIntegrationTest {
     @Test
     void buscarPorIdDevolveORecursoPersistidoEVazioQuandoORecursoIdNaoExiste() {
         Recurso persistido = recursoRepositorio.upsert(
-                new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true));
+                new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true, null, null));
 
         Optional<Recurso> encontrado = recursoConsultaRepositorio.buscarPorId(persistido.getRecursoId());
 
@@ -86,9 +86,9 @@ class RecursoConsultaRepositorioAdapterIntegrationTest {
     void doisRecursosDisponiveisNoMesmoTierContamComoUmUnicoTier() {
         // Boundaries "Always" da spec 3.2b3: Recursos do mesmo tier
         // consomem 1 posicao no total, nunca uma por Recurso.
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true));
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true));
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 2, true));
+        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true, null, null));
+        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true, null, null));
+        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 2, true, null, null));
 
         int n = recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(3);
 
@@ -97,7 +97,7 @@ class RecursoConsultaRepositorioAdapterIntegrationTest {
 
     @Test
     void tierIndisponivelNaoEContado() {
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, false));
+        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, false, null, null));
 
         int n = recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(2);
 
@@ -106,8 +106,8 @@ class RecursoConsultaRepositorioAdapterIntegrationTest {
 
     @Test
     void tierIgualOuMaisEspecificoQueORankConsultadoNaoEContado() {
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true));
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 2, true));
+        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true, null, null));
+        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 2, true, null, null));
 
         // Consultando o proprio rank=1: nada estritamente menor existe --
         // N=0 (I/O Matrix "SEM_RECURSO_GENERICO_DISPONIVEL" da spec 3.2b3).

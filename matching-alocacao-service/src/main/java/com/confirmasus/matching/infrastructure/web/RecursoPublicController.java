@@ -9,31 +9,28 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Endpoint interno de upsert de {@code Recurso} (Story 3.2b2): {@code POST
- * /internal/recursos} cria/atualiza idempotentemente um Recurso por {@code
- * codigoRecurso} -- consumido pelo {@code seed-adapter} do Epic 5 e pela
- * Story 3-2b3 (sugestão com tiers) para popular o catálogo de Recursos do
- * matching-alocacao-service.
+ * Endpoint público de upsert de {@code Recurso} (Story 5.1): {@code POST
+ * /v1/recursos} cria/atualiza idempotentemente um Recurso por {@code
+ * codigoRecurso} -- consumido pelo {@code seed-adapter} do Epic 5 via
+ * gateway com autenticação JWT.
  *
- * <p>Chamada serviço-a-serviço: sem JWT nem rota no {@code gateway-service}
- * (mesmo padrão de escopo mínimo de {@code GET /internal/scores}/{@code GET
- * /v1/fila} -- nenhum serviço tem Spring Security ainda, Boundaries da spec
- * 3.2b2); esta rota NUNCA deve ser exposta via {@code
- * gateway-service}/CDK.
+ * <p>Rota pública (exposta via gateway-service): seed-adapter autentica
+ * com JWT de usuário técnico, passado no header Authorization (validado
+ * pelo gateway). Este controller recebe o request já autenticado.
  *
  * <p>{@code 400} de {@code UpsertRecursoRequest} inválido é traduzido para
  * RFC 7807 por {@link RecursosExceptionHandler}.
  */
 @RestController
-public class RecursosInternalController {
+public class RecursoPublicController {
 
     private final UpsertRecurso upsertRecurso;
 
-    public RecursosInternalController(UpsertRecurso upsertRecurso) {
+    public RecursoPublicController(UpsertRecurso upsertRecurso) {
         this.upsertRecurso = upsertRecurso;
     }
 
-    @PostMapping("/internal/recursos")
+    @PostMapping("/v1/recursos")
     public ResponseEntity<RecursoResponse> upsert(@Valid @RequestBody UpsertRecursoRequest request) {
         UpsertRecurso.Resultado resultado = upsertRecurso.upsertar(
                 request.codigoRecurso(), request.especificidadeRank(), request.disponivel(),
