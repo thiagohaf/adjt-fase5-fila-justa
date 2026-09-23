@@ -47,7 +47,7 @@ class RecursoRepositorioAdapterIntegrationTest {
         String codigoRecurso = novoCodigoRecurso();
         UUID recursoIdCandidato = UUID.randomUUID();
 
-        Recurso persistido = repositorio.upsert(new Recurso(recursoIdCandidato, codigoRecurso, 1, true));
+        Recurso persistido = repositorio.upsert(new Recurso(recursoIdCandidato, codigoRecurso, 1, true, null, null));
 
         assertThat(persistido.getRecursoId()).isEqualTo(recursoIdCandidato);
         assertThat(persistido.getCodigoRecurso()).isEqualTo(codigoRecurso);
@@ -59,11 +59,11 @@ class RecursoRepositorioAdapterIntegrationTest {
     void upsertDeCodigoRecursoJaCadastradoAtualizaOsCamposEPreservaORecursoIdOriginal() {
         String codigoRecurso = novoCodigoRecurso();
         UUID recursoIdOriginal = UUID.randomUUID();
-        repositorio.upsert(new Recurso(recursoIdOriginal, codigoRecurso, 1, true));
+        repositorio.upsert(new Recurso(recursoIdOriginal, codigoRecurso, 1, true, null, null));
 
         UUID recursoIdCandidatoDescartado = UUID.randomUUID();
         Recurso persistido = repositorio.upsert(
-                new Recurso(recursoIdCandidatoDescartado, codigoRecurso, 4, false));
+                new Recurso(recursoIdCandidatoDescartado, codigoRecurso, 4, false, null, null));
 
         assertThat(persistido.getRecursoId())
                 .as("recurso_id deve permanecer o da primeira insercao, mesmo com um candidato novo")
@@ -78,8 +78,8 @@ class RecursoRepositorioAdapterIntegrationTest {
         String codigoRecurso = novoCodigoRecurso();
         UUID recursoId = UUID.randomUUID();
 
-        Recurso primeiro = repositorio.upsert(new Recurso(recursoId, codigoRecurso, 2, true));
-        Recurso segundo = repositorio.upsert(new Recurso(UUID.randomUUID(), codigoRecurso, 2, true));
+        Recurso primeiro = repositorio.upsert(new Recurso(recursoId, codigoRecurso, 2, true, null, null));
+        Recurso segundo = repositorio.upsert(new Recurso(UUID.randomUUID(), codigoRecurso, 2, true, null, null));
 
         assertThat(segundo.getRecursoId()).isEqualTo(primeiro.getRecursoId());
         assertThat(segundo.getEspecificidadeRank()).isEqualTo(2);

@@ -1,0 +1,39 @@
+{
+  "recursos": [
+    {
+      "codigoRecurso": "01",
+      "especialidade": "Cardiologia",
+      "unidade": "Hospital Central",
+      "especificidadeRank": 1,
+      "disponivel": true
+    },
+    {
+      "codigoRecurso": "02",
+      "especialidade": "Cirurgia Geral",
+      "unidade": "Hospital Central",
+      "especificidadeRank": 2,
+      "disponivel": true
+    },
+    {
+      "codigoRecurso": "03",
+      "especialidade": "Radiologia",
+      "unidade": "UBS Zona Leste",
+      "especificidadeRank": 1,
+      "disponivel": true
+    },
+    {
+      "codigoRecurso": "04",
+      "especialidade": "Oftalmologia",
+      "unidade": "Clínica Privada",
+      "especificidadeRank": 3,
+      "disponivel": true
+    },
+    {
+      "codigoRecurso": "05",
+      "especialidade": "Pediatria",
+      "unidade": "Hospital Central",
+      "especificidadeRank": 2,
+      "disponivel": true
+    }
+  ]
+}

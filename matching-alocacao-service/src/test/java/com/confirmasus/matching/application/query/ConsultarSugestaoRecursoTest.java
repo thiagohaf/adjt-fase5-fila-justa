@@ -77,7 +77,7 @@ class ConsultarSugestaoRecursoTest {
         // HAPPY_PATH: Recurso rank=2, 1 Recurso disponivel rank=1 -> N=1.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(2)).thenReturn(1);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L, 30L, 40L, 50L));
 
@@ -93,7 +93,7 @@ class ConsultarSugestaoRecursoTest {
         // nenhum Recurso rank<1 existe -> N=0.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "LEITO-01", 1, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "LEITO-01", 1, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(1)).thenReturn(0);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L));
 
@@ -110,7 +110,7 @@ class ConsultarSugestaoRecursoTest {
         // pela infra) e usado como esta, sem recontar por instancia.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-02", 2, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-02", 2, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(2)).thenReturn(1);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L, 30L));
 
@@ -125,7 +125,7 @@ class ConsultarSugestaoRecursoTest {
         // sugestao (pacienteId null), nunca erro.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-03", 3, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-03", 3, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(3)).thenReturn(2);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L));
 
@@ -148,7 +148,7 @@ class ConsultarSugestaoRecursoTest {
     void filaGlobalVaziaComNZeroRetornaResultadoSemErroComPacienteIdNulo() {
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-04", 1, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-04", 1, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(1)).thenReturn(0);
         when(consultarFilaPriorizada.consultar()).thenReturn(List.of());
 
@@ -168,7 +168,7 @@ class ConsultarSugestaoRecursoTest {
         // contagem de tiers nem a fila global devem ser consultadas.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-05", 2, false)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-05", 2, false, null, null)));
 
         ConsultarSugestaoRecurso.Resultado resultado = useCase.consultar(recursoId);
 
@@ -206,7 +206,7 @@ class ConsultarSugestaoRecursoTest {
         // para o proximo elegivel, sem alterar n.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(2)).thenReturn(1);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L, 30L, 40L));
         when(sugestaoRecusadaConsultaRepositorio.recusadosPara(recursoId)).thenReturn(Set.of(20L));
@@ -222,7 +222,7 @@ class ConsultarSugestaoRecursoTest {
         // FILA_ESGOTADA, sem erro.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(2)).thenReturn(1);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L, 30L));
         when(sugestaoRecusadaConsultaRepositorio.recusadosPara(recursoId)).thenReturn(Set.of(20L, 30L));
@@ -245,7 +245,7 @@ class ConsultarSugestaoRecursoTest {
         UUID recursoId = UUID.randomUUID();
         UUID outroRecursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 2, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(2)).thenReturn(1);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L, 30L));
         when(sugestaoRecusadaConsultaRepositorio.recusadosPara(recursoId)).thenReturn(Set.of());
@@ -269,7 +269,7 @@ class ConsultarSugestaoRecursoTest {
         // (linha inserida) -> publica SugestaoGerada.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 1, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-01", 1, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(1)).thenReturn(0);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L, 20L));
         when(ultimaSugestaoRegistradaRepositorio.registrar(recursoId, 10L, AGORA)).thenReturn(true);
@@ -301,7 +301,7 @@ class ConsultarSugestaoRecursoTest {
         // retorna true (linha alterada) -> publica SugestaoGerada com Y.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-02", 1, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-02", 1, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(1)).thenReturn(0);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(20L));
         when(ultimaSugestaoRegistradaRepositorio.registrar(recursoId, 20L, AGORA)).thenReturn(true);
@@ -320,7 +320,7 @@ class ConsultarSugestaoRecursoTest {
         // chamado (sem pre-leitura, spec 3-3c2b2).
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-03", 1, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-03", 1, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(1)).thenReturn(0);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(10L));
         when(ultimaSugestaoRegistradaRepositorio.registrar(recursoId, 10L, AGORA)).thenReturn(false);
@@ -347,7 +347,7 @@ class ConsultarSugestaoRecursoTest {
         // chamadas calculem o mesmo pacienteIdSugerido.
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-04", 1, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "SALA-04", 1, true, null, null)));
         when(recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(1)).thenReturn(0);
         when(consultarFilaPriorizada.consultar()).thenReturn(filaComPacientes(30L));
         when(ultimaSugestaoRegistradaRepositorio.registrar(recursoId, 30L, AGORA))

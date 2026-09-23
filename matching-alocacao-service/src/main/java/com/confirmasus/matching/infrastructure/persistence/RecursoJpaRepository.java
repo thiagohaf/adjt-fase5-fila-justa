@@ -11,7 +11,7 @@ import java.util.UUID;
 interface RecursoJpaRepository extends JpaRepository<RecursoJpaEntity, UUID> {
 
     // Upsert direto e idempotente por codigo_recurso (Boundaries da spec
-    // 3.2b2) -- sem WHERE temporal (difere de
+    // 3.2b2, expandido em Story 5.1) -- sem WHERE temporal (difere de
     // ScoreReplicaJpaRepository#upsertSeMaisRecente): o DO UPDATE sempre
     // aplica num conflito, last-write-wins simples, sem comparacao de
     // occurred_at/event_id (Recurso nao tem esses campos). O DO UPDATE
@@ -21,16 +21,20 @@ interface RecursoJpaRepository extends JpaRepository<RecursoJpaEntity, UUID> {
     // traga um recurso_id novo gerado por UpsertRecurso (ver seu javadoc).
     @Modifying
     @Query(value = "INSERT INTO matching_alocacao.recurso "
-            + "(recurso_id, codigo_recurso, especificidade_rank, disponivel) "
-            + "VALUES (:recursoId, :codigoRecurso, :especificidadeRank, :disponivel) "
+            + "(recurso_id, codigo_recurso, especificidade_rank, disponivel, especialidade, unidade) "
+            + "VALUES (:recursoId, :codigoRecurso, :especificidadeRank, :disponivel, :especialidade, :unidade) "
             + "ON CONFLICT (codigo_recurso) DO UPDATE SET "
             + "especificidade_rank = excluded.especificidade_rank, "
-            + "disponivel = excluded.disponivel",
+            + "disponivel = excluded.disponivel, "
+            + "especialidade = excluded.especialidade, "
+            + "unidade = excluded.unidade",
             nativeQuery = true)
     void upsert(@Param("recursoId") UUID recursoId,
                 @Param("codigoRecurso") String codigoRecurso,
                 @Param("especificidadeRank") int especificidadeRank,
-                @Param("disponivel") boolean disponivel);
+                @Param("disponivel") boolean disponivel,
+                @Param("especialidade") String especialidade,
+                @Param("unidade") String unidade);
 
     // Le de volta o estado efetivamente persistido logo apos o upsert nativo
     // acima -- e assim que RecursoRepositorioAdapter descobre o recurso_id

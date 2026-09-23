@@ -66,7 +66,7 @@ class ConfirmarAlocacaoTest {
 
     private void recursoExistenteEDisponivel() {
         when(recursoConsultaRepositorio.buscarPorId(RECURSO_ID))
-                .thenReturn(Optional.of(new Recurso(RECURSO_ID, "LEITO-01", 1, true)));
+                .thenReturn(Optional.of(new Recurso(RECURSO_ID, "LEITO-01", 1, true, null, null)));
     }
 
     @Test
@@ -109,7 +109,7 @@ class ConfirmarAlocacaoTest {
     void confirmacaoUsaADuracaoConfiguradaParaOEspecificidadeRankDoRecurso() {
         UUID recursoId = UUID.randomUUID();
         when(recursoConsultaRepositorio.buscarPorId(recursoId))
-                .thenReturn(Optional.of(new Recurso(recursoId, "LEITO-03", 3, true)));
+                .thenReturn(Optional.of(new Recurso(recursoId, "LEITO-03", 3, true, null, null)));
         when(alocacaoRepositorio.confirmar(any())).thenAnswer(chamada -> chamada.getArgument(0));
 
         useCase.confirmar(recursoId, PACIENTE_ID, "corr-1");
@@ -152,7 +152,7 @@ class ConfirmarAlocacaoTest {
         // "alocacao", passaria pelo INSERT sem violar constraint nenhuma se
         // este caso de uso nao checasse isDisponivel() explicitamente.
         when(recursoConsultaRepositorio.buscarPorId(RECURSO_ID))
-                .thenReturn(Optional.of(new Recurso(RECURSO_ID, "LEITO-01", 1, false)));
+                .thenReturn(Optional.of(new Recurso(RECURSO_ID, "LEITO-01", 1, false, null, null)));
 
         assertThatThrownBy(() -> useCase.confirmar(RECURSO_ID, PACIENTE_ID, "corr-1"))
                 .isInstanceOf(RecursoJaAlocadoException.class);

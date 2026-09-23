@@ -21,53 +21,69 @@ class RecursoTest {
 
     @Test
     void construtorRejeitaRecursoIdNulo() {
-        assertThatThrownBy(() -> new Recurso(null, "LEITO-01", 1, true))
+        assertThatThrownBy(() -> new Recurso(null, "LEITO-01", 1, true, null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void construtorRejeitaCodigoRecursoNulo() {
-        assertThatThrownBy(() -> new Recurso(RECURSO_ID, null, 1, true))
+        assertThatThrownBy(() -> new Recurso(RECURSO_ID, null, 1, true, null, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void construtorRejeitaCodigoRecursoVazioOuEmBranco() {
-        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "", 1, true))
+        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "", 1, true, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "   ", 1, true))
+        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "   ", 1, true, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void construtorRejeitaEspecificidadeRankZeroOuNegativo() {
-        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "LEITO-01", 0, true))
+        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "LEITO-01", 0, true, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "LEITO-01", -1, true))
+        assertThatThrownBy(() -> new Recurso(RECURSO_ID, "LEITO-01", -1, true, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void construtorAceitaEspecificidadeRankPositivo() {
-        Recurso recurso = new Recurso(RECURSO_ID, "LEITO-01", 1, true);
+        Recurso recurso = new Recurso(RECURSO_ID, "LEITO-01", 1, true, null, null);
 
         assertThat(recurso.getEspecificidadeRank()).isEqualTo(1);
     }
 
     @Test
     void construtorNormalizaCodigoRecursoComEspacosAoRedor() {
-        Recurso recurso = new Recurso(RECURSO_ID, "  LEITO-01  ", 1, true);
+        Recurso recurso = new Recurso(RECURSO_ID, "  LEITO-01  ", 1, true, null, null);
 
         assertThat(recurso.getCodigoRecurso()).isEqualTo("LEITO-01");
     }
 
     @Test
     void gettersExpoemOsCamposConstruidos() {
-        Recurso recurso = new Recurso(RECURSO_ID, "ESPECIALISTA-CARDIO", 3, false);
+        Recurso recurso = new Recurso(RECURSO_ID, "ESPECIALISTA-CARDIO", 3, false, null, null);
 
         assertThat(recurso.getRecursoId()).isEqualTo(RECURSO_ID);
         assertThat(recurso.getCodigoRecurso()).isEqualTo("ESPECIALISTA-CARDIO");
         assertThat(recurso.getEspecificidadeRank()).isEqualTo(3);
         assertThat(recurso.isDisponivel()).isFalse();
+    }
+
+    @Test
+    void construtorNormalizaEspecialidadeComEspacosAoRedor() {
+        Recurso recurso = new Recurso(RECURSO_ID, "LEITO-01", 1, true, "  Cardiologia  ", "  Hospital Central  ");
+
+        assertThat(recurso.getEspecialidade()).isEqualTo("Cardiologia");
+        assertThat(recurso.getUnidade()).isEqualTo("Hospital Central");
+    }
+
+    @Test
+    void construtorAceitaEspecialidadeUnidadeNulos() {
+        Recurso recurso = new Recurso(RECURSO_ID, "LEITO-01", 1, true, null, null);
+
+        assertThat(recurso.getEspecialidade()).isNull();
+        assertThat(recurso.getUnidade()).isNull();
     }
 }

@@ -24,6 +24,10 @@ import java.util.UUID;
  * story só valida positividade; os valores concretos (1-4) vêm do seed do
  * Epic 5 (Boundaries da spec 3.2b2). {@code disponivel} é obrigatório, sem
  * default implícito -- quem chama sempre declara o estado explicitamente.
+ *
+ * <p>{@code especialidade} e {@code unidade} (Story 5.1) -- campos de texto
+ * que categorizam o recurso por tipo de atendimento e localização física.
+ * Opcionais para compatibilidade com dados legados.
  */
 public final class Recurso {
 
@@ -31,8 +35,11 @@ public final class Recurso {
     private final String codigoRecurso;
     private final int especificidadeRank;
     private final boolean disponivel;
+    private final String especialidade;
+    private final String unidade;
 
-    public Recurso(UUID recursoId, String codigoRecurso, int especificidadeRank, boolean disponivel) {
+    public Recurso(UUID recursoId, String codigoRecurso, int especificidadeRank, boolean disponivel,
+                   String especialidade, String unidade) {
         this.recursoId = Objects.requireNonNull(recursoId, "recursoId");
         Objects.requireNonNull(codigoRecurso, "codigoRecurso");
         // Normaliza (trim) antes de persistir/comparar -- upsert eh
@@ -50,6 +57,10 @@ public final class Recurso {
         }
         this.especificidadeRank = especificidadeRank;
         this.disponivel = disponivel;
+        // Normaliza especialidade e unidade (trim) para preservar consistencia
+        // com codigoRecurso (Story 5.1 spec change log)
+        this.especialidade = especialidade != null ? especialidade.trim() : null;
+        this.unidade = unidade != null ? unidade.trim() : null;
     }
 
     public UUID getRecursoId() {
@@ -66,5 +77,13 @@ public final class Recurso {
 
     public boolean isDisponivel() {
         return disponivel;
+    }
+
+    public String getEspecialidade() {
+        return especialidade;
+    }
+
+    public String getUnidade() {
+        return unidade;
     }
 }

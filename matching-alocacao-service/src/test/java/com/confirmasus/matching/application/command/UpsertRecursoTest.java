@@ -31,7 +31,7 @@ class UpsertRecursoTest {
         // devolvendo o mesmo objeto recebido.
         when(repositorio.upsert(any(Recurso.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        UpsertRecurso.Resultado resultado = useCase.upsertar("LEITO-01", 2, true);
+        UpsertRecurso.Resultado resultado = useCase.upsertar("LEITO-01", 2, true, null, null);
 
         ArgumentCaptor<Recurso> captor = ArgumentCaptor.forClass(Recurso.class);
         verify(repositorio).upsert(captor.capture());
@@ -53,10 +53,10 @@ class UpsertRecursoTest {
         // cadastrado -- diferente do candidato que UpsertRecurso gerou.
         UUID recursoIdJaExistente = UUID.randomUUID();
         Recurso persistidoComIdAntigo =
-                new Recurso(recursoIdJaExistente, "LEITO-01", 4, false);
+                new Recurso(recursoIdJaExistente, "LEITO-01", 4, false, null, null);
         when(repositorio.upsert(any(Recurso.class))).thenReturn(persistidoComIdAntigo);
 
-        UpsertRecurso.Resultado resultado = useCase.upsertar("LEITO-01", 4, false);
+        UpsertRecurso.Resultado resultado = useCase.upsertar("LEITO-01", 4, false, null, null);
 
         assertThat(resultado.criado()).isFalse();
         assertThat(resultado.recurso().getRecursoId()).isEqualTo(recursoIdJaExistente);

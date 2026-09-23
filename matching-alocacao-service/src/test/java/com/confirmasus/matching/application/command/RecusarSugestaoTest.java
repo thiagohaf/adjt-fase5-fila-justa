@@ -50,7 +50,7 @@ class RecusarSugestaoTest {
 
     private void recursoExistente() {
         when(recursoConsultaRepositorio.buscarPorId(RECURSO_ID))
-                .thenReturn(Optional.of(new Recurso(RECURSO_ID, "LEITO-01", 1, true)));
+                .thenReturn(Optional.of(new Recurso(RECURSO_ID, "LEITO-01", 1, true, null, null)));
     }
 
     @Test
