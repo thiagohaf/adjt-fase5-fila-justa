@@ -165,6 +165,11 @@ public class SeedDataLoader {
                             agendamentoId);
                 }
 
+            } catch (IllegalArgumentException e) {
+                // Estado inválido em seed-data.json (typo em nome de estado, ex: "CONFIRMADO_INVALIDO")
+                logger.warn("Estado inválido para agendamento — entrada pulada: {}",
+                        e.getMessage());
+                // Continua com próxima entrada
             } catch (IllegalStateException e) {
                 // Distinguir entre erro de validação (422 — pula entrada) e erro de gateway (5xx — aborta)
                 String errorMsg = e.getMessage();

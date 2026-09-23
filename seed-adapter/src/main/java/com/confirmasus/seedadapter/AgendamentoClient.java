@@ -72,7 +72,10 @@ public class AgendamentoClient {
 
             return client.execute(post, response -> {
                 int statusCode = response.getCode();
-                String responseBody = new String(response.getEntity().getContent().readAllBytes());
+                String responseBody = "";
+                if (response.getEntity() != null) {
+                    responseBody = new String(response.getEntity().getContent().readAllBytes());
+                }
 
                 if (statusCode == 201) {
                     Map<String, Object> agendamentoResponse = mapper.readValue(responseBody, Map.class);
@@ -143,7 +146,7 @@ public class AgendamentoClient {
                 break;
 
             case "AGUARDANDO_CONFIRMACAO":
-                // Abrirjana (Story 1.2): POST /v1/agendamentos/{id}/confirmacao
+                // AbrirJanela (Story 1.2): POST /v1/agendamentos/{id}/confirmacao
                 abrirJanela(agendamentoId);
                 logger.info("Agendamento {} transicionado para AGUARDANDO_CONFIRMACAO", agendamentoId);
                 break;
@@ -221,7 +224,10 @@ public class AgendamentoClient {
 
             client.execute(post, response -> {
                 int statusCode = response.getCode();
-                String responseBody = new String(response.getEntity().getContent().readAllBytes());
+                String responseBody = "";
+                if (response.getEntity() != null) {
+                    responseBody = new String(response.getEntity().getContent().readAllBytes());
+                }
 
                 if (statusCode == 200 || statusCode == 201) {
                     logger.debug("{} executado com sucesso para agendamento {}", acao, agendamentoId);
