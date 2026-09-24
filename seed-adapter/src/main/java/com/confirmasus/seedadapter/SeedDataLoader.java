@@ -155,8 +155,8 @@ public class SeedDataLoader {
 
                 // Etapa 2: Transicionar para estado desejado (se não é AGUARDANDO_JANELA)
                 String estadoDesejado = agendamento.getEstado();
-                if (estadoDesejado != null && !estadoDesejado.isEmpty()
-                        && !estadoDesejado.equals("AGUARDANDO_JANELA")) {
+                if (estadoDesejado != null && !estadoDesejado.trim().isEmpty()
+                        && !estadoDesejado.trim().equals("AGUARDANDO_JANELA")) {
                     agendamentoClient.transicionarParaEstado(agendamentoId, estadoDesejado);
                     logger.info("Agendamento transicionado para estado {}: agendamentoId={}",
                             estadoDesejado, agendamentoId);
