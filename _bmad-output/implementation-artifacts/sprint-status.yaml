@@ -179,7 +179,7 @@ development_status:
   5-1-carga-de-dados-sintéticos-via-camada-adaptadora: done
   5-2-carga-idempotente-agendamentos-sinteticos: done
   5-3-carga-idempotente-lista-espera-sintetica: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
 action_items:
   - id: "epic-1-retro-item-1-atualizar-package-info-java-desatualizad"
     epic: 1
