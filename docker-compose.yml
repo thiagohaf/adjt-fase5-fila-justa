@@ -1,0 +1,272 @@
+version: '3.9'
+
+services:
+  # Database: PostgreSQL 18
+  postgres:
+    image: postgres:18-alpine
+    container_name: confirmasus-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: confirmasus
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - confirmasus-network
+
+  # Message Queue: LocalStack (SQS + SNS)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: confirmasus-localstack
+    environment:
+      SERVICES: sqs,sns
+      DEBUG: 0
+      DOCKER_HOST: unix:///var/run/docker.sock
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "localstack_data:/tmp/localstack"
+    healthcheck:
+      test: ["CMD", "awslocal", "kinesis", "list-streams"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - confirmasus-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: confirmasus-auth-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/confirmasus
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SERVER_PORT: 8081
+      MANAGEMENT_SERVER_PORT: 8090
+      JWT_SECRET: "supersecretkey1234567890123456" # Min 32 bytes for HS256
+      TECH_USERNAME: admin-tecnico
+      TECH_PASSWORD: senha-tecnica-segura
+    ports:
+      - "8081:8081"
+      - "8090:8090"
+    networks:
+      - confirmasus-network
+    restart: unless-stopped
+
+  # Gateway Service
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    container_name: confirmasus-gateway-service
+    depends_on:
+      auth-service:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: 8080
+      SPRING_CLOUD_GATEWAY_ROUTES_0_ID: auth
+      SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://auth-service:8081
+      SPRING_CLOUD_GATEWAY_ROUTES_0_PREDICATES_0: Path=/v1/auth/**
+      SPRING_CLOUD_GATEWAY_ROUTES_1_ID: matching
+      SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://matching-alocacao-service:8083
+      SPRING_CLOUD_GATEWAY_ROUTES_1_PREDICATES_0: Path=/v1/recursos/**,/v1/alocacoes/**
+      SPRING_CLOUD_GATEWAY_ROUTES_2_ID: agendamento
+      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://agendamento-confirmacao-service:8082
+      SPRING_CLOUD_GATEWAY_ROUTES_2_PREDICATES_0: Path=/v1/agendamentos/**
+      SPRING_CLOUD_GATEWAY_ROUTES_3_ID: triagem
+      SPRING_CLOUD_GATEWAY_ROUTES_3_URI: http://triagem-score-service:8084
+      SPRING_CLOUD_GATEWAY_ROUTES_3_PREDICATES_0: Path=/v1/triagem/**
+      SPRING_CLOUD_GATEWAY_ROUTES_4_ID: auditoria
+      SPRING_CLOUD_GATEWAY_ROUTES_4_URI: http://auditoria-service:8085
+      SPRING_CLOUD_GATEWAY_ROUTES_4_PREDICATES_0: Path=/v1/auditoria/**
+    ports:
+      - "8080:8080"
+    networks:
+      - confirmasus-network
+    restart: unless-stopped
+
+  # Auth Service (Triagem Score)
+  triagem-score-service:
+    build:
+      context: .
+      dockerfile: triagem-score-service/Dockerfile
+    container_name: confirmasus-triagem-score-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway-service:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/confirmasus
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SERVER_PORT: 8084
+      MANAGEMENT_SERVER_PORT: 8093
+      GATEWAY_URL: http://gateway-service:8080
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      AWS_SNS_ENDPOINT: http://localstack:4566
+    ports:
+      - "8084:8084"
+      - "8093:8093"
+    networks:
+      - confirmasus-network
+    restart: unless-stopped
+
+  # Matching/Alocacao Service
+  matching-alocacao-service:
+    build:
+      context: .
+      dockerfile: matching-alocacao-service/Dockerfile
+    container_name: confirmasus-matching-alocacao-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway-service:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/confirmasus
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SERVER_PORT: 8083
+      MANAGEMENT_SERVER_PORT: 8092
+      GATEWAY_URL: http://gateway-service:8080
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      AWS_SNS_ENDPOINT: http://localstack:4566
+    ports:
+      - "8083:8083"
+      - "8092:8092"
+    networks:
+      - confirmasus-network
+    restart: unless-stopped
+
+  # Agendamento/Confirmacao Service
+  agendamento-confirmacao-service:
+    build:
+      context: .
+      dockerfile: agendamento-confirmacao-service/Dockerfile
+    container_name: confirmasus-agendamento-confirmacao-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway-service:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/confirmasus
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SERVER_PORT: 8082
+      MANAGEMENT_SERVER_PORT: 8091
+      GATEWAY_URL: http://gateway-service:8080
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      AWS_SNS_ENDPOINT: http://localstack:4566
+    ports:
+      - "8082:8082"
+      - "8091:8091"
+    networks:
+      - confirmasus-network
+    restart: unless-stopped
+
+  # Auditoria Service
+  auditoria-service:
+    build:
+      context: .
+      dockerfile: auditoria-service/Dockerfile
+    container_name: confirmasus-auditoria-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway-service:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/confirmasus
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SERVER_PORT: 8085
+      MANAGEMENT_SERVER_PORT: 8094
+      GATEWAY_URL: http://gateway-service:8080
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_SQS_ENDPOINT: http://localstack:4566
+      AWS_SNS_ENDPOINT: http://localstack:4566
+    ports:
+      - "8085:8085"
+      - "8094:8094"
+    networks:
+      - confirmasus-network
+    restart: unless-stopped
+
+  # Seed Adapter (runs once to load seed data)
+  seed-adapter:
+    build:
+      context: .
+      dockerfile: seed-adapter/Dockerfile
+    container_name: confirmasus-seed-adapter
+    depends_on:
+      postgres:
+        condition: service_healthy
+      gateway-service:
+        condition: service_started
+      matching-alocacao-service:
+        condition: service_started
+      agendamento-confirmacao-service:
+        condition: service_started
+    environment:
+      GATEWAY_URL: http://gateway-service:8080
+      TECH_USERNAME: admin-tecnico
+      TECH_PASSWORD: senha-tecnica-segura
+    networks:
+      - confirmasus-network
+    # Run once, don't restart
+    restart: "no"
+
+volumes:
+  postgres_data:
+  localstack_data:
+
+networks:
+  confirmasus-network:
+    driver: bridge
