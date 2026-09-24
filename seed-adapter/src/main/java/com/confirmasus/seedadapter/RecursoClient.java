@@ -80,15 +80,20 @@ public class RecursoClient {
                     Map<String, Object> recursoResponse = mapper.readValue(responseBody, Map.class);
                     String recursoIdStr = (String) recursoResponse.get("recursoId");
 
-                    if (recursoIdStr == null || recursoIdStr.isEmpty()) {
+                    if (recursoIdStr == null || recursoIdStr.trim().isEmpty()) {
                         throw new IllegalStateException("Gateway retornou recursoId vazio");
                     }
 
-                    UUID recursoId = UUID.fromString(recursoIdStr);
-                    String action = statusCode == 201 ? "criado" : "atualizado";
-                    logger.info("Recurso {} com sucesso: recursoId={}, codigo={}",
-                            action, recursoId, codigoRecurso);
-                    return recursoId;
+                    try {
+                        UUID recursoId = UUID.fromString(recursoIdStr);
+                        String action = statusCode == 201 ? "criado" : "atualizado";
+                        logger.info("Recurso {} com sucesso: recursoId={}, codigo={}",
+                                action, recursoId, codigoRecurso);
+                        return recursoId;
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalStateException(
+                                "Gateway retornou recursoId malformado (não é UUID válido): " + recursoIdStr, e);
+                    }
                 } else if (statusCode == 422) {
                     // Validação falhou (ex: codigoRecurso duplicado com dados diferentes)
                     logger.warn("Validação falhou (422) para recurso {}: {}",
