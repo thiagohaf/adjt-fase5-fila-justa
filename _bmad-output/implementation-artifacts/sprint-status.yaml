@@ -175,9 +175,10 @@ development_status:
   4-4b-filtro-tipo-paciente: done
   epic-4-retrospective: done
 
-  epic-5: in-progress
+  epic-5: done
   5-1-carga-de-dados-sintéticos-via-camada-adaptadora: done
-  5-2-carga-idempotente-agendamentos-sinteticos: in-progress
+  5-2-carga-idempotente-agendamentos-sinteticos: done
+  5-3-carga-idempotente-lista-espera-sintetica: done
   epic-5-retrospective: optional
 action_items:
   - id: "epic-1-retro-item-1-atualizar-package-info-java-desatualizad"

@@ -33,11 +33,13 @@ public class SeedDataLoader {
 
     private final RecursoClient recursoClient;
     private final AgendamentoClient agendamentoClient;
+    private final ListaEsperaClient listaEsperaClient;
     private final ObjectMapper mapper;
 
-    public SeedDataLoader(RecursoClient recursoClient, AgendamentoClient agendamentoClient) {
+    public SeedDataLoader(RecursoClient recursoClient, AgendamentoClient agendamentoClient, ListaEsperaClient listaEsperaClient) {
         this.recursoClient = recursoClient;
         this.agendamentoClient = agendamentoClient;
+        this.listaEsperaClient = listaEsperaClient;
         this.mapper = new ObjectMapper();
     }
 
@@ -45,13 +47,21 @@ public class SeedDataLoader {
      * Construtor para compatibilidade com Story 5.1 (apenas Recursos, sem Agendamentos).
      */
     public SeedDataLoader(RecursoClient recursoClient) {
-        this(recursoClient, null);
+        this(recursoClient, null, null);
+    }
+
+    /**
+     * Construtor para compatibilidade com Story 5.2 (Recursos + Agendamentos, sem Lista de Espera).
+     */
+    public SeedDataLoader(RecursoClient recursoClient, AgendamentoClient agendamentoClient) {
+        this(recursoClient, agendamentoClient, null);
     }
 
     /**
      * Carrega seed-data.json e executa pipeline de ingestão:
      * 1. Upsertar Recursos
      * 2. Carregar Agendamentos (se disponível e AgendamentoClient configurado)
+     * 3. Carregar Lista de Espera (se disponível e ListaEsperaClient configurado)
      *
      * Execução rigorosa: falha em qualquer etapa aborta pipeline.
      *
@@ -61,9 +71,10 @@ public class SeedDataLoader {
         logger.info("Iniciando carga de seed-data.json");
 
         SeedDataContainer container = carregarJsonSeedData();
-        logger.info("Seed-data carregada: {} recursos, {} agendamentos",
+        logger.info("Seed-data carregada: {} recursos, {} agendamentos, {} entradas de lista de espera",
                 container.getRecursos() != null ? container.getRecursos().size() : 0,
-                container.getAgendamentos() != null ? container.getAgendamentos().size() : 0);
+                container.getAgendamentos() != null ? container.getAgendamentos().size() : 0,
+                container.getListasEspera() != null ? container.getListasEspera().size() : 0);
 
         // Etapa 1: Upsertar Recursos (Story 5.1)
         if (container.getRecursos() != null && !container.getRecursos().isEmpty()) {
@@ -78,6 +89,16 @@ public class SeedDataLoader {
                         "Forneça AgendamentoClient no construtor de SeedDataLoader.");
             }
             carregarAgendamentos(container.getAgendamentos());
+        }
+
+        // Etapa 3: Carregar Lista de Espera (Story 5.3)
+        if (container.getListasEspera() != null && !container.getListasEspera().isEmpty()) {
+            if (listaEsperaClient == null) {
+                throw new IllegalStateException(
+                        "ListaEsperaClient não configurado, mas seed-data contém entradas de lista de espera. " +
+                        "Forneça ListaEsperaClient no construtor de SeedDataLoader.");
+            }
+            carregarListasEspera(container.getListasEspera());
         }
 
         logger.info("Carga de seed-data concluída com sucesso");
@@ -192,16 +213,79 @@ public class SeedDataLoader {
     }
 
     /**
+     * Carrega entradas de Lista de Espera via ListaEsperaClient.
+     *
+     * Para cada entrada:
+     * 1. Resolve CPF para pacienteId via gRPC (Story 1.1 dependency)
+     * 2. Cria entrada via POST /v1/lista-espera (retorna sucesso sincrono)
+     *
+     * Falha na primeira entrada inválida (422) pula, mas falha explícita se gateway indisponível (5xx).
+     *
+     * @param listasEspera lista de ListaEsperaSeed com cpf, recursoId, dataSolicitacao
+     * @throws IllegalStateException se gateway indisponível (aborta pipeline)
+     */
+    private void carregarListasEspera(List<ListaEsperaSeed> listasEspera) {
+        logger.info("Carregando {} entradas de lista de espera", listasEspera.size());
+
+        for (ListaEsperaSeed entrada : listasEspera) {
+            try {
+                listaEsperaClient.criarOuObter(
+                        entrada.getCpf(),
+                        entrada.getRecursoId().toString(),
+                        entrada.getDataSolicitacao());
+
+                logger.info("Entrada de lista de espera criada: cpf={}, recursoId={}, dataSolicitacao={}",
+                        maskCpf(entrada.getCpf()), entrada.getRecursoId(), entrada.getDataSolicitacao());
+
+            } catch (IllegalArgumentException e) {
+                logger.warn("Argumento inválido para entrada de lista de espera — entrada pulada: {}",
+                        e.getMessage());
+                // Continua com próxima entrada
+            } catch (IllegalStateException e) {
+                // Distinguir entre erro de validação (422 — pula entrada) e erro de gateway (5xx — aborta)
+                String errorMsg = e.getMessage();
+                if (errorMsg != null && (errorMsg.contains("Validação falhou") || errorMsg.contains("Recurso não encontrado"))) {
+                    logger.warn("Validação falhou ou recurso não existe para entrada de lista de espera — entrada pulada: {}",
+                            errorMsg);
+                    // Continua com próxima entrada
+                } else if (errorMsg != null && errorMsg.contains("indisponível")) {
+                    logger.error("Gateway indisponível — aborta pipeline de lista de espera: {}",
+                            errorMsg);
+                    throw e; // Aborta pipeline (falha explícita)
+                } else {
+                    logger.error("Falha ao carregar entrada de lista de espera: {}", errorMsg);
+                    throw e; // Aborta em erro inesperado
+                }
+            }
+        }
+
+        logger.info("Carregamento de lista de espera concluído");
+    }
+
+    /**
+     * Mascara CPF para logging (segurança).
+     * Exibe apenas os últimos 2 dígitos: 12345678901 -> ****8901
+     */
+    private String maskCpf(String cpf) {
+        if (cpf == null || cpf.length() < 2) {
+            return "***";
+        }
+        return "****" + cpf.substring(cpf.length() - 2);
+    }
+
+    /**
      * Container para desserialização de {@code seed-data.json}.
      * Estrutura:
      * {
      *   "recursos": [ {...}, {...}, ... ],
-     *   "agendamentos": [ {...}, {...}, ... ]
+     *   "agendamentos": [ {...}, {...}, ... ],
+     *   "listasEspera": [ {...}, {...}, ... ]
      * }
      */
     public static class SeedDataContainer {
         private List<RecursoSeed> recursos;
         private List<AgendamentoSeed> agendamentos;
+        private List<ListaEsperaSeed> listasEspera;
 
         public List<RecursoSeed> getRecursos() {
             return recursos;
@@ -217,6 +301,14 @@ public class SeedDataLoader {
 
         public void setAgendamentos(List<AgendamentoSeed> agendamentos) {
             this.agendamentos = agendamentos;
+        }
+
+        public List<ListaEsperaSeed> getListasEspera() {
+            return listasEspera;
+        }
+
+        public void setListasEspera(List<ListaEsperaSeed> listasEspera) {
+            this.listasEspera = listasEspera;
         }
     }
 }
