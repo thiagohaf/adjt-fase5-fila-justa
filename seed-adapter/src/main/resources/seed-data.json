@@ -97,5 +97,32 @@
       "dataHoraAgendamento": "2026-10-10T12:00:00Z",
       "estado": "LIBERADO"
     }
+  ],
+  "listasEspera": [
+    {
+      "cpf": "22255566677",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440001",
+      "dataSolicitacao": "2026-09-10T08:00:00Z"
+    },
+    {
+      "cpf": "22255566678",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440001",
+      "dataSolicitacao": "2026-09-11T09:15:00Z"
+    },
+    {
+      "cpf": "22255566679",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440002",
+      "dataSolicitacao": "2026-09-12T10:30:00Z"
+    },
+    {
+      "cpf": "22255566680",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440003",
+      "dataSolicitacao": "2026-09-13T11:45:00Z"
+    },
+    {
+      "cpf": "22255566681",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440001",
+      "dataSolicitacao": "2026-09-14T13:00:00Z"
+    }
   ]
 }
