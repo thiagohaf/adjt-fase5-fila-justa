@@ -1,14 +1,8 @@
 # Build context = raiz do repositorio
-# seed-adapter é Quarkus (não Spring), Lambda deployment
-
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
 
-COPY pom.xml .
-COPY seed-adapter/pom.xml seed-adapter/pom.xml
-COPY seed-adapter/src seed-adapter/src
-COPY seed-adapter/src/main/resources/seed-data.json seed-adapter/src/main/resources/seed-data.json
-
+COPY . .
 RUN mvn -q -pl seed-adapter -am package -DskipTests
 
 FROM eclipse-temurin:25-jre

@@ -1,18 +1,11 @@
-# Build context = raiz do repositorio (ver infra-cdk ContainerImage.fromAsset,
-# que aponta directory=".." e file="matching-alocacao-service/Dockerfile").
-# Precisa do pom.xml pai (reactor multi-modulo) para resolver o BOM
-# Spring Boot/Spring Cloud (AD-13) mesmo construindo so este modulo.
-
+# Build context = raiz do repositorio
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
 
-COPY pom.xml .
-COPY gateway-service/pom.xml gateway-service/pom.xml
-COPY auth-service/pom.xml auth-service/pom.xml
-COPY infra-cdk/pom.xml infra-cdk/pom.xml
-COPY matching-alocacao-service/pom.xml matching-alocacao-service/pom.xml
-COPY matching-alocacao-service/src matching-alocacao-service/src
+# Copy entire project (pom.xml + all modules)
+COPY . .
 
+# Build matching-alocacao-service and dependencies
 RUN mvn -q -pl matching-alocacao-service -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
