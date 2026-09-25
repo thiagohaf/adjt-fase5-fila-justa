@@ -1,9 +1,9 @@
 version: '3.9'
 
 services:
-  # Database: PostgreSQL 18
+  # Database: PostgreSQL 15 (18 tem problemas com volumes antigos)
   postgres:
-    image: postgres:18-alpine
+    image: postgres:15-alpine
     container_name: confirmasus-postgres
     environment:
       POSTGRES_USER: postgres
@@ -240,28 +240,28 @@ services:
     restart: unless-stopped
 
   # Seed Adapter (runs once to load seed data)
-  seed-adapter:
-    build:
-      context: .
-      dockerfile: seed-adapter/Dockerfile
-    container_name: confirmasus-seed-adapter
-    depends_on:
-      postgres:
-        condition: service_healthy
-      gateway-service:
-        condition: service_started
-      matching-alocacao-service:
-        condition: service_started
-      agendamento-confirmacao-service:
-        condition: service_started
-    environment:
-      GATEWAY_URL: http://gateway-service:8080
-      TECH_USERNAME: admin-tecnico
-      TECH_PASSWORD: senha-tecnica-segura
-    networks:
-      - confirmasus-network
-    # Run once, don't restart
-    restart: "no"
+  # TODO: seed-adapter é Quarkus standalone (não Spring Boot, não no pom.xml reactor)
+  # Construir separadamente: cd seed-adapter && mvn clean package
+  # docker build -f seed-adapter/Dockerfile -t seed-adapter:latest .
+  # docker run -e GATEWAY_URL=http://gateway-service:8080 ... seed-adapter:latest
+  #
+  # seed-adapter:
+  #   build:
+  #     context: seed-adapter
+  #     dockerfile: Dockerfile
+  #   container_name: confirmasus-seed-adapter
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     gateway-service:
+  #       condition: service_started
+  #   environment:
+  #     GATEWAY_URL: http://gateway-service:8080
+  #     TECH_USERNAME: admin-tecnico
+  #     TECH_PASSWORD: senha-tecnica-segura
+  #   networks:
+  #     - confirmasus-network
+  #   restart: "no"
 
 volumes:
   postgres_data:
