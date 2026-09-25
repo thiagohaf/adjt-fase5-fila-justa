@@ -6,14 +6,7 @@
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /workspace
 
-COPY pom.xml .
-COPY gateway-service/pom.xml gateway-service/pom.xml
-COPY auth-service/pom.xml auth-service/pom.xml
-COPY infra-cdk/pom.xml infra-cdk/pom.xml
-COPY matching-alocacao-service/pom.xml matching-alocacao-service/pom.xml
-COPY agendamento-confirmacao-service/pom.xml agendamento-confirmacao-service/pom.xml
-COPY agendamento-confirmacao-service/src agendamento-confirmacao-service/src
-
+COPY . .
 RUN mvn -q -pl agendamento-confirmacao-service -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
