@@ -61,10 +61,10 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SERVER_PORT: 8081
       MANAGEMENT_SERVER_PORT: 8090
-      JWT_SECRET: "supersecretkey1234567890123456" # Min 32 bytes for HS256
+      CONFIRMASUS_JWT_SECRET: "supersecretkey1234567890123456789" # Min 32 bytes for HS256
       TECH_USERNAME: admin-tecnico
       TECH_PASSWORD: senha-tecnica-segura
     ports:
@@ -85,7 +85,7 @@ services:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: local
-      CONFIRMASUS_JWT_SECRET: "supersecretkey12345678901234567890"
+      CONFIRMASUS_JWT_SECRET: "supersecretkey123456789012345678901"
       SERVER_PORT: 8080
       SPRING_CLOUD_GATEWAY_ROUTES_0_ID: auth
       SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://auth-service:8081
@@ -125,7 +125,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SERVER_PORT: 8084
       MANAGEMENT_SERVER_PORT: 8093
       GATEWAY_URL: http://gateway-service:8080
@@ -158,7 +158,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SERVER_PORT: 8083
       MANAGEMENT_SERVER_PORT: 8092
       GATEWAY_URL: http://gateway-service:8080
@@ -167,6 +167,9 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       AWS_SQS_ENDPOINT: http://localstack:4566
       AWS_SNS_ENDPOINT: http://localstack:4566
+      CONFIRMASUS_MATCHING_RELAY_ENABLED: "false"
+      CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENABLED: "false"
+      CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_ENABLED: "false"
     ports:
       - "8083:8083"
       - "8092:8092"
@@ -191,7 +194,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SERVER_PORT: 8082
       MANAGEMENT_SERVER_PORT: 8091
       GATEWAY_URL: http://gateway-service:8080
@@ -200,6 +203,7 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       AWS_SQS_ENDPOINT: http://localstack:4566
       AWS_SNS_ENDPOINT: http://localstack:4566
+      CONFIRMASUS_AGENDAMENTO_OUTBOX_RELAY_ENABLED: "false"
     ports:
       - "8082:8082"
       - "8091:8091"
@@ -224,7 +228,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQL18Dialect
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SERVER_PORT: 8085
       MANAGEMENT_SERVER_PORT: 8094
       GATEWAY_URL: http://gateway-service:8080
@@ -233,6 +237,7 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       AWS_SQS_ENDPOINT: http://localstack:4566
       AWS_SNS_ENDPOINT: http://localstack:4566
+      AUDITORIA_RELAY_ENABLED: "false"
     ports:
       - "8085:8085"
       - "8094:8094"
