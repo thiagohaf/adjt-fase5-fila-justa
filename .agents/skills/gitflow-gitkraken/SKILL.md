@@ -13,6 +13,20 @@ description: >-
 
 User asks to create/switch branch, open/update PR, start from an issue, review PRs, push, or mentions GitFlow / GitKraken / GitLens MCP.
 
+## ⚠️ CLAUDE.md Compliance Rules (ESTRITAMENTE OBRIGATÓRIO)
+
+**Estas regras são não-negociáveis e devem ser observadas em TODAS as operações git/PR:**
+
+- ⛔ NUNCA commitar direto em `develop`, `master` ou `main` — sempre usar feature branch (`feature/`, `bugfix/`, `chore/`, `docs/`, `refactor/`)
+- ⛔ NUNCA abrir PR para `master`/`main` sem autorização explícita prévia do usuário (base padrão: `develop`)
+- ⛔ NUNCA fazer `git commit`, `git push`, `git force-push`, `git amend`, ou `--no-verify` sem autorização explícita prévia
+- ✅ SEMPRE solicitar autorização explícita do usuário antes de fazer commit/push
+- ✅ SEMPRE adicionar rodapé `Co-authored-by: Claude <noreply@anthropic.com>` ao commitar a pedido
+- ✅ SEMPRE respeitar workflow: branch → código → code-review → commit (autorizado) → push → PR → merge (autorizado)
+- ✅ SEMPRE manter formato copiável em PRs e handoffs (sem quebras de formatação, blocos de código completos)
+
+**Se qualquer regra acima for violada, reporte imediatamente ao usuário e recuse continuar.**
+
 ## Prerequisites
 
 If GitKraken MCP tools are missing or `needsAuth`:
