@@ -93,6 +93,13 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!-- Encoder JSON para logs estruturados (Deferred P2) -->
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>7.4</version>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

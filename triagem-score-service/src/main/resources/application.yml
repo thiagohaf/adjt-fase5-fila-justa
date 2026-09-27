@@ -61,6 +61,4 @@ confirmasus:
         min: 30
         max: 42
 
-logging:
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"triagem-score-service","correlationId":"%X{correlationId}","logger":"%c","message":"%m"}%n'
+# Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)
