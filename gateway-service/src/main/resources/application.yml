@@ -38,6 +38,25 @@ spring:
                 - Path=/v1/agendamentos
                 - Method=POST
 
+            # Recursos e Alocacoes (Story 3, Epic 3) -- rota publica protegida
+            # pelo JwtAuthenticationFilter
+            - id: matching-recursos
+              uri: http://matching-alocacao-service:8083
+              predicates:
+                - Path=/v1/recursos/**,/v1/alocacoes/**
+
+            # Triagem/Score (Story 2, Epic 2) -- rota publica protegida
+            - id: triagem-score
+              uri: http://triagem-score-service:8084
+              predicates:
+                - Path=/v1/triagem/**
+
+            # Auditoria (Story 4, Epic 4) -- rota publica protegida
+            - id: auditoria
+              uri: http://auditoria-service:8085
+              predicates:
+                - Path=/v1/auditoria/**
+
 # Segredo compartilhado com o auth-service (mesmo par HS256, AD-14) -- so
 # variavel de ambiente/Secrets Manager, nunca no repositorio (NFR-6).
 # Consumido pelo JwtAuthenticationFilter (infrastructure/security) que
