@@ -1,6 +1,5 @@
 package com.confirmasus.gateway.infrastructure.web;
 
-import org.slf4j.MDC;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -64,10 +63,8 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
         // direto no exchange (401) sem prosseguir a cadeia ate um handler.
         exchange.getResponse().getHeaders().set(CORRELATION_ID_HEADER, correlationId);
 
-        MDC.put("correlationId", correlationId);
         return chain.filter(exchange.mutate().request(requestMutado).build())
-                .contextWrite(Context.of("correlationId", correlationId))
-                .doFinally(signalType -> MDC.remove("correlationId"));
+                .contextWrite(Context.of("correlationId", correlationId));
     }
 
     @Override
