@@ -34,6 +34,7 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     @Override
     public Agendamento salvar(Agendamento agendamento) {
         AgendamentoJpaEntity entity = new AgendamentoJpaEntity(
+                agendamento.getAgendamentoId(),
                 agendamento.getPacienteId(),
                 agendamento.getRecursoId(),
                 agendamento.getDataHoraAgendamento(),
