@@ -31,6 +31,7 @@ class ExpirarJanelaDeConfirmacaoTransactionRollbackTest {
         UUID recursoId = UUID.randomUUID();
         Agendamento agendamento = new Agendamento(
                 1L,
+                UUID.randomUUID(),
                 42L,
                 recursoId,
                 AGORA.plus(java.time.Duration.ofDays(1)),

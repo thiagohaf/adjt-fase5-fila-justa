@@ -32,6 +32,7 @@ import java.util.UUID;
 public final class Agendamento {
 
     private final Long id;
+    private final UUID agendamentoId;
     private final Long pacienteId;
     private final UUID recursoId;
     private final Instant dataHoraAgendamento;
@@ -41,15 +42,16 @@ public final class Agendamento {
     private final Instant janelaExpiraEm;
     private final String motivoLiberacao;
 
-    public Agendamento(Long id, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
+    public Agendamento(Long id, UUID agendamentoId, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
                         StatusAgendamento status, Instant criadoEm, Instant janelaAbreEm, Instant janelaExpiraEm) {
-        this(id, pacienteId, recursoId, dataHoraAgendamento, status, criadoEm, janelaAbreEm, janelaExpiraEm, null);
+        this(id, agendamentoId, pacienteId, recursoId, dataHoraAgendamento, status, criadoEm, janelaAbreEm, janelaExpiraEm, null);
     }
 
-    public Agendamento(Long id, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
+    public Agendamento(Long id, UUID agendamentoId, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
                         StatusAgendamento status, Instant criadoEm, Instant janelaAbreEm, Instant janelaExpiraEm,
                         String motivoLiberacao) {
         this.id = id;
+        this.agendamentoId = Objects.requireNonNull(agendamentoId, "agendamentoId");
         this.pacienteId = Objects.requireNonNull(pacienteId, "pacienteId");
         this.recursoId = Objects.requireNonNull(recursoId, "recursoId");
         this.dataHoraAgendamento = Objects.requireNonNull(dataHoraAgendamento, "dataHoraAgendamento");
@@ -71,7 +73,7 @@ public final class Agendamento {
      */
     public static Agendamento novo(Long pacienteId, UUID recursoId, Instant dataHoraAgendamento, Instant agora,
                                     Instant janelaAbreEm) {
-        return new Agendamento(null, pacienteId, recursoId, dataHoraAgendamento,
+        return new Agendamento(null, UUID.randomUUID(), pacienteId, recursoId, dataHoraAgendamento,
                 StatusAgendamento.AGUARDANDO_JANELA, agora, janelaAbreEm, null);
     }
 
@@ -81,7 +83,7 @@ public final class Agendamento {
      * -- mesmo padrao imutavel de {@code EventoOutbox.comId}.
      */
     public Agendamento abrirJanela() {
-        return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
+        return new Agendamento(id, agendamentoId, pacienteId, recursoId, dataHoraAgendamento,
                 StatusAgendamento.AGUARDANDO_CONFIRMACAO, criadoEm, janelaAbreEm, janelaExpiraEm);
     }
 
@@ -98,7 +100,7 @@ public final class Agendamento {
      * modelo de dominio.
      */
     public Agendamento confirmar() {
-        return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
+        return new Agendamento(id, agendamentoId, pacienteId, recursoId, dataHoraAgendamento,
                 StatusAgendamento.CONFIRMADO, criadoEm, janelaAbreEm, janelaExpiraEm, motivoLiberacao);
     }
 
@@ -114,12 +116,16 @@ public final class Agendamento {
      * so existe para completude do modelo de dominio.
      */
     public Agendamento recusar() {
-        return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
+        return new Agendamento(id, agendamentoId, pacienteId, recursoId, dataHoraAgendamento,
                 StatusAgendamento.LIBERADO, criadoEm, janelaAbreEm, janelaExpiraEm, MotivoLiberacao.RECUSA.name());
     }
 
     public Long getId() {
         return id;
+    }
+
+    public UUID getAgendamentoId() {
+        return agendamentoId;
     }
 
     public Long getPacienteId() {

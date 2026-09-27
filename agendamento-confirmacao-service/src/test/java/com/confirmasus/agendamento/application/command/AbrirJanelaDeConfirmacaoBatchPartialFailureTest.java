@@ -38,6 +38,7 @@ class AbrirJanelaDeConfirmacaoBatchPartialFailureTest {
     private static Agendamento agendamento(long id, long pacienteId) {
         return new Agendamento(
                 id,
+                UUID.randomUUID(),
                 pacienteId,
                 UUID.randomUUID(),
                 AGORA.plus(java.time.Duration.ofDays(1)),

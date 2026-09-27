@@ -66,6 +66,7 @@ class ExpirarJanelaDeConfirmacaoConcurrencyIntegrationTest {
 
         Agendamento pendente = new Agendamento(
                 null,
+                UUID.randomUUID(),
                 criarPacienteERetornarId(),
                 UUID.randomUUID(),
                 dataHoraAgendamento,

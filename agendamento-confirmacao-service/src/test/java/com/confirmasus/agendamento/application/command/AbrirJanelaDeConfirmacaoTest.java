@@ -62,7 +62,7 @@ class AbrirJanelaDeConfirmacaoTest {
 
     private static Agendamento agendamento(long id, long pacienteId) {
         Instant janelaAbreEm = AGORA.minus(java.time.Duration.ofMinutes(1));
-        return new Agendamento(id, pacienteId, UUID.randomUUID(), AGORA.plus(java.time.Duration.ofDays(1)),
+        return new Agendamento(id, UUID.randomUUID(), pacienteId, UUID.randomUUID(), AGORA.plus(java.time.Duration.ofDays(1)),
                 StatusAgendamento.AGUARDANDO_JANELA, AGORA.minus(java.time.Duration.ofHours(1)), janelaAbreEm, null);
     }
 
