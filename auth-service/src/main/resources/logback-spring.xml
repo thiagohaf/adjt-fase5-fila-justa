@@ -3,12 +3,14 @@
   <springProperty name="service.name" source="spring.application.name" />
 
   <!-- Appender console com LogstashEncoder (JSON estruturado, Deferred P2)
-       ASSUNÇÃO: spring.application.name nunca contém caracteres especiais JSON (", \, etc.)
-       Todos os nomes de serviço atual: auth-service, gateway-service, etc. (alphanumeric + hífens). -->
+       - @timestamp: habilitado para compliance audit trail
+       - MDC: propaga correlationId (via CorrelationIdFilter)
+       - Sem customFields: evita JSON injection se spring.application.name tiver caracteres especiais
+       - Identidade de serviço: via logger name (com package prefix) -->
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder class="net.logstash.logback.encoder.LogstashEncoder">
       <fieldNames>
-        <timestamp>[ignore]</timestamp>
+        <timestamp>@timestamp</timestamp>
         <version>[ignore]</version>
         <level>level</level>
         <levelValue>[ignore]</levelValue>
@@ -16,7 +18,6 @@
         <message>message</message>
         <mdc>mdc</mdc>
       </fieldNames>
-      <customFields>{"service":"${service.name}"}</customFields>
     </encoder>
   </appender>
 

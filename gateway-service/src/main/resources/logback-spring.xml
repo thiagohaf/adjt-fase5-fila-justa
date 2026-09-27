@@ -2,12 +2,15 @@
 <configuration>
   <springProperty name="service.name" source="spring.application.name" />
 
-  <!-- Appender console com LogstashEncoder (JSON estruturado, Deferred P2) -->
-  <!-- NOTA: gateway usa Reactor Context, não MDC (ThreadLocal). MDC será vazio, portanto omitido. -->
+  <!-- Appender console com LogstashEncoder (JSON estruturado, Deferred P2)
+       - @timestamp: habilitado para compliance audit trail
+       - MDC: marcado [ignore] (gateway usa Reactor Context para correlationId, não ThreadLocal)
+       - Sem customFields: evita JSON injection
+       - Identidade: via logger name (com package prefix) -->
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder class="net.logstash.logback.encoder.LogstashEncoder">
       <fieldNames>
-        <timestamp>[ignore]</timestamp>
+        <timestamp>@timestamp</timestamp>
         <version>[ignore]</version>
         <level>level</level>
         <levelValue>[ignore]</levelValue>
@@ -15,7 +18,6 @@
         <message>message</message>
         <mdc>[ignore]</mdc>
       </fieldNames>
-      <customFields>{"service":"${service.name}"}</customFields>
     </encoder>
   </appender>
 
