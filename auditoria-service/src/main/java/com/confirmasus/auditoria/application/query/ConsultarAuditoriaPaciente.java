@@ -4,6 +4,10 @@ import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.domain.TipoPaciente;
+import com.confirmasus.auditoria.infrastructure.client.PacienteClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,15 +39,20 @@ import java.util.Optional;
 @Component
 public class ConsultarAuditoriaPaciente {
 
+    private static final Logger logger = LoggerFactory.getLogger(ConsultarAuditoriaPaciente.class);
     private final DecisaoAuditoriaRepositorio decisaoAuditoriaRepositorio;
+    private final PacienteClient pacienteClient;
 
     /**
      * Construtor de injeção de dependências.
      *
      * @param decisaoAuditoriaRepositorio porta de persistência de decisões auditáveis
+     * @param pacienteClient cliente para resolver dados de paciente (Story 4.4b)
      */
-    public ConsultarAuditoriaPaciente(DecisaoAuditoriaRepositorio decisaoAuditoriaRepositorio) {
+    public ConsultarAuditoriaPaciente(DecisaoAuditoriaRepositorio decisaoAuditoriaRepositorio,
+                                      PacienteClient pacienteClient) {
         this.decisaoAuditoriaRepositorio = decisaoAuditoriaRepositorio;
+        this.pacienteClient = pacienteClient;
     }
 
     /**
@@ -197,6 +206,117 @@ public class ConsultarAuditoriaPaciente {
             // Limpa MDC após processamento
             MDC.remove("X-Correlation-Id");
         }
+    }
+
+    /**
+     * Consulta com filtros opcionais incluindo filtros de paciente (Story 4.4b).
+     *
+     * <p>Propaga {@code X-Correlation-Id} ao MDC para structured logging conforme NFR-2.
+     *
+     * <p>Filtros são compostos com AND logic. Filtragem de paciente (tipoPaciente, nomePaciente, cpfPaciente)
+     * ocorre em memória após busca no repositório, permitindo paginação correta.
+     *
+     * @param pacienteId o ID do paciente (validado antes de chegar aqui)
+     * @param startDate data inicial do range (inclusive, nullable)
+     * @param endDate data final do range (inclusive, nullable)
+     * @param tipoDecisao tipo de decisão para filtrar (nullable)
+     * @param statusAgendamento status do agendamento para filtrar (nullable)
+     * @param tipoPaciente tipo de paciente para filtrar (nullable, Story 4.4b)
+     * @param nomePaciente nome do paciente para filtrar com LIKE case-insensitive (nullable, Story 4.4b)
+     * @param cpfPaciente CPF do paciente para filtrar (nullable, Story 4.4b)
+     * @param limit quantidade máxima de registros (1-200, já validado no controller)
+     * @param offset posição inicial para paginação (>= 0, já validado no controller)
+     * @param correlationId o ID de correlação opcional para rastreamento distribuído
+     * @return resultado paginado com items e total
+     */
+    @Transactional(readOnly = true)
+    public DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> consultarComFiltrosPaciente(
+            Long pacienteId,
+            Instant startDate,
+            Instant endDate,
+            TipoDecisao tipoDecisao,
+            StatusAgendamento statusAgendamento,
+            TipoPaciente tipoPaciente,
+            String nomePaciente,
+            String cpfPaciente,
+            int limit,
+            int offset,
+            Optional<String> correlationId
+    ) {
+        // Propaga X-Correlation-Id ao MDC
+        correlationId.ifPresentOrElse(
+                id -> MDC.put("X-Correlation-Id", id),
+                () -> MDC.remove("X-Correlation-Id")
+        );
+
+        try {
+            // Valida entrada
+            if (pacienteId == null || pacienteId <= 0) {
+                return new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(), 0L);
+            }
+
+            // Busca com filtros de data/decisão/agendamento (sem paginação ainda)
+            List<DecisaoAuditoria> todosResultados =
+                    decisaoAuditoriaRepositorio.findByPacienteIdWithFiltersAndStatusAgendamento(
+                            pacienteId, startDate, endDate, tipoDecisao, statusAgendamento,
+                            Integer.MAX_VALUE, 0  // sem limite para depois filtrar e paginar
+                    ).items();
+
+            // Filtra por dados de paciente (resolve via PacienteClient)
+            List<DecisaoAuditoria> filtrados = todosResultados.stream()
+                    .filter(decisao -> matchesFiltrosPaciente(decisao, tipoPaciente, nomePaciente, cpfPaciente))
+                    .toList();
+
+            // Total após filtros de paciente
+            long total = filtrados.size();
+
+            // Aplica paginação após filtros
+            List<DecisaoAuditoria> paginados = filtrados.stream()
+                    .skip(offset)
+                    .limit(limit)
+                    .toList();
+
+            return new DecisaoAuditoriaRepositorio.PaginatedResult<>(paginados, total);
+        } finally {
+            // Limpa MDC após processamento
+            MDC.remove("X-Correlation-Id");
+        }
+    }
+
+    private boolean matchesFiltrosPaciente(DecisaoAuditoria decisao, TipoPaciente tipoPaciente,
+                                           String nomePaciente, String cpfPaciente) {
+        // Se nenhum filtro de paciente, retorna true (não filtra)
+        if (tipoPaciente == null && nomePaciente == null && cpfPaciente == null) {
+            return true;
+        }
+
+        // Resolve dados do paciente
+        var pacienteDados = pacienteClient.obterPaciente(decisao.getPacienteId());
+        if (pacienteDados.isEmpty()) {
+            // Paciente não encontrado em nenhum serviço - não retorna
+            return false;
+        }
+
+        var paciente = pacienteDados.get();
+
+        // Filtro tipoPaciente
+        if (tipoPaciente != null && !tipoPaciente.name().equals(paciente.getTipoPaciente())) {
+            return false;
+        }
+
+        // Filtro nomePaciente (LIKE case-insensitive)
+        if (nomePaciente != null && paciente.getNome() != null) {
+            if (!paciente.getNome().toLowerCase().contains(nomePaciente.toLowerCase())) {
+                return false;
+            }
+        }
+
+        // Filtro cpfPaciente (match exato)
+        if (cpfPaciente != null && !cpfPaciente.equals(paciente.getCpf())) {
+            return false;
+        }
+
+        return true;
     }
 
 }

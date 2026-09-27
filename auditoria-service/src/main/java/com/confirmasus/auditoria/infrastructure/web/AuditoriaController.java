@@ -99,9 +99,25 @@ public class AuditoriaController {
                     tipoPaciente, nomePaciente, cpfPaciente, limit, offset
             );
 
-            // Executa consulta com filtros
+            // Executa consulta com filtros (Story 4.4b: inclui filtros de paciente se presentes)
             DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> resultado =
-                    consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                    filtros.getTipoPacienteOptional().isPresent() ||
+                    filtros.getNomePacienteOptional().isPresent() ||
+                    filtros.getCpfPacienteOptional().isPresent()
+                    ? consultarAuditoriaPaciente.consultarComFiltrosPaciente(
+                            pacienteId,
+                            filtros.startDate(),
+                            filtros.endDate(),
+                            filtros.tipoDecisao(),
+                            filtros.statusAgendamento(),
+                            filtros.tipoPaciente(),
+                            filtros.nomePaciente(),
+                            filtros.cpfPaciente(),
+                            filtros.getEffectiveLimit(),
+                            filtros.getEffectiveOffset(),
+                            Optional.ofNullable(correlationId)
+                    )
+                    : consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
                             pacienteId,
                             filtros.startDate(),
                             filtros.endDate(),
@@ -177,9 +193,25 @@ public class AuditoriaController {
                     tipoPaciente, nomePaciente, cpfPaciente, limit, offset
             );
 
-            // Executa consulta com filtros
+            // Executa consulta com filtros (Story 4.4b: inclui filtros de paciente se presentes)
             DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> resultado =
-                    consultarAuditoriaAgendamento.consultarComFiltrosEStatusAgendamento(
+                    filtros.getTipoPacienteOptional().isPresent() ||
+                    filtros.getNomePacienteOptional().isPresent() ||
+                    filtros.getCpfPacienteOptional().isPresent()
+                    ? consultarAuditoriaAgendamento.consultarComFiltrosPaciente(
+                            agendamentoId,
+                            filtros.startDate(),
+                            filtros.endDate(),
+                            filtros.tipoDecisao(),
+                            filtros.statusAgendamento(),
+                            filtros.tipoPaciente(),
+                            filtros.nomePaciente(),
+                            filtros.cpfPaciente(),
+                            filtros.getEffectiveLimit(),
+                            filtros.getEffectiveOffset(),
+                            Optional.ofNullable(correlationId)
+                    )
+                    : consultarAuditoriaAgendamento.consultarComFiltrosEStatusAgendamento(
                             agendamentoId,
                             filtros.startDate(),
                             filtros.endDate(),
