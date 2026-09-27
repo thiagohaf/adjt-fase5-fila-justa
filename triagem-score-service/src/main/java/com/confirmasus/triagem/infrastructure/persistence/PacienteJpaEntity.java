@@ -19,6 +19,12 @@ public class PacienteJpaEntity {
   @Column(name = "criado_em", nullable = false)
   private Instant criadoEm;
 
+  @Column(length = 255)
+  private String nome;
+
+  @Column(name = "tipo_paciente", length = 50)
+  private String tipoPaciente;
+
   public PacienteJpaEntity() {
   }
 
@@ -26,6 +32,7 @@ public class PacienteJpaEntity {
     this.id = id;
     this.cpf = cpf;
     this.criadoEm = Instant.now();
+    this.tipoPaciente = "REGULAR";
   }
 
   public UUID getId() {
@@ -50,5 +57,21 @@ public class PacienteJpaEntity {
 
   public void setCriadoEm(Instant criadoEm) {
     this.criadoEm = criadoEm;
+  }
+
+  public String getNome() {
+    return nome;
+  }
+
+  public void setNome(String nome) {
+    this.nome = nome;
+  }
+
+  public String getTipoPaciente() {
+    return tipoPaciente;
+  }
+
+  public void setTipoPaciente(String tipoPaciente) {
+    this.tipoPaciente = tipoPaciente;
   }
 }
