@@ -36,6 +36,7 @@
 
 ## Sessão
 - Ao final de cada entrega de fase, recomendar `/compact` ou reiniciar sessão.
+- **Handoff após merge**: toda vez que usar `/session-handoff-after-merge`, o formato de saída **DEVE SER SEMPRE COPIÁVEL** (sem formatação quebrada, blocos de código completos, sem truncamento). Facilita transferência de contexto para próxima sessão.
 
 # Workspace Scope & Boundaries
 - All operations, bash commands, file creations, and reads MUST remain strictly within this project root ("/Users/thiagoferreira/Documents/Fiap/Fase 5").
