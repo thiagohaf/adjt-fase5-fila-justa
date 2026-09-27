@@ -58,3 +58,7 @@ confirmasus:
 # AWS configuration (via SDK default providers)
 aws:
   region: ${AWS_REGION:us-east-1}
+
+logging:
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"auditoria-service","correlationId":"%X{correlationId}","logger":"%c","message":"%m"}%n'
