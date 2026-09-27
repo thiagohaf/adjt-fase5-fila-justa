@@ -85,6 +85,7 @@ services:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: local
+      CONFIRMASUS_JWT_SECRET: "supersecretkey12345678901234567890"
       SERVER_PORT: 8080
       SPRING_CLOUD_GATEWAY_ROUTES_0_ID: auth
       SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://auth-service:8081
