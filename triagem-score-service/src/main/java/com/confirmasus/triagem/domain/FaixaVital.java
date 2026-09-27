@@ -1,5 +1,6 @@
 package com.confirmasus.triagem.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
@@ -36,12 +37,24 @@ public class FaixaVital {
     this.max = max;
   }
 
+  @JsonProperty("nome")
   public String nome() {
     return nome;
   }
 
+  @JsonProperty("valor")
   public double valor() {
     return valor;
+  }
+
+  @JsonProperty("min")
+  public double min() {
+    return min;
+  }
+
+  @JsonProperty("max")
+  public double max() {
+    return max;
   }
 
   /**

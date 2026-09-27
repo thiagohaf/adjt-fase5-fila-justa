@@ -1,5 +1,6 @@
 package com.confirmasus.triagem.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
 /**
@@ -21,10 +22,12 @@ public class FatorContribuinte {
     this.contribuicao = contribuicao;
   }
 
+  @JsonProperty("fator")
   public String fator() {
     return fator;
   }
 
+  @JsonProperty("contribuicao")
   public double contribuicao() {
     return contribuicao;
   }
