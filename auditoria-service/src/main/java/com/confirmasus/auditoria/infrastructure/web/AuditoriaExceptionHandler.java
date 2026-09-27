@@ -1,10 +1,13 @@
 package com.confirmasus.auditoria.infrastructure.web;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -24,6 +27,28 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class AuditoriaExceptionHandler {
+    private static final Logger logger = LoggerFactory.getLogger(AuditoriaExceptionHandler.class);
+
+    /**
+     * Manipula erros de tipo de argumento (ex.: enum inválido).
+     *
+     * @param ex a exceção capturada
+     * @param request o contexto da request
+     * @return ResponseEntity com HTTP 400 Bad Request
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Object> handleMethodArgumentTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            WebRequest request
+    ) {
+        Map<Object, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", Instant.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Bad Request");
+        body.put("message", String.format("Parâmetro '%s' inválido: %s", ex.getName(), ex.getValue()));
+
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
 
     /**
      * Manipula IllegalArgumentException lançadas pelas regras de negócio (Story 4.3).
@@ -67,6 +92,7 @@ public class AuditoriaExceptionHandler {
             Exception ex,
             WebRequest request
     ) {
+        logger.error("Erro não tratado", ex);
         Map<Object, Object> body = new LinkedHashMap<>();
         body.put("timestamp", Instant.now());
         body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
