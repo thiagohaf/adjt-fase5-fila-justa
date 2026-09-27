@@ -49,7 +49,7 @@ spring:
             - id: triagem-score
               uri: http://triagem-score-service:8084
               predicates:
-                - Path=/v1/triagem/**
+                - Path=/v1/triagens/**
 
             # Auditoria (Story 4, Epic 4) -- rota publica protegida
             - id: auditoria
