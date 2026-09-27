@@ -86,14 +86,11 @@
         <version>3.1.2</version>
       </plugin>
 
-      <!-- JaCoCo para relatório de cobertura (desabilitado temporariamente para Java 25) -->
-      <!-- Versão 0.8.10 não suporta Java 25 (major version 69).
-           Reabilitar com versão >= 0.8.11 ou usar alternativas como PIT. -->
-      <!--
+      <!-- JaCoCo para relatório de cobertura -->
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.10</version>
+        <version>0.8.13</version>
         <executions>
           <execution>
             <goals>
@@ -102,7 +99,6 @@
           </execution>
         </executions>
       </plugin>
-      -->
 
       <!-- Shade plugin para criar fat JAR (opcional, para execução standalone) -->
       <plugin>
