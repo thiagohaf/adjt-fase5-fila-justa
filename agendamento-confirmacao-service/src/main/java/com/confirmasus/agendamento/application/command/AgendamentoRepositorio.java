@@ -5,6 +5,7 @@ import com.confirmasus.agendamento.domain.StatusAgendamento;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Porta de saida para persistencia de {@link Agendamento}. Implementada em
@@ -72,4 +73,11 @@ public interface AgendamentoRepositorio {
      * retorna).
      */
     Optional<Agendamento> buscarPorId(Long id);
+
+    /**
+     * Busca idempotente por pacienteId + recursoId (Story 5.2, Item 2 E2E: Idempotência).
+     * Retorna agendamento existente ou vazio se nao encontrado.
+     * Sem filtro de status, para ser resiliente a qualquer estado.
+     */
+    Optional<Agendamento> buscarPorPacienteIdERecursoId(Long pacienteId, UUID recursoId);
 }

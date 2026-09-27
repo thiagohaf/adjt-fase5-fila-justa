@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Adapter que implementa a porta {@link AgendamentoRepositorio}
@@ -83,6 +84,11 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     @Override
     public Optional<Agendamento> buscarPorId(Long id) {
         return jpaRepository.findById(id).map(this::paraDominio);
+    }
+
+    @Override
+    public Optional<Agendamento> buscarPorPacienteIdERecursoId(Long pacienteId, UUID recursoId) {
+        return jpaRepository.findByPacienteIdAndRecursoId(pacienteId, recursoId).map(this::paraDominio);
     }
 
     private Agendamento paraDominio(AgendamentoJpaEntity entity) {

@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 interface AgendamentoJpaRepository extends JpaRepository<AgendamentoJpaEntity, Long> {
 
@@ -56,5 +58,11 @@ interface AgendamentoJpaRepository extends JpaRepository<AgendamentoJpaEntity, L
             nativeQuery = true)
     List<AgendamentoJpaEntity> buscarPendentesExpiracaoJanela(@Param("agora") Instant agora,
                                                                @Param("limite") int limite);
+
+    // Busca idempotente por pacienteId + recursoId (Story 5.2, Item 2 E2E: Idempotência).
+    // Retorna agendamento existente ou vazio se nao encontrado (será criado novo).
+    // Sem filtro de status, para ser resiliente a qualquer estado do agendamento.
+    Optional<AgendamentoJpaEntity> findByPacienteIdAndRecursoId(@Param("pacienteId") Long pacienteId,
+                                                                 @Param("recursoId") UUID recursoId);
 
 }

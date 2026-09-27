@@ -67,6 +67,12 @@ public class RegistrarAgendamento {
 
         Paciente paciente = resolverOuCriarPaciente.resolver(cpf);
 
+        // Idempotência (Story 5.2, Item 2 E2E): busca existente por pacienteId+recursoId
+        var agendamentoExistente = agendamentoRepositorio.buscarPorPacienteIdERecursoId(paciente.getId(), recursoId);
+        if (agendamentoExistente.isPresent()) {
+            return agendamentoExistente.get();
+        }
+
         Instant janelaAbreEm = agora.plus(janelaDuracao);
         Agendamento agendamentoParaSalvar =
                 Agendamento.novo(paciente.getId(), recursoId, dataHoraAgendamento, agora, janelaAbreEm);
