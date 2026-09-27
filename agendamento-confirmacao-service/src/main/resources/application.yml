@@ -80,4 +80,4 @@ confirmasus:
 
 logging:
   pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"agendamento-confirmacao-service","logger":"%c","message":"%m"}%n'
+    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"agendamento-confirmacao-service","correlationId":"%X{correlationId}","logger":"%c","message":"%m"}%n'

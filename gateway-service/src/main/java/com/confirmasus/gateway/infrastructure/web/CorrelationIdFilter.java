@@ -7,6 +7,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.util.context.Context;
 
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -62,7 +63,8 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
         // direto no exchange (401) sem prosseguir a cadeia ate um handler.
         exchange.getResponse().getHeaders().set(CORRELATION_ID_HEADER, correlationId);
 
-        return chain.filter(exchange.mutate().request(requestMutado).build());
+        return chain.filter(exchange.mutate().request(requestMutado).build())
+                .contextWrite(Context.of("correlationId", correlationId));
     }
 
     @Override
