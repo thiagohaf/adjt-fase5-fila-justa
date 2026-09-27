@@ -158,6 +158,4 @@ confirmasus:
       rank-3: PT6M
       rank-4: PT8M
 
-logging:
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"matching-alocacao-service","correlationId":"%X{correlationId}","logger":"%c","message":"%m"}%n'
+# Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)

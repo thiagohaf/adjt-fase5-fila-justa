@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <springProperty name="service.name" source="spring.application.name" />
+
+  <!-- Appender console com LogstashEncoder (JSON estruturado, Deferred P2) -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <fieldNames>
+        <timestamp>[ignore]</timestamp>
+        <version>[ignore]</version>
+        <level>level</level>
+        <levelValue>[ignore]</levelValue>
+        <loggerName>logger</loggerName>
+        <message>message</message>
+        <mdc>mdc</mdc>
+      </fieldNames>
+      <customFields>{"service":"${service.name}"}</customFields>
+    </encoder>
+  </appender>
+
+  <!-- Root logger aponta ao Console (DEBUG em dev, INFO em prod via app config) -->
+  <root level="INFO">
+    <appender-ref ref="CONSOLE" />
+  </root>
+
+  <!-- Spring profiles para ajustes por ambiente (dev=DEBUG, prod=INFO) -->
+  <springProfile name="dev,local">
+    <root level="DEBUG" />
+  </springProfile>
+</configuration>
