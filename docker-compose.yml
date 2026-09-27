@@ -64,7 +64,7 @@ services:
       SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
       SERVER_PORT: 8081
       MANAGEMENT_SERVER_PORT: 8090
-      CONFIRMASUS_JWT_SECRET: "supersecretkey1234567890123456789" # Min 32 bytes for HS256
+      CONFIRMASUS_JWT_SECRET: "supersecretkey123456789012345678" # 32 bytes = 256 bits for HS256
       TECH_USERNAME: admin-tecnico
       TECH_PASSWORD: senha-tecnica-segura
     ports:
@@ -85,7 +85,7 @@ services:
         condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: local
-      CONFIRMASUS_JWT_SECRET: "supersecretkey123456789012345678901"
+      CONFIRMASUS_JWT_SECRET: "supersecretkey123456789012345678" # 32 bytes = 256 bits for HS256
       SERVER_PORT: 8080
       SPRING_CLOUD_GATEWAY_ROUTES_0_ID: auth
       SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://auth-service:8081

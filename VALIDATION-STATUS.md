@@ -3,7 +3,7 @@
 ## Resumo
 - **Data:** 2026-09-27
 - **Objetivo:** Validar Item 1 (E2E Manual) dos deferred items do Epic 5
-- **Status:** Em progresso com bloqueador de validação JWT
+- **Status:** ✅ JWT sincronizado e validado com sucesso
 
 ## Progresso
 
@@ -17,10 +17,10 @@
    - Desabilitados relays SQS/SNS para ambiente local
    - Flags adicionadas: `CONFIRMASUS_*_RELAY_ENABLED=false`
 
-3. **Correção de segredo JWT**
-   - Chaves aumentadas para ≥ 32 bytes (256 bits)
-   - auth-service: `CONFIRMASUS_JWT_SECRET` = 33 bytes
-   - gateway-service: `CONFIRMASUS_JWT_SECRET` = 34 bytes
+3. **Correção de segredo JWT** ✅ FIXADO
+   - Chaves sincronizadas e aumentadas para 32 bytes (256 bits)
+   - Ambos serviços agora usam: `supersecretkey123456789012345678`
+   - Testado: seed-adapter conseguiu autenticar com sucesso
 
 4. **Roteamento do Gateway**
    - Adicionadas rotas faltantes ao application.yml do gateway-service:
@@ -32,56 +32,68 @@
    - Todos 6 serviços UP and healthy
    - Seed-adapter compila e executa
 
-### ⏳ Em Progresso
-1. **Validação JWT no Gateway**
-   - Seed-adapter consegue gerar JWT com sucesso
-   - Gateway rejeita token (401: "Token ausente, expirado ou com assinatura inválida")
-   - **Causa provável:** Chaves JWT diferentes entre auth-service e gateway-service
+### ✅ Teste E2E com Seed-Adapter (2026-09-27 02:09)
+1. **Validação JWT no Gateway** ✅ PASS
+   - Seed-adapter obteve JWT com sucesso
+   - Gateway validou token corretamente (chaves sincronizadas)
+   - Token válido por ~55 minutos
+   
+2. **Carregamento de Recursos** ✅ 5/5 PASS
+   - codigo=01 (Cardiologia, Hospital Central) → UUID: 60676e7c-f8d9-4f31-802d-aee2ad366716
+   - codigo=02 (Cirurgia Geral, Hospital Central) → UUID: 512a8866-b667-429c-a644-6d0b05c12a1e
+   - codigo=03 (Radiologia, UBS Zona Leste) → UUID: a45cd950-a8b2-4ee2-a0b2-d9673be24e44
+   - codigo=04 (Oftalmologia, Clínica Privada) → UUID: d8ffc2eb-631c-4a98-b286-148a9fa18504
+   - codigo=05 (Pediatria, Hospital Central) → UUID: 6557bec9-cfc0-45ba-8169-0df24ceb537b
+   
+3. **Carregamento de Agendamentos** ⚠️ ERRO DE PARSING
+   - Falha ao processar resposta do agendamento-service
+   - Erro: "Invalid UUID string: 1"
+   - Causa: agendamento-service retorna ID como inteiro (1) em vez de UUID
+   - Status: Bloqueador secundário (afeta Item 1 apenas)
 
-## Bloqueador Identificado
+## Bloqueador Secundário Identificado
 
 ```
-Falha ao upsertar Recurso (status 401): 
-"Token ausente, expirado ou com assinatura invalida"
+Falha ao carregar agendamentos: 
+"Invalid UUID string: 1"
 ```
 
 ### Investigação
-- Auth-service gera JWT válido → confirmado via log "JWT obtido com sucesso, válido por ~55 minutos"
-- Gateway valida JWT → falha na validação (401)
-- **Hipótese:** Validação de signature falha porque chaves são diferentes
+- agendamento-service retorna ID como inteiro (1, 2, ...) na resposta 201 Created
+- seed-adapter espera UUID (UUID v4) na resposta
+- **Causa:** Falta de migração ou mapeamento no agendamento-service para retornar UUID em vez de ID
 
-## Checklist para Próxima Sessão
+### Impacto
+- Item 1 (E2E Manual): ⚠️ Parcialmente validado (recursos OK, agendamentos bloqueados)
+- Item 2 (Idempotência): Não afetado (não depende de agendamentos)
+- Item 3 (Resiliência): Não afetado (não depende de agendamentos)
 
-1. [ ] Verificar se as chaves JWT estão sincronizadas:
-   - Ambas precisam ser IDÊNTICAS (auth-service gera, gateway valida)
-   - Atualmente têm tamanhos diferentes (33 vs 34 bytes)
+## Checklist Completado
 
-2. [ ] Usar chave idêntica em ambos os serviços
+1. ✅ Sincronizou chaves JWT (ambas = 32 bytes)
+2. ✅ Testou seed-adapter com novo JWT
+3. ✅ Validou carregamento de 5 recursos (100% sucesso)
+4. ✅ Identificou erro de parsing em agendamentos
+5. ✅ Documentou resultado neste arquivo
 
-3. [ ] Validar assinatura JWT:
+## Próximas Ações Recomendadas
+
+1. **Fixar agendamento-service** (investigação):
+   - Verificar resposta HTTP 201 do endpoint POST /agendamentos
+   - Garantir que retorna UUID em vez de ID
+   - Testar agendamento com ferramenta manual (curl ou Postman)
+
+2. **Reexecutar seed-adapter** após fix
+
+3. **Validar contagens no DB:**
    ```bash
-   # Decodificar token e verificar claims
-   echo $TOKEN | cut -d. -f1 | base64 -d | jq .
+   # PostgreSQL
+   psql -h localhost -U postgres -d confirmasus -c "SELECT COUNT(*) FROM recursos;"
+   psql -h localhost -U postgres -d confirmasus -c "SELECT COUNT(*) FROM agendamentos;"
+   psql -h localhost -U postgres -d confirmasus -c "SELECT COUNT(*) FROM lista_espera;"
    ```
 
-4. [ ] Testar seed-adapter novamente:
-   ```bash
-   docker run --rm --network fase5_confirmasus-network \
-     -e SEED_ADAPTER_USERNAME=regulador \
-     -e SEED_ADAPTER_PASSWORD="regulador#2026" \
-     -e AUTH_SERVICE_URL=http://auth-service:8081 \
-     -e GATEWAY_SERVICE_URL=http://gateway-service:8080 \
-     seed-adapter:latest
-   ```
-
-5. [ ] Validar contagens no DB:
-   - recursos=5 ✓
-   - agendamentos=10 ✓
-   - lista_espera=3 (não testado ainda)
-
-6. [ ] Documentar resultado em epic-5-deferred-items-validation.md
-
-7. [ ] Commitar + PR (se PASS)
+4. **Commitar + PR** quando recursos e agendamentos forem carregados com sucesso
 
 ## Arquivos Modificados
 
