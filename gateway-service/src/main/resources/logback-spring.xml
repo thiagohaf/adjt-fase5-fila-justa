@@ -3,6 +3,7 @@
   <springProperty name="service.name" source="spring.application.name" />
 
   <!-- Appender console com LogstashEncoder (JSON estruturado, Deferred P2) -->
+  <!-- NOTA: gateway usa Reactor Context, não MDC (ThreadLocal). MDC será vazio, portanto omitido. -->
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder class="net.logstash.logback.encoder.LogstashEncoder">
       <fieldNames>
@@ -12,7 +13,7 @@
         <levelValue>[ignore]</levelValue>
         <loggerName>logger</loggerName>
         <message>message</message>
-        <mdc>mdc</mdc>
+        <mdc>[ignore]</mdc>
       </fieldNames>
       <customFields>{"service":"${service.name}"}</customFields>
     </encoder>
