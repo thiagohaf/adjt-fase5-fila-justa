@@ -27,6 +27,9 @@ public class AgendamentoJpaEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "agendamento_id", nullable = false, unique = true)
+    private UUID agendamentoId;
+
     @Column(name = "paciente_id", nullable = false)
     private Long pacienteId;
 
@@ -70,6 +73,10 @@ public class AgendamentoJpaEntity {
 
     public Long getId() {
         return id;
+    }
+
+    public UUID getAgendamentoId() {
+        return agendamentoId;
     }
 
     public Long getPacienteId() {

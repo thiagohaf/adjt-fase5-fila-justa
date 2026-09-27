@@ -73,7 +73,7 @@ class RecusarPresencaTest {
 
     private static Agendamento agendamento(long id, long pacienteId, StatusAgendamento status, String motivoLiberacao) {
         Instant janelaAbreEm = AGORA.minus(Duration.ofMinutes(10));
-        return new Agendamento(id, pacienteId, UUID.randomUUID(), AGORA.plus(Duration.ofDays(1)),
+        return new Agendamento(id, UUID.randomUUID(), pacienteId, UUID.randomUUID(), AGORA.plus(Duration.ofDays(1)),
                 status, AGORA.minus(Duration.ofHours(1)), janelaAbreEm, null, motivoLiberacao);
     }
 
@@ -86,7 +86,7 @@ class RecusarPresencaTest {
         UUID recursoId = UUID.randomUUID();
         when(agendamentoRepositorio.buscarPorId(1L))
                 .thenReturn(Optional.of(
-                        new Agendamento(1L, 42L, recursoId, AGORA.plus(Duration.ofDays(1)),
+                        new Agendamento(1L, UUID.randomUUID(), 42L, recursoId, AGORA.plus(Duration.ofDays(1)),
                                 StatusAgendamento.LIBERADO, AGORA.minus(Duration.ofHours(1)),
                                 AGORA.minus(Duration.ofMinutes(10)), null, MotivoLiberacao.RECUSA.name())));
 
@@ -213,7 +213,7 @@ class RecusarPresencaTest {
         when(agendamentoRepositorio.buscarPorId(7L))
                 .thenReturn(
                         Optional.of(agendamento(7L, 47L, StatusAgendamento.AGUARDANDO_CONFIRMACAO)),
-                        Optional.of(new Agendamento(7L, 47L, recursoId, AGORA.plus(Duration.ofDays(1)),
+                        Optional.of(new Agendamento(7L, UUID.randomUUID(), 47L, recursoId, AGORA.plus(Duration.ofDays(1)),
                                 StatusAgendamento.LIBERADO, AGORA.minus(Duration.ofHours(1)),
                                 AGORA.minus(Duration.ofMinutes(10)), null, MotivoLiberacao.RECUSA.name())));
 

@@ -65,7 +65,7 @@ class ConfirmarPresencaTest {
 
     private static Agendamento agendamento(long id, long pacienteId, StatusAgendamento status) {
         Instant janelaAbreEm = AGORA.minus(Duration.ofMinutes(10));
-        return new Agendamento(id, pacienteId, UUID.randomUUID(), AGORA.plus(Duration.ofDays(1)),
+        return new Agendamento(id, UUID.randomUUID(), pacienteId, UUID.randomUUID(), AGORA.plus(Duration.ofDays(1)),
                 status, AGORA.minus(Duration.ofHours(1)), janelaAbreEm, null);
     }
 

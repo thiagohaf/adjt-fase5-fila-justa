@@ -42,7 +42,8 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
                 agendamento.getJanelaAbreEm(),
                 agendamento.getJanelaExpiraEm());
         AgendamentoJpaEntity salvo = jpaRepository.save(entity);
-        return paraDominio(salvo);
+        jpaRepository.flush();
+        return paraDominio(jpaRepository.findById(salvo.getId()).orElseThrow());
     }
 
     @Override
@@ -86,6 +87,7 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     private Agendamento paraDominio(AgendamentoJpaEntity entity) {
         return new Agendamento(
                 entity.getId(),
+                entity.getAgendamentoId(),
                 entity.getPacienteId(),
                 entity.getRecursoId(),
                 entity.getDataHoraAgendamento(),
