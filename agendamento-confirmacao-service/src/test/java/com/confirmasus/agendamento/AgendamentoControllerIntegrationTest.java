@@ -150,7 +150,8 @@ class AgendamentoControllerIntegrationTest {
                 .hasValueSatisfying(contentType -> assertThat(contentType).contains("application/json"));
 
         JsonNode json = objectMapper.readTree(response.body());
-        assertThat(json.get("agendamentoId").asLong()).isPositive();
+        assertThat(json.get("agendamentoId").asText())
+                .matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
         assertThat(json.get("pacienteId").asLong()).isPositive();
         assertThat(json.get("status").asText()).isEqualTo("AGUARDANDO_JANELA");
         // CPF em texto claro nunca sai do servico (Boundaries da spec 1.1).
@@ -171,8 +172,8 @@ class AgendamentoControllerIntegrationTest {
         long pacienteId2 = objectMapper.readTree(segundo.body()).get("pacienteId").asLong();
         assertThat(pacienteId2).isEqualTo(pacienteId1);
 
-        long agendamentoId1 = objectMapper.readTree(primeiro.body()).get("agendamentoId").asLong();
-        long agendamentoId2 = objectMapper.readTree(segundo.body()).get("agendamentoId").asLong();
+        String agendamentoId1 = objectMapper.readTree(primeiro.body()).get("agendamentoId").asText();
+        String agendamentoId2 = objectMapper.readTree(segundo.body()).get("agendamentoId").asText();
         assertThat(agendamentoId2).isNotEqualTo(agendamentoId1);
 
         Integer totalPacientes = jdbcTemplate.queryForObject(
