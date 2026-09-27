@@ -5,9 +5,7 @@ import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
 import org.springframework.stereotype.Component;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -17,23 +15,14 @@ import java.util.UUID;
  * usando {@link DecisaoAuditoriaJpaRepository} (Spring Data, schema {@code auditoria}).
  *
  * <p>Segue o padrão Clean Architecture: domínio ↔ porta ↔ adapter ↔ JPA.
- *
- * <p>{@link ObjectMapper} é o Jackson 3 compartilhado do Spring Boot 4.1.
- * {@link Clock} é injetado para testabilidade.
  */
 @Component
 class DecisaoAuditoriaRepositorioAdapter implements DecisaoAuditoriaRepositorio {
 
     private final DecisaoAuditoriaJpaRepository jpaRepository;
-    private final ObjectMapper objectMapper;
-    private final Clock clock;
 
-    DecisaoAuditoriaRepositorioAdapter(DecisaoAuditoriaJpaRepository jpaRepository,
-                                       ObjectMapper objectMapper,
-                                       Clock clock) {
+    DecisaoAuditoriaRepositorioAdapter(DecisaoAuditoriaJpaRepository jpaRepository) {
         this.jpaRepository = jpaRepository;
-        this.objectMapper = objectMapper;
-        this.clock = clock;
     }
 
     @Override

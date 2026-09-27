@@ -1,6 +1,7 @@
 package com.confirmasus.auditoria.infrastructure.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,12 +27,13 @@ class DecisaoSqsClientConfig {
      */
     @Bean
     @ConditionalOnProperty(prefix = "confirmasus.auditoria.relay", name = "enabled", matchIfMissing = true)
-    SqsClient sqsClient() {
+    public SqsClient sqsClient() {
         return SqsClient.builder().build();
     }
 
     @Bean
-    ObjectMapper objectMapper() {
+    @ConditionalOnMissingBean
+    public ObjectMapper objectMapper() {
         return new ObjectMapper();
     }
 }

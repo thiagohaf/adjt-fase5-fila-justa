@@ -7,6 +7,7 @@ import com.confirmasus.triagem.application.port.PacienteRepositorio;
 import com.confirmasus.triagem.application.port.TriagemRepositorio;
 import com.confirmasus.triagem.domain.CalculadorDeScore;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,6 +17,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class TriagemConfiguration {
   @Bean
+  @ConditionalOnMissingBean
   public ObjectMapper objectMapper() {
     return new ObjectMapper();
   }
