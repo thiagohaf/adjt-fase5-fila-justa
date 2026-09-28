@@ -23,12 +23,19 @@ public class PacienteJpaEntity {
     @Column(nullable = false, unique = true, length = 11)
     private String cpf;
 
+    @Column(length = 255)
+    private String nome;
+
+    @Column(name = "tipo_paciente", length = 50)
+    private String tipoPaciente;
+
     protected PacienteJpaEntity() {
         // Exigido pelo JPA.
     }
 
     public PacienteJpaEntity(String cpf) {
         this.cpf = cpf;
+        this.tipoPaciente = "REGULAR";
     }
 
     public Long getId() {
@@ -37,5 +44,21 @@ public class PacienteJpaEntity {
 
     public String getCpf() {
         return cpf;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getTipoPaciente() {
+        return tipoPaciente;
+    }
+
+    public void setTipoPaciente(String tipoPaciente) {
+        this.tipoPaciente = tipoPaciente;
     }
 }

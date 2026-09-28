@@ -3,6 +3,7 @@ package com.confirmasus.auditoria.application.query;
 import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.infrastructure.client.PacienteClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,11 +42,14 @@ class ConsultarAuditoriaPacienteWithFiltersTest {
     @Mock
     private DecisaoAuditoriaRepositorio repositorio;
 
+    @Mock
+    private PacienteClient pacienteClient;
+
     private ConsultarAuditoriaPaciente useCase;
 
     @BeforeEach
     void setup() {
-        useCase = new ConsultarAuditoriaPaciente(repositorio);
+        useCase = new ConsultarAuditoriaPaciente(repositorio, pacienteClient);
     }
 
     @Test

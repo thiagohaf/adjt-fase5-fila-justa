@@ -3,6 +3,7 @@ package com.confirmasus.auditoria.application.query;
 import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.infrastructure.client.PacienteClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -25,12 +26,15 @@ class ConsultarAuditoriaAgendamentoTest {
     @Mock
     private DecisaoAuditoriaRepositorio repositorio;
 
+    @Mock
+    private PacienteClient pacienteClient;
+
     private ConsultarAuditoriaAgendamento consultar;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        consultar = new ConsultarAuditoriaAgendamento(repositorio);
+        consultar = new ConsultarAuditoriaAgendamento(repositorio, pacienteClient);
         MDC.clear();
     }
 
