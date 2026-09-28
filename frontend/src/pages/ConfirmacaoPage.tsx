@@ -1,12 +1,15 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Agendamento } from '../types'
 import CountdownDisplay from '../components/CountdownDisplay'
+import ConfirmacaoButtons from '../components/ConfirmacaoButtons'
 
 export default function ConfirmacaoPage() {
   const { agendamentoId } = useParams<{ agendamentoId: string }>()
   const navigate = useNavigate()
+  const [acaoCompleta, setAcaoCompleta] = useState(false)
 
   const {
     data: agendamento,
@@ -147,18 +150,44 @@ export default function ConfirmacaoPage() {
         </div>
 
         {/* Countdown (Story FE-2) */}
-        {agendamento.janelaExpiraEm && (
+        {agendamento.janelaExpiraEm && !acaoCompleta && (
           <div className="bg-white rounded-lg shadow p-8 mb-6">
             <CountdownDisplay expiryTime={agendamento.janelaExpiraEm} />
           </div>
         )}
 
-        {/* Placeholder para Botões de Confirmação/Recusa (Story FE-3) */}
-        <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 text-center">
-          <p className="text-gray-600 text-sm">
-            🚧 Botões de Confirmação/Recusa será implementada em Story FE-3
-          </p>
-        </div>
+        {/* Botões de Confirmação/Recusa (Story FE-3) */}
+        {!acaoCompleta && (
+          <ConfirmacaoButtons
+            agendamento={agendamento}
+            janelaExpirada={
+              agendamento.janelaExpiraEm
+                ? new Date(agendamento.janelaExpiraEm) <= new Date()
+                : false
+            }
+            onConfirmacao={() => {
+              setAcaoCompleta(true)
+              setTimeout(() => {
+                navigate('/dashboard', {
+                  state: { mensagem: 'Ação registrada com sucesso!' },
+                })
+              }, 1500)
+            }}
+          />
+        )}
+
+        {/* Mensagem de Sucesso */}
+        {acaoCompleta && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+            <div className="text-4xl mb-4">✓</div>
+            <h2 className="text-xl font-semibold text-green-800 mb-2">
+              Ação Registrada com Sucesso
+            </h2>
+            <p className="text-green-700 mb-4">
+              Seu registro foi salvo. Redirecionando para o dashboard...
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
