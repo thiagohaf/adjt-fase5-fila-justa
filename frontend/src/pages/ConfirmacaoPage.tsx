@@ -9,7 +9,7 @@ export default function ConfirmacaoPage() {
 
   const {
     data: agendamento,
-    isLoading,
+    isPending,
     error,
   } = useQuery({
     queryKey: ['agendamento', agendamentoId],
@@ -19,9 +19,10 @@ export default function ConfirmacaoPage() {
       )
       return response.data
     },
+    enabled: !!agendamentoId,
   })
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center">
         <div className="text-center">
@@ -131,7 +132,7 @@ export default function ConfirmacaoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Motivo da Liberação
                 </label>
-                <p className="text-gray-900">{agendamento.motivoLiberacao}</p>
+                <p className="text-gray-900">{formatMotivo(agendamento.motivoLiberacao)}</p>
               </div>
             )}
           </div>
@@ -163,4 +164,12 @@ function formatStatus(status: string): string {
     LIBERADO: 'Liberado',
   }
   return statusMap[status] || status
+}
+
+function formatMotivo(motivo: string): string {
+  const motivoMap: Record<string, string> = {
+    RECUSA: 'Recusa do Paciente',
+    NAO_CONFIRMADO: 'Não Confirmado',
+  }
+  return motivoMap[motivo] || motivo
 }
