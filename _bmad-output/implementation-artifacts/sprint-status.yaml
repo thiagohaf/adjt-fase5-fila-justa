@@ -179,6 +179,19 @@ development_status:
   5-1-carga-de-dados-sintéticos-via-camada-adaptadora: done
   5-2-carga-idempotente-agendamentos-sinteticos: done
   5-3-carga-idempotente-lista-espera-sintetica: done
+    # Story 5.3 implementada 2026-09-28: POST /v1/lista-espera
+    # - Entidade ListaEsperaEntrada (domain + persistence)
+    # - Resolução/criação idempotente de Paciente
+    # - Caso de uso CriarEntradaListaEspera (@Transactional)
+    # - Controller + DTOs + Exception Handler
+    # - Migration Flyway V10 (paciente + lista_espera_entrada)
+    # - Gateway route (application.yml)
+    # - Testes E2E validados (201, 409, 422, 500)
+    # - Code review: 3 bugs encontrados e corrigidos
+    #   * @NotBlank dataSolicitacao (validação string vazia)
+    #   * Handler DateTimeParseException → 422
+    #   * Mapear created_at em PacienteJpaEntity
+    # PR #95 com correções commitadas e pushadas
   epic-5-retrospective: done
 action_items:
   - id: "epic-1-retro-item-1-atualizar-package-info-java-desatualizad"

@@ -93,15 +93,18 @@ services:
       SPRING_CLOUD_GATEWAY_ROUTES_1_ID: matching
       SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://matching-alocacao-service:8083
       SPRING_CLOUD_GATEWAY_ROUTES_1_PREDICATES_0: Path=/v1/recursos/**,/v1/alocacoes/**
-      SPRING_CLOUD_GATEWAY_ROUTES_2_ID: agendamento
-      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://agendamento-confirmacao-service:8082
-      SPRING_CLOUD_GATEWAY_ROUTES_2_PREDICATES_0: Path=/v1/agendamentos/**
-      SPRING_CLOUD_GATEWAY_ROUTES_3_ID: triagem
-      SPRING_CLOUD_GATEWAY_ROUTES_3_URI: http://triagem-score-service:8084
-      SPRING_CLOUD_GATEWAY_ROUTES_3_PREDICATES_0: Path=/v1/triagens/**
-      SPRING_CLOUD_GATEWAY_ROUTES_4_ID: auditoria
-      SPRING_CLOUD_GATEWAY_ROUTES_4_URI: http://auditoria-service:8085
-      SPRING_CLOUD_GATEWAY_ROUTES_4_PREDICATES_0: Path=/v1/auditoria/**
+      SPRING_CLOUD_GATEWAY_ROUTES_2_ID: lista-espera
+      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://matching-alocacao-service:8083
+      SPRING_CLOUD_GATEWAY_ROUTES_2_PREDICATES_0: Path=/v1/lista-espera/**
+      SPRING_CLOUD_GATEWAY_ROUTES_3_ID: agendamento
+      SPRING_CLOUD_GATEWAY_ROUTES_3_URI: http://agendamento-confirmacao-service:8082
+      SPRING_CLOUD_GATEWAY_ROUTES_3_PREDICATES_0: Path=/v1/agendamentos/**
+      SPRING_CLOUD_GATEWAY_ROUTES_4_ID: triagem
+      SPRING_CLOUD_GATEWAY_ROUTES_4_URI: http://triagem-score-service:8084
+      SPRING_CLOUD_GATEWAY_ROUTES_4_PREDICATES_0: Path=/v1/triagens/**
+      SPRING_CLOUD_GATEWAY_ROUTES_5_ID: auditoria
+      SPRING_CLOUD_GATEWAY_ROUTES_5_URI: http://auditoria-service:8085
+      SPRING_CLOUD_GATEWAY_ROUTES_5_PREDICATES_0: Path=/v1/auditoria/**
     ports:
       - "8080:8080"
     networks:
