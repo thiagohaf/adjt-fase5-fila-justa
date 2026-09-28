@@ -162,9 +162,9 @@ record AuditoriaFiltrosRequest(
             throw new IllegalArgumentException("Limit máximo é " + MAX_LIMIT);
         }
 
-        // Validação de CPF (apenas dígitos)
-        if (cpfPaciente != null && !cpfPaciente.matches("\\d+")) {
-            throw new IllegalArgumentException("CPF deve conter apenas dígitos");
+        // Validação de CPF (11 dígitos)
+        if (cpfPaciente != null && !cpfPaciente.matches("\\d{11}")) {
+            throw new IllegalArgumentException("CPF deve conter exatamente 11 dígitos");
         }
 
         return new AuditoriaFiltrosRequest(startDate, endDate, tipoDecisao, statusAgendamento,

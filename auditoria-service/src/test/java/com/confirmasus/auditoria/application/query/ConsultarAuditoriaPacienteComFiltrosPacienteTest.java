@@ -462,6 +462,40 @@ class ConsultarAuditoriaPacienteComFiltrosPacienteTest {
     }
 
     @Test
+    @DisplayName("NOME_NULO_COM_FILTRO: quando nomePaciente é filtrado e paciente.nome é null, retorna vazio")
+    void nomeNuloComFiltro() {
+        // Arrange
+        Long pacienteId = PACIENTE_ID;
+        String nomePaciente = "João";
+        int limit = 50;
+        int offset = 0;
+
+        var decisao = DecisaoAuditoria.criar(
+                UUID.randomUUID(), AGENDAMENTO_ID_1, pacienteId, TipoDecisao.CONFIRMACAO, null,
+                Instant.parse("2026-09-15T10:00:00Z"), Instant.now()
+        );
+
+        DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> allResults =
+                new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(decisao), 1L);
+        when(repositorio.findByPacienteIdWithFiltersAndStatusAgendamento(
+                eq(pacienteId), isNull(), isNull(), isNull(), isNull(), eq(Integer.MAX_VALUE), eq(0)
+        )).thenReturn(allResults);
+
+        // Paciente com nome null
+        PacienteDTO paciente = new PacienteDTO(1L, null, CPF_JOAO, "REGULAR");
+        when(pacienteClient.obterPaciente(pacienteId)).thenReturn(Optional.of(paciente));
+
+        // Act
+        var resultado = useCase.consultarComFiltrosPaciente(
+                pacienteId, null, null, null, null, null, nomePaciente, null, limit, offset, Optional.empty()
+        );
+
+        // Assert - Quando nomePaciente é fornecido e nome é null, não retorna
+        assertEquals(0L, resultado.total());
+        assertTrue(resultado.items().isEmpty());
+    }
+
+    @Test
     @DisplayName("CPF_NAO_ENCONTRADO: retorna vazio quando CPF não bate")
     void cpfNaoEncontrado() {
         // Arrange

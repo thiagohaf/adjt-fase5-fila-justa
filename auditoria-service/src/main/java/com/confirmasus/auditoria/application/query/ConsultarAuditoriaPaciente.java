@@ -305,8 +305,8 @@ public class ConsultarAuditoriaPaciente {
         }
 
         // Filtro nomePaciente (LIKE case-insensitive)
-        if (nomePaciente != null && paciente.getNome() != null) {
-            if (!paciente.getNome().toLowerCase().contains(nomePaciente.toLowerCase())) {
+        if (nomePaciente != null) {
+            if (paciente.getNome() == null || !paciente.getNome().toLowerCase().contains(nomePaciente.toLowerCase())) {
                 return false;
             }
         }

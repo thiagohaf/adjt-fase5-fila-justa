@@ -169,12 +169,18 @@ class AuditoriaFiltrosRequestTest {
     }
 
     @Test
-    @DisplayName("VALIDACAO_CPF_VAZIO: CPF vazio lança exceção")
-    void validacaoCpfVazio() {
-        // Act & Assert
+    @DisplayName("VALIDACAO_CPF_COMPRIMENTO_INVALIDO: CPF com comprimento != 11 lança exceção")
+    void validacaoCpfComprimentoInvalido() {
+        // CPF com 10 dígitos
         assertThrows(IllegalArgumentException.class, () ->
                 AuditoriaFiltrosRequest.of(
-                        null, null, null, null, null, null, "", null, null
+                        null, null, null, null, null, null, "1234567890", null, null
+                )
+        );
+        // CPF com 12 dígitos
+        assertThrows(IllegalArgumentException.class, () ->
+                AuditoriaFiltrosRequest.of(
+                        null, null, null, null, null, null, "123456789012", null, null
                 )
         );
     }
@@ -324,14 +330,14 @@ class AuditoriaFiltrosRequestTest {
     }
 
     @Test
-    @DisplayName("CPF_ZERO: CPF com todos zeros é válido (apenas dígitos)")
-    void cpfZeroValido() {
+    @DisplayName("CPF_11_DIGITOS: CPF com exatamente 11 dígitos é válido")
+    void cpf11DigitosValido() {
         // Act
         AuditoriaFiltrosRequest request = AuditoriaFiltrosRequest.of(
-                null, null, null, null, null, null, "00000000000", null, null
+                null, null, null, null, null, null, "12345678901", null, null
         );
 
         // Assert
-        assertEquals("00000000000", request.cpfPaciente());
+        assertEquals("12345678901", request.cpfPaciente());
     }
 }

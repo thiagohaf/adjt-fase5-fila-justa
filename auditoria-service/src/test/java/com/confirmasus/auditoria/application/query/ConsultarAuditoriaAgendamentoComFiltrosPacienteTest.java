@@ -278,6 +278,40 @@ class ConsultarAuditoriaAgendamentoComFiltrosPacienteTest {
     }
 
     @Test
+    @DisplayName("NOME_NULO_COM_FILTRO_AGENDAMENTO: quando nomePaciente é filtrado e paciente.nome é null")
+    void nomeNuloComFiltroAgendamento() {
+        // Arrange
+        Long agendamentoId = AGENDAMENTO_ID;
+        String nomePaciente = "João";
+        int limit = 50;
+        int offset = 0;
+
+        var decisao = DecisaoAuditoria.criar(
+                UUID.randomUUID(), agendamentoId, PACIENTE_ID_1, TipoDecisao.CONFIRMACAO, null,
+                Instant.parse("2026-09-15T10:00:00Z"), Instant.now()
+        );
+
+        DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> allResults =
+                new DecisaoAuditoriaRepositorio.PaginatedResult<>(List.of(decisao), 1L);
+        when(repositorio.findByAgendamentoIdWithFiltersAndStatusAgendamento(
+                eq(agendamentoId), isNull(), isNull(), isNull(), isNull(), eq(Integer.MAX_VALUE), eq(0)
+        )).thenReturn(allResults);
+
+        // Paciente com nome null
+        PacienteDTO paciente = new PacienteDTO(1L, null, CPF_JOAO, "REGULAR");
+        when(pacienteClient.obterPaciente(PACIENTE_ID_1)).thenReturn(Optional.of(paciente));
+
+        // Act
+        var resultado = useCase.consultarComFiltrosPaciente(
+                agendamentoId, null, null, null, null, null, nomePaciente, null, limit, offset, Optional.empty()
+        );
+
+        // Assert
+        assertEquals(0L, resultado.total());
+        assertTrue(resultado.items().isEmpty());
+    }
+
+    @Test
     @DisplayName("NENHUM_FILTRO_PACIENTE_AGENDAMENTO: sem filtros, retorna todos")
     void nenhumFiltroAgendamento() {
         // Arrange
