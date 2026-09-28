@@ -3,11 +3,15 @@ package com.confirmasus.matching;
 import com.confirmasus.matching.application.command.AlocacaoRepositorio;
 import com.confirmasus.matching.application.command.AtualizarScoreReplica;
 import com.confirmasus.matching.application.command.ConfirmarAlocacao;
+import com.confirmasus.matching.application.command.CriarEntradaListaEspera;
 import com.confirmasus.matching.application.command.EventoOutboxRepositorio;
 import com.confirmasus.matching.application.command.LiberacaoAgendadaRepositorio;
 import com.confirmasus.matching.application.command.LiberarRecurso;
+import com.confirmasus.matching.application.command.ListaEsperaEntradaRepositorio;
+import com.confirmasus.matching.application.command.PacienteRepositorio;
 import com.confirmasus.matching.application.command.RecursoRepositorio;
 import com.confirmasus.matching.application.command.RecusarSugestao;
+import com.confirmasus.matching.application.command.ResolverOuCriarPaciente;
 import com.confirmasus.matching.application.command.ScoreReplicaRepositorio;
 import com.confirmasus.matching.application.command.SugestaoRecusadaRepositorio;
 import com.confirmasus.matching.application.command.UltimaSugestaoRegistradaRepositorio;
@@ -206,5 +210,17 @@ public class MatchingAlocacaoServiceApplication {
                                       Clock clock) {
         return new RecusarSugestao(
                 sugestaoRecusadaRepositorio, eventoOutboxRepositorio, recursoConsultaRepositorio, clock);
+    }
+
+    @Bean
+    ResolverOuCriarPaciente resolverOuCriarPaciente(PacienteRepositorio pacienteRepositorio) {
+        return new ResolverOuCriarPaciente(pacienteRepositorio);
+    }
+
+    @Bean
+    CriarEntradaListaEspera criarEntradaListaEspera(ResolverOuCriarPaciente resolverOuCriarPaciente,
+                                                     ListaEsperaEntradaRepositorio listaEsperaEntradaRepositorio,
+                                                     Clock clock) {
+        return new CriarEntradaListaEspera(resolverOuCriarPaciente, listaEsperaEntradaRepositorio, clock);
     }
 }
