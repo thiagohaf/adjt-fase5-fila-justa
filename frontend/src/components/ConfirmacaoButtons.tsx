@@ -24,7 +24,7 @@ export default function ConfirmacaoButtons({
     setIsConfirmando(true)
 
     try {
-      await api.post(`/v1/agendamentos/${agendamento.id}/confirmar`)
+      await api.post(`/v1/agendamentos/${agendamento.id}/confirmacao`)
       onConfirmacao()
     } catch (err) {
       setErro(
@@ -44,7 +44,7 @@ export default function ConfirmacaoButtons({
     setIsRecusando(true)
 
     try {
-      await api.post(`/v1/agendamentos/${agendamento.id}/recusar`)
+      await api.post(`/v1/agendamentos/${agendamento.id}/recusa`)
       onConfirmacao()
     } catch (err) {
       setErro(
