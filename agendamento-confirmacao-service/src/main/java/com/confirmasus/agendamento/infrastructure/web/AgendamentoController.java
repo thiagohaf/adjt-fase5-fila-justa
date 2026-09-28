@@ -3,8 +3,10 @@ package com.confirmasus.agendamento.infrastructure.web;
 import com.confirmasus.agendamento.application.command.ConfirmarPresenca;
 import com.confirmasus.agendamento.application.command.RegistrarAgendamento;
 import com.confirmasus.agendamento.application.command.RecusarPresenca;
+import com.confirmasus.agendamento.application.query.ConsultarAgendamento;
 import com.confirmasus.agendamento.domain.Agendamento;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,12 +35,14 @@ public class AgendamentoController {
     private final RegistrarAgendamento registrarAgendamento;
     private final ConfirmarPresenca confirmarPresenca;
     private final RecusarPresenca recusarPresenca;
+    private final ConsultarAgendamento consultarAgendamento;
 
     public AgendamentoController(RegistrarAgendamento registrarAgendamento, ConfirmarPresenca confirmarPresenca,
-                                  RecusarPresenca recusarPresenca) {
+                                  RecusarPresenca recusarPresenca, ConsultarAgendamento consultarAgendamento) {
         this.registrarAgendamento = registrarAgendamento;
         this.confirmarPresenca = confirmarPresenca;
         this.recusarPresenca = recusarPresenca;
+        this.consultarAgendamento = consultarAgendamento;
     }
 
     @PostMapping("/v1/agendamentos")
@@ -46,6 +50,13 @@ public class AgendamentoController {
     public RegistrarAgendamentoResponse registrar(@RequestBody RegistrarAgendamentoRequest request) {
         Agendamento agendamento = registrarAgendamento.registrar(
                 request.cpf(), request.recursoId(), request.dataHoraAgendamento());
+        return RegistrarAgendamentoResponse.de(agendamento);
+    }
+
+    @GetMapping("/v1/agendamentos/{id}")
+    @ResponseStatus(HttpStatus.OK)
+    public RegistrarAgendamentoResponse consultar(@PathVariable("id") Long id) {
+        Agendamento agendamento = consultarAgendamento.consultar(id);
         return RegistrarAgendamentoResponse.de(agendamento);
     }
 
