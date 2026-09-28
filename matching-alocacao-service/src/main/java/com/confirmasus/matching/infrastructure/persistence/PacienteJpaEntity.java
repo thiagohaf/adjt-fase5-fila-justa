@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.Instant;
+
 /**
  * Mapeamento JPA de paciente (para Story 5.3 Lista de Espera).
  */
@@ -22,6 +24,9 @@ public class PacienteJpaEntity {
     @Column(name = "cpf", nullable = false, unique = true, length = 11)
     private String cpf;
 
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+    private Instant criadoEm;
+
     protected PacienteJpaEntity() {
         // Exigido pelo JPA
     }
@@ -36,5 +41,9 @@ public class PacienteJpaEntity {
 
     public String getCpf() {
         return cpf;
+    }
+
+    public Instant getCriadoEm() {
+        return criadoEm;
     }
 }

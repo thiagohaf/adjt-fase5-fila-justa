@@ -10,6 +10,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.time.format.DateTimeParseException;
+
 /**
  * Traduz falhas de POST /v1/lista-espera para RFC 7807.
  */
@@ -38,6 +40,14 @@ class ListaEsperaExceptionHandler {
     ProblemDetail handleArgumentoIllegal(IllegalArgumentException ex) {
         log.warn("Argumento inválido -- POST /v1/lista-espera respondendo 422", ex);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(422), ex.getMessage());
+        problem.setTitle("Validação falhou");
+        return problem;
+    }
+
+    @ExceptionHandler(DateTimeParseException.class)
+    ProblemDetail handleDateTimeParseException(DateTimeParseException ex) {
+        log.warn("Data/hora inválida -- POST /v1/lista-espera respondendo 422", ex);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(422), "Formato de data/hora inválido");
         problem.setTitle("Validação falhou");
         return problem;
     }
