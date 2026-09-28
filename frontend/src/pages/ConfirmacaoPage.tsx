@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Agendamento } from '../types'
+import CountdownDisplay from '../components/CountdownDisplay'
 
 export default function ConfirmacaoPage() {
   const { agendamentoId } = useParams<{ agendamentoId: string }>()
@@ -145,10 +146,17 @@ export default function ConfirmacaoPage() {
           </p>
         </div>
 
-        {/* Placeholder para Countdown e Botões (Stories FE-2 e FE-3) */}
+        {/* Countdown (Story FE-2) */}
+        {agendamento.janelaExpiraEm && (
+          <div className="bg-white rounded-lg shadow p-8 mb-6">
+            <CountdownDisplay expiryTime={agendamento.janelaExpiraEm} />
+          </div>
+        )}
+
+        {/* Placeholder para Botões de Confirmação/Recusa (Story FE-3) */}
         <div className="bg-gray-100 border border-gray-300 rounded-lg p-6 text-center">
           <p className="text-gray-600 text-sm">
-            🚧 Seção de Confirmação/Recusa será implementada em Story FE-2 e FE-3
+            🚧 Botões de Confirmação/Recusa será implementada em Story FE-3
           </p>
         </div>
       </div>
