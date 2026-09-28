@@ -52,7 +52,8 @@ public class SeedAdapterMain {
             AuthClient authClient = new AuthClient(authServiceUrl, username, password);
             RecursoClient recursoClient = new RecursoClient(gatewayServiceUrl, authClient);
             AgendamentoClient agendamentoClient = new AgendamentoClient(gatewayServiceUrl, authClient);
-            SeedDataLoader loader = new SeedDataLoader(recursoClient, agendamentoClient);
+            ListaEsperaClient listaEsperaClient = new ListaEsperaClient(gatewayServiceUrl, authClient);
+            SeedDataLoader loader = new SeedDataLoader(recursoClient, agendamentoClient, listaEsperaClient);
 
             // Executa carga com pipeline completo: Recursos → Agendamentos → (Lista de Espera)
             loader.carregar();
