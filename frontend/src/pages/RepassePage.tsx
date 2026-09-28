@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
+import RecusarSugestaoModal from '../components/RecusarSugestaoModal'
+import Toast from '../components/Toast'
 
 interface SugestaoRecursoResponse {
   recursoId: string
@@ -10,6 +13,13 @@ interface SugestaoRecursoResponse {
 export default function RepassePage() {
   const { recursoId } = useParams<{ recursoId: string }>()
   const navigate = useNavigate()
+
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isConfirmingRepasse, setIsConfirmingRepasse] = useState(false)
+  const [isRecusandoSugestao, setIsRecusandoSugestao] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
 
   const {
     data: sugestao,
@@ -25,6 +35,54 @@ export default function RepassePage() {
     },
     enabled: !!recursoId,
   })
+
+  const handleConfirmarRepasse = async () => {
+    if (!recursoId || !sugestao?.pacienteId) return
+
+    setIsConfirmingRepasse(true)
+    setErrorMessage(null)
+
+    try {
+      await api.post(`/v1/recursos/${recursoId}/alocacoes`, {
+        pacienteId: sugestao.pacienteId,
+      })
+      setSuccessMessage('Repasse confirmado com sucesso!')
+      setShowSuccessToast(true)
+      setTimeout(() => {
+        navigate('/dashboard', { replace: true })
+      }, 2000)
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Erro ao confirmar repasse'
+      )
+      setIsConfirmingRepasse(false)
+    }
+  }
+
+  const handleRecusarSugestao = async (motivo: string) => {
+    if (!recursoId || !sugestao?.pacienteId) return
+
+    setIsRecusandoSugestao(true)
+    setErrorMessage(null)
+
+    try {
+      await api.post(`/v1/recursos/${recursoId}/alocacoes/recusa`, {
+        pacienteId: sugestao.pacienteId,
+        motivo,
+      })
+      setIsModalOpen(false)
+      setSuccessMessage('Sugestão recusada com sucesso!')
+      setShowSuccessToast(true)
+      setTimeout(() => {
+        navigate('/dashboard', { replace: true })
+      }, 2000)
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Erro ao recusar sugestão'
+      )
+      setIsRecusandoSugestao(false)
+    }
+  }
 
   if (isPending) {
     return (
@@ -141,13 +199,51 @@ export default function RepassePage() {
           </div>
         </div>
 
-        {/* Mensagem de Próximos Passos */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-          <p className="text-green-800">
-            ✓ Você está pronto para confirmar ou recusar esta sugestão.
-          </p>
+        {/* Mensagem de Erro */}
+        {errorMessage && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-800 font-semibold mb-2">Erro:</p>
+            <p className="text-red-700">{errorMessage}</p>
+          </div>
+        )}
+
+        {/* Botões de Ação */}
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={handleConfirmarRepasse}
+            disabled={isConfirmingRepasse || isRecusandoSugestao}
+            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isConfirmingRepasse && (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+            )}
+            {isConfirmingRepasse ? 'Confirmando...' : '✓ Confirmar Repasse'}
+          </button>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            disabled={isConfirmingRepasse || isRecusandoSugestao}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ✕ Recusar Sugestão
+          </button>
         </div>
       </div>
+
+      <RecusarSugestaoModal
+        isOpen={isModalOpen}
+        isLoading={isRecusandoSugestao}
+        onConfirm={handleRecusarSugestao}
+        onCancel={() => setIsModalOpen(false)}
+      />
+
+      <Toast
+        message={successMessage || ''}
+        type="success"
+        isVisible={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        autoCloseDuration={2000}
+      />
     </div>
   )
 }
