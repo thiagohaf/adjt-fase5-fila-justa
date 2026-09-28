@@ -1,15 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
-import { SugestaoRepasse } from '../types'
 
 interface SugestaoRecursoResponse {
-  id: string
-  pacienteId: string
-  pacienteName?: string
   recursoId: string
-  criadoEm: string
-  motivo: string
+  pacienteId: number | null
 }
 
 export default function RepassePage() {
@@ -42,7 +37,37 @@ export default function RepassePage() {
     )
   }
 
-  if (error || !sugestao) {
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="max-w-2xl mx-auto">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2"
+          >
+            ← Voltar para Dashboard
+          </button>
+
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">
+              Erro ao Carregar Sugestão
+            </h2>
+            <p className="text-red-700 mb-4">
+              {error instanceof Error ? error.message : 'Não foi possível carregar a sugestão de repasse.'}
+            </p>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition"
+            >
+              Voltar para Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!sugestao || sugestao.pacienteId === null) {
     return (
       <div className="min-h-screen bg-gray-50 py-12 px-4">
         <div className="max-w-2xl mx-auto">
@@ -58,7 +83,7 @@ export default function RepassePage() {
               Nenhuma Sugestão Pendente
             </h2>
             <p className="text-yellow-700 mb-4">
-              Não há sugestões de repasse disponíveis para este recurso no momento.
+              Não há pacientes disponíveis na fila de espera para este recurso.
             </p>
             <button
               onClick={() => navigate('/dashboard')}
@@ -88,65 +113,31 @@ export default function RepassePage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="bg-blue-50 border-l-4 border-blue-600 p-4 mb-6">
             <p className="text-blue-800 font-semibold">
-              ℹ️ Próximo paciente da fila de espera
+              ✓ Próximo paciente da fila de espera disponível
             </p>
           </div>
 
-          {/* Paciente Sugerido */}
-          <div className="mb-6 pb-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900">
-              Paciente Sugerido
-            </h2>
+          {/* Dados da Sugestão */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ID do Paciente
+              </label>
+              <p className="text-gray-900 font-mono text-lg">{sugestao.pacienteId}</p>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID do Paciente
-                </label>
-                <p className="text-gray-900 font-mono">{sugestao.pacienteId}</p>
-              </div>
-
-              {sugestao.pacienteName && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nome do Paciente
-                  </label>
-                  <p className="text-gray-900">{sugestao.pacienteName}</p>
-                </div>
-              )}
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Motivo da Sugestão
-                </label>
-                <p className="text-gray-900">{sugestao.motivo}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sugestão Criada Em
-                </label>
-                <p className="text-gray-900">
-                  {new Date(sugestao.criadoEm).toLocaleString('pt-BR')}
-                </p>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ID do Recurso
+              </label>
+              <p className="text-gray-900 font-mono text-lg">{sugestao.recursoId}</p>
             </div>
           </div>
 
-          {/* Informação sobre o Recurso */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-900">
-              Recurso Afetado
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID do Recurso
-                </label>
-                <p className="text-gray-900 font-mono">{sugestao.recursoId}</p>
-              </div>
-            </div>
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Este paciente é o próximo na fila de espera por ordem de chegada.
+            </p>
           </div>
         </div>
 
