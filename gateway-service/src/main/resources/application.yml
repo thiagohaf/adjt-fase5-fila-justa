@@ -60,13 +60,13 @@ spring:
             # Recursos e Alocacoes (Story 3, Epic 3) -- rota publica protegida
             # pelo JwtAuthenticationFilter
             - id: matching-recursos
-              uri: http://matching-alocacao-service:8083
+              uri: http://liberacao-repasse-service:8083
               predicates:
                 - Path=/v1/recursos/**,/v1/alocacoes/**
 
             # Lista de Espera (Story 5.3, Epic 5) -- rota publica protegida
             - id: lista-espera
-              uri: http://matching-alocacao-service:8083
+              uri: http://liberacao-repasse-service:8083
               predicates:
                 - Path=/v1/lista-espera/**
 

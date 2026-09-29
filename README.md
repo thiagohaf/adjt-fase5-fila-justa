@@ -9,7 +9,7 @@ Sistema de confirmação ativa de consultas e exames do SUS: notifica o paciente
 - **`gateway-service`** (Spring Cloud Gateway) — único ponto de entrada público; valida JWT em toda rota fora da allowlist pública (`/actuator/health`, `/v1/auth/login`); gera e propaga um `X-Correlation-Id` (UUID) em toda requisição.
 - **`auth-service`** — emite JWT HS256 via `POST /v1/auth/login`, contra usuários sintéticos pré-cadastrados (schema `auth` próprio no Postgres).
 - **`agendamento-confirmacao-service`** — dono de `Paciente`/`Agendamento`/Janela de Confirmação: confirmação, recusa, expiração e liberação de vaga.
-- **`matching-alocacao-service`** — dono de `Recurso`/`Lista de Espera`/`Alocação`: Sugestão de Repasse FIFO pura por ordem de chegada e confirmação/recusa do repasse pelo Gestor. Cumpre hoje o papel de "liberação e repasse" da arquitetura, mas mantém o nome herdado — a renomeação para `liberacao-repasse-service` prevista em `ARCHITECTURE-SPINE.md` não foi executada (débito de nomenclatura conhecido).
+- **`liberacao-repasse-service`** — dono de `Recurso`/`Lista de Espera`/`Alocação`: Sugestão de Repasse FIFO pura por ordem de chegada e confirmação/recusa do repasse pelo Gestor. Renomeado de `matching-alocacao-service` (módulo Maven, diretório, imagem Docker, CDK e CI). Permanecem com o nome legado, de propósito: o pacote Java `com.confirmasus.matching`, o schema Postgres `matching_alocacao` (renomear exigiria migração de dados), os prefixos de env `CONFIRMASUS_MATCHING_*` e o tópico SNS `matching-alocacao-eventos.fifo` (contrato entre serviços).
 - **`auditoria-service`** — log auditável, só leitura + consumidor de eventos dos dois serviços acima.
 - **`seed-adapter`** — CLI Java standalone (não é Quarkus/Lambda), carrega dados sintéticos via gateway.
 - **`infra-cdk`** (AWS CDK Java) — provisiona VPC, cluster ECS Fargate, Postgres 18 containerizado e os serviços de domínio.
@@ -75,7 +75,7 @@ curl -sS -X POST "http://<IP-PUBLICO-GATEWAY>:8080/v1/auth/login" \
 
 O `deploy.sh` imprime o IP público do `gateway-service` ao final. Se a task ainda não tiver IP atribuído, o próprio script indica o comando AWS CLI para consultar.
 
-Note: `deploy.sh`/`pause.sh`/`destroy.sh`/`scripts/smoke-test.sh` hoje só provisionam/gerenciam `auth-service`, `gateway-service` e `agendamento-confirmacao-service` no ECS — `matching-alocacao-service` e `auditoria-service` ainda não têm `FargateService`/rota de gateway no CDK (deploy real na AWS continua deferido para esses dois; rodam hoje só via `docker-compose`).
+Note: `deploy.sh`/`pause.sh`/`destroy.sh`/`scripts/smoke-test.sh` hoje só provisionam/gerenciam `auth-service`, `gateway-service` e `agendamento-confirmacao-service` no ECS — `liberacao-repasse-service` e `auditoria-service` ainda não têm `FargateService`/rota de gateway no CDK (deploy real na AWS continua deferido para esses dois; rodam hoje só via `docker-compose`).
 
 ## Build e testes (sem tocar AWS)
 

@@ -16,7 +16,7 @@ import java.time.Duration;
 
 /**
  * Fabrica o {@link SnsClient} usado por {@link RelaySnsPublisherJob} (spec
- * 1.2) -- copia adaptada de {@code matching-alocacao-service/.../
+ * 1.2) -- copia adaptada de {@code liberacao-repasse-service/.../
  * infrastructure/relay/RelaySnsClientConfig.java}. Em producao,
  * {@code confirmasus.agendamento.outbox-relay.endpoint-override} fica vazio --
  * o SDK resolve credenciais (variavel de ambiente/role da task) e regiao

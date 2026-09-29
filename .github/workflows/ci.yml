@@ -40,7 +40,7 @@ jobs:
               - 'gateway-service/**'
               - 'auth-service/**'
               - 'agendamento-confirmacao-service/**'
-              - 'matching-alocacao-service/**'
+              - 'liberacao-repasse-service/**'
               - 'auditoria-service/**'
               - 'seed-adapter/**'
               - 'infra-cdk/**'

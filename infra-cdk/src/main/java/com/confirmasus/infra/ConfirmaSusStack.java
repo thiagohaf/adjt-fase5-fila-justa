@@ -85,19 +85,19 @@ import java.util.Map;
  * triagem-score-service para priorizar por Score de gravidade clinica) foi
  * removido: a priorizacao clinica automatizada foi decomissionada por
  * restricao legal, sem substituto -- a Sugestao de Repasse de
- * {@code matching-alocacao-service} e FIFO pura por Lista de Espera (AD-6).
- * {@code MatchingAlocacaoServiceTaskRole} continua criada antecipadamente
+ * {@code liberacao-repasse-service} e FIFO pura por Lista de Espera (AD-6).
+ * {@code LiberacaoRepasseServiceTaskRole} continua criada antecipadamente
  * (deploy ECS daquele servico ainda deferido); a futura
  * {@code FargateTaskDefinition} deve reusa-la. Story 3-3a acrescenta o topico
- * SNS FIFO proprio de {@code matching-alocacao-service}
+ * SNS FIFO proprio de {@code liberacao-repasse-service}
  * ({@code matching-alocacao-eventos.fifo}, relay outbox daquele servico) --
- * publish concedido a mesma {@code MatchingAlocacaoServiceTaskRole} acima
+ * publish concedido a mesma {@code LiberacaoRepasseServiceTaskRole} acima
  * (nao cria outra role); nenhuma fila assinante ainda (fora de escopo,
  * Epic 4/auditoria-service assina depois). Story 3-4a2 acrescenta a fila SQS
  * STANDARD (nao FIFO) {@code liberacao-agendada} + DLQ
  * ({@code maxReceiveCount=5}) que {@code LiberacaoAgendadaRelayJob}
- * (matching-alocacao-service) publica -- {@code grantSendMessages} concedido a
- * mesma {@code MatchingAlocacaoServiceTaskRole}; nenhum consumidor real ainda
+ * (liberacao-repasse-service) publica -- {@code grantSendMessages} concedido a
+ * mesma {@code LiberacaoRepasseServiceTaskRole}; nenhum consumidor real ainda
  * (Story 3-4b, deferida).
  */
 public class ConfirmaSusStack extends Stack {
@@ -250,7 +250,7 @@ public class ConfirmaSusStack extends Stack {
         // --- Topico de outbox proprio do agendamento-confirmacao-service (spec 1.2, AD-3) ---
         // Criado antes do FargateService para poder ser passado ao metodo de
         // build abaixo, que concede grantPublish diretamente na TaskRole
-        // real do servico (ja deployado, diferente de matching-alocacao-service
+        // real do servico (ja deployado, diferente de liberacao-repasse-service
         // -- nao ha necessidade de uma Role standalone pre-criada aqui).
         Topic agendamentoConfirmacaoEventosTopic = buildAgendamentoConfirmacaoEventosTopic();
 
@@ -266,7 +266,7 @@ public class ConfirmaSusStack extends Stack {
             agendamentoConfirmacaoService.getNode().addDependency(cloudMapNamespace);
         }
 
-        // --- Task role do matching-alocacao-service --------------------
+        // --- Task role do liberacao-repasse-service --------------------
         // Deploy ECS deste servico continua deferido (deferred-work.md) --
         // role criada antecipadamente so para as policies de publish/consume
         // abaixo ja existirem; reusar esta role (nao criar outra) quando a
@@ -274,23 +274,23 @@ public class ConfirmaSusStack extends Stack {
         // ScoreCalculado (consumido pelo extinto triagem-score-service) foi
         // removido: a priorizacao por score foi decomissionada por restricao
         // legal, sem substituto -- a Sugestao de Repasse e FIFO pura (AD-6).
-        Role matchingAlocacaoServiceTaskRole = buildMatchingAlocacaoServiceTaskRole();
+        Role liberacaoRepasseServiceTaskRole = buildLiberacaoRepasseServiceTaskRole();
 
-        // --- Relay outbox proprio do matching-alocacao-service (Story 3-3a, AD-3) ---
+        // --- Relay outbox proprio do liberacao-repasse-service (Story 3-3a, AD-3) ---
         // So o topico + a permissao de publish -- deploy ECS deste servico
         // continua deferido (deferred-work.md, ver javadoc da classe).
         // Nenhuma fila/subscription assinante nesta story -- Epic 4
         // (auditoria-service) assina depois, fora de escopo.
         Topic matchingAlocacaoEventosTopic = buildMatchingAlocacaoEventosTopic();
-        matchingAlocacaoEventosTopic.grantPublish(matchingAlocacaoServiceTaskRole);
+        matchingAlocacaoEventosTopic.grantPublish(liberacaoRepasseServiceTaskRole);
 
         // --- Relay de publicacao da liberacao agendada (Story 3-4a2) -------
         // Fila SQS standard (nao FIFO -- ordem entre Recursos nao importa,
         // Boundaries da spec 3-4a2) + DLQ que LiberacaoAgendadaRelayJob
-        // publica; reusa a MESMA MatchingAlocacaoServiceTaskRole (nao cria
+        // publica; reusa a MESMA LiberacaoRepasseServiceTaskRole (nao cria
         // outra), so acrescenta grantSendMessages.
         Queue liberacaoAgendadaQueue = buildLiberacaoAgendadaQueue();
-        liberacaoAgendadaQueue.grantSendMessages(matchingAlocacaoServiceTaskRole);
+        liberacaoAgendadaQueue.grantSendMessages(liberacaoRepasseServiceTaskRole);
 
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
@@ -325,10 +325,10 @@ public class ConfirmaSusStack extends Stack {
                 .build();
     }
 
-    private Role buildMatchingAlocacaoServiceTaskRole() {
-        return Role.Builder.create(this, "MatchingAlocacaoServiceTaskRole")
+    private Role buildLiberacaoRepasseServiceTaskRole() {
+        return Role.Builder.create(this, "LiberacaoRepasseServiceTaskRole")
                 .assumedBy(new ServicePrincipal("ecs-tasks.amazonaws.com"))
-                .description("Task role de matching-alocacao-service -- criada antes do deploy ECS daquele "
+                .description("Task role de liberacao-repasse-service -- criada antes do deploy ECS daquele "
                         + "servico (deferred-work.md) so para as policies de publish/consume abaixo ja "
                         + "existirem; reusar esta role (nao criar outra) quando a FargateTaskDefinition for "
                         + "adicionada.")
@@ -684,7 +684,7 @@ public class ConfirmaSusStack extends Stack {
         // Spec 1.2 (AD-3): RelaySnsPublisherJob deste servico publica no
         // topico proprio -- concede a permissao diretamente na TaskRole real
         // da task (nao uma Role standalone: diferente de
-        // matching-alocacao-service, este servico ja tem um FargateService
+        // liberacao-repasse-service, este servico ja tem um FargateService
         // deployado, entao a role de fato usada em runtime e
         // taskDef.getTaskRole()).
         agendamentoConfirmacaoEventosTopic.grantPublish(taskDef.getTaskRole());
@@ -714,7 +714,7 @@ public class ConfirmaSusStack extends Stack {
                 // ARN do topico outbox (spec 1.2) -- nao e segredo (Resource
                 // ARN publico dentro da conta), injetado como variavel de
                 // ambiente comum (mesmo padrao de CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN
-                // em matching-alocacao-service, que tambem nao usa Secret).
+                // em liberacao-repasse-service, que tambem nao usa Secret).
                 .environment(Map.of(
                         "CONFIRMASUS_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN",
                         agendamentoConfirmacaoEventosTopic.getTopicArn()))

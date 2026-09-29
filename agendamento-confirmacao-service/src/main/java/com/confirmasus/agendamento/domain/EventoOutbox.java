@@ -7,7 +7,7 @@ import java.util.UUID;
 
 /**
  * Linha da tabela outbox (AD-3, spec 1.2) -- copia do molde de
- * {@code matching-alocacao-service/.../domain/EventoOutbox.java}:
+ * {@code liberacao-repasse-service/.../domain/EventoOutbox.java}:
  * {@code id, eventId} (UUID v4, gerado em {@code application/command} no
  * momento do comando -- nunca regenerado por um relay futuro),
  * {@code eventType, occurredAt, version} (envelope fixado no Epic 2, sempre

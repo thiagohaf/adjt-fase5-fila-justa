@@ -247,7 +247,7 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void matchingAlocacaoServiceStillHasNoFargateServiceDeployed() {
+    void liberacaoRepasseServiceStillHasNoFargateServiceDeployed() {
         // Boundaries da spec 3.1b -- "Never: deploy ECS/CDK do servico": a
         // stack ganha a fila consumidora + DLQ + a role de consumo, mas nao
         // um ECS::Service proprio. Regressao evitada: continua so postgres +
@@ -259,7 +259,7 @@ class ConfirmaSusStackTest {
     @Test
     void matchingAlocacaoEventosTopicIsFifo() {
         // Story 3-3a (emenda, AD-3): topico SNS FIFO proprio do
-        // matching-alocacao-service que RelaySnsPublisherJob publica --
+        // liberacao-repasse-service que RelaySnsPublisherJob publica --
         // ordem deterministica por recurso via MessageGroupId=recursoId,
         // mesma propriedade do topico irmao AgendamentoConfirmacaoEventosTopic
         // (ContentBasedDeduplication=false: MessageDeduplicationId sempre
@@ -271,11 +271,11 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void matchingAlocacaoServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic() {
-        // Deploy ECS do matching-alocacao-service continua deferido -- mas a
+    void liberacaoRepasseServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic() {
+        // Deploy ECS do liberacao-repasse-service continua deferido -- mas a
         // policy de publish no topico outbox proprio ja precisa existir
-        // (Code Map da spec 3-3a), presa a MESMA MatchingAlocacaoServiceTaskRole
-        // ja usada pela role de matching-alocacao-service, nao uma
+        // (Code Map da spec 3-3a), presa a MESMA LiberacaoRepasseServiceTaskRole
+        // ja usada pela role de liberacao-repasse-service, nao uma
         // role nova: resolve os logical IDs reais do topico e da role,
         // confirma que E esta policy, presa a ESTA role, que aponta para
         // ESTE topico (mesmo raciocinio usado nos demais testes de
@@ -288,7 +288,7 @@ class ConfirmaSusStackTest {
 
         Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
+                        "Description", Match.stringLikeRegexp(".*liberacao-repasse-service.*"))))));
         assertThat(roles).hasSize(1);
         String roleLogicalId = roles.keySet().iterator().next();
 
@@ -362,7 +362,7 @@ class ConfirmaSusStackTest {
 
     @Test
     void agendamentoConfirmacaoServiceTaskRoleCanPublishToAgendamentoConfirmacaoEventosTopic() {
-        // Diferente de matching-alocacao-service (deploy ECS ainda
+        // Diferente de liberacao-repasse-service (deploy ECS ainda
         // deferido, role standalone pre-criada), agendamento-confirmacao-service
         // ja tem um FargateService real -- a policy de publish precisa estar
         // presa a TaskRole DE FATO usada em runtime (a task role default da
@@ -398,10 +398,10 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void matchingAlocacaoServiceTaskRoleCanSendMessagesToLiberacaoAgendadaQueue() {
-        // Deploy ECS do matching-alocacao-service continua deferido -- mas a
+    void liberacaoRepasseServiceTaskRoleCanSendMessagesToLiberacaoAgendadaQueue() {
+        // Deploy ECS do liberacao-repasse-service continua deferido -- mas a
         // policy de publish na fila de liberacao agendada ja precisa existir
-        // (Code Map da spec 3-4a2), presa a MESMA MatchingAlocacaoServiceTaskRole
+        // (Code Map da spec 3-4a2), presa a MESMA LiberacaoRepasseServiceTaskRole
         // ja usada pelo consumo/outbox acima (mesmo raciocinio dos testes
         // analogos ja existentes).
         Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
@@ -412,7 +412,7 @@ class ConfirmaSusStackTest {
 
         Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
+                        "Description", Match.stringLikeRegexp(".*liberacao-repasse-service.*"))))));
         assertThat(roles).hasSize(1);
         String roleLogicalId = roles.keySet().iterator().next();
 

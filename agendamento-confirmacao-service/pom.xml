@@ -25,11 +25,11 @@
     poller AbrirJanelaDeConfirmacao (@Scheduled) que transiciona
     AGUARDANDO_JANELA -> AGUARDANDO_CONFIRMACAO e publica
     NotificacaoConfirmacaoPublicada via outbox (RelaySnsPublisherJob),
-    mesmo molde ja provado em matching-alocacao-service.
+    mesmo molde ja provado em liberacao-repasse-service.
   </description>
 
   <properties>
-    <!-- Mesma versao do AWS SDK v2 ja fixada em matching-alocacao-service
+    <!-- Mesma versao do AWS SDK v2 ja fixada em liberacao-repasse-service
          (Story 3-3a) - reusa o precedente existente, nao introduz um novo. -->
     <aws-sdk.version>2.54.14</aws-sdk.version>
   </properties>
@@ -49,7 +49,7 @@
   <dependencies>
     <!-- Spec 1.2: infraestrutura outbox propria deste servico
          (RelaySnsPublisherJob), mesmo precedente ja usado em
-         matching-alocacao-service/pom.xml (Story 3-3a). Credenciais/regiao
+         liberacao-repasse-service/pom.xml (Story 3-3a). Credenciais/regiao
          resolvidas so via variavel de ambiente/role da task
          (DefaultCredentialsProvider), nunca hardcoded (mesmo Boundary de
          RelaySnsClientConfig). -->
@@ -59,7 +59,7 @@
     </dependency>
     <!-- So para o teste de integracao do relay (assina a fila SQS FIFO que
          recebe o que o SNS publica) - mesmo precedente de
-         matching-alocacao-service/pom.xml, que usa "sqs" tanto em producao
+         liberacao-repasse-service/pom.xml, que usa "sqs" tanto em producao
          (consumidor real) quanto em teste; aqui e so a asserção via
          LocalStack, escopo test basta. -->
     <dependency>
@@ -125,7 +125,7 @@
       <artifactId>testcontainers-postgresql</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Mesmo precedente de LocalStack de matching-alocacao-service (Story
+    <!-- Mesmo precedente de LocalStack de liberacao-repasse-service (Story
          3-3a) - sobe um topico SNS FIFO + fila SQS FIFO assinante reais so
          para o teste de integracao ponta a ponta do relay; nunca toca a
          conta AWS real. -->

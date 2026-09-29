@@ -99,5 +99,5 @@ const { data, isLoading, error } = useQuery({
 | 3 | `/v1/recursos/{id}/alocacoes/recusa` | POST | Recusar repasse |
 | 4 | `/v1/auditoria/agendamento/{id}` | GET | Histórico auditável do agendamento |
 
-Estes endpoints são servidos hoje por `agendamento-confirmacao-service` (agendamentos), `matching-alocacao-service` (recursos/alocações) e `auditoria-service` — ver nota de nomenclatura em `_bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-17/ARCHITECTURE-SPINE.md` (o serviço `matching-alocacao-service` cumpre hoje o papel de repasse, mas a renomeação para `liberacao-repasse-service` prevista na arquitetura não foi executada).
+Estes endpoints são servidos hoje por `agendamento-confirmacao-service` (agendamentos), `liberacao-repasse-service` (recursos/alocações) e `auditoria-service` — ver nota de nomenclatura em `_bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-17/ARCHITECTURE-SPINE.md` (o serviço `liberacao-repasse-service` foi renomeado de `matching-alocacao-service`).
 

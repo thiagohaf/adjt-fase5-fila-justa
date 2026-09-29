@@ -18,7 +18,7 @@ import java.util.UUID;
  * Cliente HTTP para upsertar Recurso via gateway-service.
  *
  * Story 5.1: Chama {@code POST /v1/recursos} do gateway (que roteia para
- * matching-alocacao-service) com JWT autenticado. Usa header
+ * liberacao-repasse-service) com JWT autenticado. Usa header
  * {@code Authorization: Bearer {token}} para autenticação.
  *
  * <p>Falha com erro claro se gateway indisponível.

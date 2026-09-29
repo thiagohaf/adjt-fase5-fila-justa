@@ -63,7 +63,7 @@ confirmasus:
       batch-size: 50
     # Infraestrutura outbox propria deste servico (AD-3) --
     # RelaySnsPublisherJob (infrastructure/relay), mesmo molde de
-    # matching-alocacao-service/.../application.yml. Namespace
+    # liberacao-repasse-service/.../application.yml. Namespace
     # "outbox-relay" isolado de "abertura-janela" acima -- pollers
     # independentes (transicao de estado + escrita no outbox vs. publicacao
     # no SNS). topic-arn fica vazio por padrao (injetado so no deploy real

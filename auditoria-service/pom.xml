@@ -76,7 +76,7 @@
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
 
-    <!-- AWS SQS SDK v2 (Software.amazon.awssdk) usado no matching-alocacao-service -->
+    <!-- AWS SQS SDK v2 (Software.amazon.awssdk) usado no liberacao-repasse-service -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>sqs</artifactId>

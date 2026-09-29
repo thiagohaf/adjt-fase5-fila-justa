@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Verificacao ponta a ponta do {@link RelaySnsPublisherJob} (spec 1.2)
  * contra SNS FIFO + SQS FIFO reais via Testcontainers-LocalStack --
- * adaptado de {@code matching-alocacao-service/.../
+ * adaptado de {@code liberacao-repasse-service/.../
  * RelaySnsPublisherJobIntegrationTest.java}. A linha e inserida DIRETO via
  * {@link EventoOutboxRepositorio#salvar(EventoOutbox)} (o produtor real,
  * {@code AbrirJanelaDeConfirmacao}, e coberto separadamente por
@@ -63,7 +63,7 @@ class RelaySnsPublisherJobIntegrationTest {
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:18");
 
-    // Mesma tag ja provada em matching-alocacao-service -- a partir da
+    // Mesma tag ja provada em liberacao-repasse-service -- a partir da
     // numeracao por calendario a imagem community exige LOCALSTACK_AUTH_TOKEN
     // mesmo so para SNS/SQS; 4.12.0 e a ultima tag da numeracao classica,
     // roda sem nenhum token.

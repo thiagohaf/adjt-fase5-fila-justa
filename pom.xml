@@ -13,7 +13,7 @@
   <description>
     Projeto Maven multi-modulo raiz do ConfirmaSUS (adjt-fase5-confirmasus).
     Modulos: gateway-service, auth-service, infra-cdk,
-    agendamento-confirmacao-service (Epic 1), matching-alocacao-service
+    agendamento-confirmacao-service (Epic 1), liberacao-repasse-service
     (Epic 2 -- Lista de Espera/Sugestao de Repasse FIFO, AD-6; a renomeacao
     para liberacao-repasse-service prevista na Architecture Spine continua
     pendente), auditoria-service (Epic 3). O antigo triagem-score-service
@@ -81,7 +81,7 @@
     <module>auth-service</module>
     <module>infra-cdk</module>
     <module>agendamento-confirmacao-service</module>
-    <module>matching-alocacao-service</module>
+    <module>liberacao-repasse-service</module>
     <module>auditoria-service</module>
   </modules>
 

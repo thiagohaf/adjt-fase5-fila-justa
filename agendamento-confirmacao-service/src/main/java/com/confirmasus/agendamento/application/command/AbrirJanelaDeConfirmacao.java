@@ -22,7 +22,7 @@ import java.util.UUID;
  * (AD-4, {@code UPDATE ... WHERE status = 'AGUARDANDO_JANELA'}) e publica
  * {@code NotificacaoConfirmacaoPublicada} via outbox (AD-3) na mesma
  * transacao -- mesmo molde de {@code RelaySnsPublisherJob.publicarPendentes}
- * (matching-alocacao-service), adaptado para o dominio de Agendamento.
+ * (liberacao-repasse-service), adaptado para o dominio de Agendamento.
  *
  * <p>{@code @Transactional} inteiro (leitura + escrita condicional + grava
  * outbox): sem isso, {@code buscarPendentesAberturaJanela} (SELECT ... FOR

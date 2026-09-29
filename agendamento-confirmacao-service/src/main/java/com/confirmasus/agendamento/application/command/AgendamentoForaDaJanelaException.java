@@ -9,7 +9,7 @@ import com.confirmasus.agendamento.domain.StatusAgendamento;
  * que o Agendamento esta em um estado perdedor diferente de {@code
  * CONFIRMADO} (esse caso e sucesso silencioso, nao uma excecao) -- {@code
  * 409} via {@code AgendamentoExceptionHandler} (spec 1.3, Boundaries; molde
- * {@code RecursoJaAlocadoException}, matching-alocacao-service).
+ * {@code RecursoJaAlocadoException}, liberacao-repasse-service).
  *
  * <p>Mensagem distingue os dois estados perdedores possiveis: {@code
  * AGUARDANDO_JANELA} ("janela ainda nao aberta") e {@code LIBERADO} ("vaga ja

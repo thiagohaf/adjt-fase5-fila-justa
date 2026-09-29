@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 // Este teste nao exercita o relay outbox (Story 1.2) -- desliga o kill
-// switch explicitamente (mesmo padrao de matching-alocacao-service) para
+// switch explicitamente (mesmo padrao de liberacao-repasse-service) para
 // nao exigir um topic-arn/SnsClient real so para subir o contexto.
 @TestPropertySource(properties = "confirmasus.agendamento.outbox-relay.enabled=false")
 class AgendamentoControllerIntegrationTest {
