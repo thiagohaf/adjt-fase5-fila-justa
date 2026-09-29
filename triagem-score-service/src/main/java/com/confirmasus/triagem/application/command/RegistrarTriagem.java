@@ -6,6 +6,7 @@ import com.confirmasus.triagem.domain.CalculadorDeScore;
 import com.confirmasus.triagem.domain.Cpf;
 import com.confirmasus.triagem.domain.EventoOutbox;
 import com.confirmasus.triagem.domain.GravidadePercebida;
+import com.confirmasus.triagem.domain.Paciente;
 import com.confirmasus.triagem.domain.Score;
 import com.confirmasus.triagem.domain.SinaisVitais;
 import com.confirmasus.triagem.domain.Triagem;
@@ -90,10 +91,18 @@ public class RegistrarTriagem {
 
   /**
    * Payload do evento ScoreCalculado para o outbox.
+   *
+   * <p>{@code pacienteId} é numérico (derivado via {@link
+   * Paciente#idNumerico}), não o UUID interno do Paciente -- o consumidor
+   * deste evento (matching-alocacao-service, {@code
+   * ScoreCalculadoConsumerJob}) já espera um {@code long} desde a Story
+   * 3.1b, e usar a mesma derivação do bootstrap síncrono ({@code
+   * GET /internal/scores}, {@code ScoreInternalController}) garante que as
+   * duas vias nunca divirjam para o mesmo paciente.
    */
   private static class ScoreCalculadoPayload {
     public final UUID triagemId;
-    public final UUID pacienteId;
+    public final long pacienteId;
     public final int score;
     public final String scoreVersao;
     public final String gravidade;
@@ -101,7 +110,7 @@ public class RegistrarTriagem {
 
     ScoreCalculadoPayload(Triagem triagem, UUID pacienteId) {
       this.triagemId = triagem.id();
-      this.pacienteId = pacienteId;
+      this.pacienteId = Paciente.idNumerico(pacienteId);
       this.score = triagem.score().valor();
       this.scoreVersao = triagem.score().versao();
       this.gravidade = triagem.gravidade().toString();

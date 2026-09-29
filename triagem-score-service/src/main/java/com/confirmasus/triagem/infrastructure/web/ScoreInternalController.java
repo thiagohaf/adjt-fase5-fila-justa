@@ -1,5 +1,6 @@
 package com.confirmasus.triagem.infrastructure.web;
 
+import com.confirmasus.triagem.domain.Paciente;
 import com.confirmasus.triagem.infrastructure.persistence.TriagemJpaEntity;
 import com.confirmasus.triagem.infrastructure.persistence.TriagemJpaRepository;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -7,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * {@code GET /internal/scores} (Story 3.1a): endpoint que faltava neste
@@ -42,22 +42,10 @@ public class ScoreInternalController {
 
     private static ScoreInternalResponse paraResponse(TriagemJpaEntity entity) {
         return new ScoreInternalResponse(
-                derivarPacienteIdNumerico(entity.getPacienteId()),
+                Paciente.idNumerico(entity.getPacienteId()),
                 new ScoreInternalResponse.ScoreResponse(entity.getScoreValor()),
                 entity.getRegistradoEm(),
                 entity.getId(),
                 null);
-    }
-
-    /**
-     * Deriva um long positivo estável a partir do UUID do Paciente (ver
-     * javadoc de {@link ScoreInternalResponse}) -- mesmo paciente sempre
-     * produz o mesmo valor, mas o valor não tem relação com o pacienteId de
-     * nenhum outro serviço. Mascara o bit de sinal para nunca ser negativo
-     * e garante {@code > 0} (ScoreReplica rejeita zero/negativo).
-     */
-    static long derivarPacienteIdNumerico(UUID pacienteId) {
-        long valor = pacienteId.getMostSignificantBits() & Long.MAX_VALUE;
-        return valor == 0 ? 1 : valor;
     }
 }
