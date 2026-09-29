@@ -8,6 +8,7 @@ import RecursoNome from '../components/RecursoNome'
 
 interface SugestaoRecursoResponse {
   recursoId: string
+  sugestaoId: string | null
   pacienteId: number | null
 }
 
@@ -38,15 +39,13 @@ export default function RepassePage() {
   })
 
   const handleConfirmarRepasse = async () => {
-    if (!recursoId || !sugestao?.pacienteId) return
+    if (!recursoId || !sugestao?.pacienteId || !sugestao.sugestaoId) return
 
     setIsConfirmingRepasse(true)
     setErrorMessage(null)
 
     try {
-      await api.post(`/v1/recursos/${recursoId}/alocacoes`, {
-        pacienteId: sugestao.pacienteId,
-      })
+      await api.post(`/v1/sugestoes-repasse/${sugestao.sugestaoId}/confirmacao`)
       setSuccessMessage('Repasse confirmado com sucesso!')
       setShowSuccessToast(true)
       setTimeout(() => {
@@ -61,14 +60,13 @@ export default function RepassePage() {
   }
 
   const handleRecusarSugestao = async (motivo: string) => {
-    if (!recursoId || !sugestao?.pacienteId) return
+    if (!recursoId || !sugestao?.pacienteId || !sugestao.sugestaoId) return
 
     setIsRecusandoSugestao(true)
     setErrorMessage(null)
 
     try {
-      await api.post(`/v1/recursos/${recursoId}/alocacoes/recusa`, {
-        pacienteId: sugestao.pacienteId,
+      await api.post(`/v1/sugestoes-repasse/${sugestao.sugestaoId}/recusa`, {
         motivo,
       })
       setIsModalOpen(false)

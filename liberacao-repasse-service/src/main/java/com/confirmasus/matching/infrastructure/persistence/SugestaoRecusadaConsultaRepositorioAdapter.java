@@ -27,7 +27,7 @@ class SugestaoRecusadaConsultaRepositorioAdapter implements SugestaoRecusadaCons
 
     @Override
     @Transactional(readOnly = true)
-    public Set<Long> recusadosPara(UUID recursoId) {
-        return jpaRepository.buscarPacientesRecusados(recursoId);
+    public Set<Long> recusadosPara(long agendamentoId) {
+        return jpaRepository.buscarPacientesRecusados(agendamentoId);
     }
 }

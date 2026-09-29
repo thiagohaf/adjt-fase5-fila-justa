@@ -63,7 +63,7 @@ class SugestaoRecusadaConsultaRepositorioAdapterIntegrationTest {
         // Matrix da spec 3-3c2a -- isEmpty(), nao apenas doesNotContain(),
         // senao um bug que ignorasse o WHERE e devolvesse tudo ainda
         // passaria.
-        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(UUID.randomUUID());
+        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(1L);
 
         assertThat(recusados).isEmpty();
     }
@@ -71,9 +71,9 @@ class SugestaoRecusadaConsultaRepositorioAdapterIntegrationTest {
     @Test
     void pacienteRecusadoApareceNoSet() {
         UUID recursoId = UUID.randomUUID();
-        sugestaoRecusadaRepositorio.registrar(recursoId, 111L, "sem leitos", Instant.now());
+        sugestaoRecusadaRepositorio.registrar(recursoId, 10L, 111L, "sem leitos", Instant.now());
 
-        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(recursoId);
+        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(10L);
 
         assertThat(recusados).containsExactly(111L);
     }
@@ -81,26 +81,24 @@ class SugestaoRecusadaConsultaRepositorioAdapterIntegrationTest {
     @Test
     void multiplosPacientesRecusadosParaOMesmoRecursoAparecemTodosNoSet() {
         UUID recursoId = UUID.randomUUID();
-        sugestaoRecusadaRepositorio.registrar(recursoId, 111L, "sem leitos", Instant.now());
-        sugestaoRecusadaRepositorio.registrar(recursoId, 222L, "fora da especialidade", Instant.now());
+        sugestaoRecusadaRepositorio.registrar(recursoId, 10L, 111L, "sem leitos", Instant.now());
+        sugestaoRecusadaRepositorio.registrar(recursoId, 10L, 222L, "fora da especialidade", Instant.now());
 
-        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(recursoId);
+        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(10L);
 
         assertThat(recusados).containsExactlyInAnyOrder(111L, 222L);
     }
 
     @Test
-    void recusaDeOutroRecursoNaoApareceNoSetDesteRecursoEONaoOWhereInteiro() {
-        // Prova que o WHERE recurso_id = :recursoId realmente discrimina --
+    void recusaDeOutraVagaNaoApareceNoSetDestaVagaEONaoOWhereInteiro() {
+        // Prova que o WHERE agendamento_id = :agendamentoId realmente discrimina --
         // sem este teste, uma query sem WHERE nenhum (SELECT paciente_id
         // FROM sugestao_recusada) passaria igual nos demais testes desta
-        // classe, que so consultam um unico recursoId por vez.
-        UUID recursoConsultado = UUID.randomUUID();
-        UUID outroRecurso = UUID.randomUUID();
-        sugestaoRecusadaRepositorio.registrar(recursoConsultado, 111L, "sem leitos", Instant.now());
-        sugestaoRecusadaRepositorio.registrar(outroRecurso, 999L, "sem leitos", Instant.now());
+        // classe, que so consultam uma unica Vaga por vez.
+        sugestaoRecusadaRepositorio.registrar(UUID.randomUUID(), 10L, 111L, "sem leitos", Instant.now());
+        sugestaoRecusadaRepositorio.registrar(UUID.randomUUID(), 20L, 999L, "sem leitos", Instant.now());
 
-        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(recursoConsultado);
+        Set<Long> recusados = sugestaoRecusadaConsultaRepositorio.recusadosPara(10L);
 
         assertThat(recusados).containsExactly(111L);
         assertThat(recusados).doesNotContain(999L);

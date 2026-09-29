@@ -47,6 +47,17 @@ spring:
 # de ambiente/role da task (Boundaries da spec 3.1b).
 confirmasus:
   matching:
+    # Consumidor de VagaLiberada (Story 6.1, AD-3/AD-6): fila SQS FIFO
+    # assinante do topico SNS do agendamento-confirmacao-service. Desligado
+    # por padrao ate a fila existir no CDK (chore/cdk-filas-liberacao-repasse).
+    vaga-liberada-consumer:
+      enabled: ${CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENABLED:false}
+      queue-url: ${CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_QUEUE_URL:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 10
+      wait-time-seconds: 1
     relay:
       # Kill switch operacional -- tambem usado pelos testes que nao
       # exercitam o consumidor, para nao criar o SqsClient nem agendar o

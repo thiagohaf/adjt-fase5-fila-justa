@@ -18,4 +18,11 @@ import java.util.UUID;
 public interface AlocacaoRepositorio {
 
     Alocacao confirmar(Alocacao alocacao);
+
+    /**
+     * Passa a Alocação {@code ATIVA} do Recurso (se houver) para {@code
+     * LIBERADA} -- chamado quando a Vaga é liberada (Story 6.1).
+     * Idempotente: sem Alocação ativa, não altera nada.
+     */
+    void liberarPorRecurso(UUID recursoId);
 }

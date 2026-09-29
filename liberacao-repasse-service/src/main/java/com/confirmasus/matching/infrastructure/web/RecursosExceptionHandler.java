@@ -3,6 +3,8 @@ package com.confirmasus.matching.infrastructure.web;
 import com.confirmasus.matching.application.command.CorrelationIdInvalidoException;
 import com.confirmasus.matching.application.command.PacienteJaAlocadoException;
 import com.confirmasus.matching.application.command.RecursoJaAlocadoException;
+import com.confirmasus.matching.application.command.SugestaoRepasseJaDecididaException;
+import com.confirmasus.matching.application.command.SugestaoRepasseNaoEncontradaException;
 import com.confirmasus.matching.application.query.RecursoNaoEncontradoException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -152,6 +154,22 @@ class RecursosExceptionHandler {
     ProblemDetail handleCorrelationIdInvalido(CorrelationIdInvalidoException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("Requisicao invalida");
+        return problem;
+    }
+
+    /** Sugestão de Repasse inexistente -- {@code 404} (Story 6.1). */
+    @ExceptionHandler(SugestaoRepasseNaoEncontradaException.class)
+    ProblemDetail handleSugestaoNaoEncontrada(SugestaoRepasseNaoEncontradaException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Sugestao de Repasse nao encontrada");
+        return problem;
+    }
+
+    /** Sugestão já decidida (perdeu a corrida da escrita condicional) -- {@code 409} (AD-6). */
+    @ExceptionHandler(SugestaoRepasseJaDecididaException.class)
+    ProblemDetail handleSugestaoJaDecidida(SugestaoRepasseJaDecididaException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Sugestao de Repasse ja decidida");
         return problem;
     }
 }
