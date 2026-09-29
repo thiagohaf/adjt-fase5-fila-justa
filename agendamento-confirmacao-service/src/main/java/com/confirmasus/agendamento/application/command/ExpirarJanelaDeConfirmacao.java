@@ -8,8 +8,7 @@ import com.confirmasus.agendamento.domain.StatusAgendamento;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -57,11 +56,14 @@ public class ExpirarJanelaDeConfirmacao {
     private final EventoOutboxRepositorio eventoOutboxRepositorio;
     private final Clock clock;
     private final int loteTamanho;
+    private final TransactionOperations transacao;
 
     public ExpirarJanelaDeConfirmacao(AgendamentoRepositorio agendamentoRepositorio,
                                        EventoOutboxRepositorio eventoOutboxRepositorio,
                                        Clock clock,
-                                       int loteTamanho) {
+                                       int loteTamanho,
+                                       TransactionOperations transacao) {
+        this.transacao = transacao;
         this.agendamentoRepositorio = agendamentoRepositorio;
         this.eventoOutboxRepositorio = eventoOutboxRepositorio;
         this.clock = clock;
@@ -98,8 +100,17 @@ public class ExpirarJanelaDeConfirmacao {
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW) // FIX-1: cada item é transação independente
+    /**
+     * Cada item roda em transacao propria via {@code TransactionOperations}
+     * (REQUIRES_NEW no bean): {@code @Transactional} aqui seria ignorado, pois
+     * {@code expirarJanelas()} chama {@code processar()} por auto-invocacao,
+     * sem passar pelo proxy -- UPDATE e eventos commitariam separados.
+     */
     public void processar(Agendamento agendamento) {
+        transacao.executeWithoutResult(status -> processarNaTransacao(agendamento));
+    }
+
+    private void processarNaTransacao(Agendamento agendamento) {
         // FIX-3: null checks são exceções (corrupção de domínio), não silenciosos
         if (agendamento.getRecursoId() == null) {
             throw new AgendamentoComDadosIncompletosException(
