@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sobe o ambiente completo do FilaJusta (VPC, cluster ECS Fargate, Postgres
+# Sobe o ambiente completo do ConfirmaSUS (VPC, cluster ECS Fargate, Postgres
 # 18 containerizado, gateway-service e auth-service) com um unico comando,
 # sem passo manual adicional (NFR-3, spec 1.1).
 #
@@ -18,8 +18,8 @@ echo "==> [2/3] cdk deploy (provisiona VPC, ECS Fargate, Postgres, gateway-servi
 
 echo "==> [3/3] Resolvendo o endpoint publico do gateway-service..."
 OUTPUTS_FILE="${INFRA_DIR}/cdk-outputs.json"
-CLUSTER_NAME=$(jq -r '.FilaJustaStack.ClusterName' "${OUTPUTS_FILE}")
-GATEWAY_SERVICE_NAME=$(jq -r '.FilaJustaStack.GatewayServiceName' "${OUTPUTS_FILE}")
+CLUSTER_NAME=$(jq -r '.ConfirmaSusStack.ClusterName' "${OUTPUTS_FILE}")
+GATEWAY_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.GatewayServiceName' "${OUTPUTS_FILE}")
 
 TASK_ARN=$(aws ecs list-tasks --cluster "${CLUSTER_NAME}" --service-name "${GATEWAY_SERVICE_NAME}" \
   --desired-status RUNNING --query 'taskArns[0]' --output text)

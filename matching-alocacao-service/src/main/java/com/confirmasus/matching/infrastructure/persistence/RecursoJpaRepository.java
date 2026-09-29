@@ -10,13 +10,11 @@ import java.util.UUID;
 
 interface RecursoJpaRepository extends JpaRepository<RecursoJpaEntity, UUID> {
 
-    // Upsert direto e idempotente por codigo_recurso (Boundaries da spec
-    // 3.2b2, expandido em Story 5.1) -- sem WHERE temporal (difere de
-    // ScoreReplicaJpaRepository#upsertSeMaisRecente): o DO UPDATE sempre
-    // aplica num conflito, last-write-wins simples, sem comparacao de
-    // occurred_at/event_id (Recurso nao tem esses campos). O DO UPDATE
-    // deliberadamente NAO inclui recurso_id no SET -- um upsert repetido
-    // para o mesmo codigo_recurso sempre preserva o recurso_id ja
+    // Upsert direto e idempotente por codigo_recurso -- sem WHERE temporal:
+    // o DO UPDATE sempre aplica num conflito, last-write-wins simples, sem
+    // comparacao de occurred_at/event_id (Recurso nao tem esses campos). O
+    // DO UPDATE deliberadamente NAO inclui recurso_id no SET -- um upsert
+    // repetido para o mesmo codigo_recurso sempre preserva o recurso_id ja
     // persistido na primeira insercao, mesmo que o candidato desta chamada
     // traga um recurso_id novo gerado por UpsertRecurso (ver seu javadoc).
     @Modifying
@@ -43,33 +41,20 @@ interface RecursoJpaRepository extends JpaRepository<RecursoJpaEntity, UUID> {
     // valor com o candidato que enviou (ver javadoc de UpsertRecurso).
     Optional<RecursoJpaEntity> findByCodigoRecurso(String codigoRecurso);
 
-    // Conta quantos tiers ESTRITAMENTE mais genericos que :rank tem pelo
-    // menos 1 Recurso disponivel (Story 3.2b3, algoritmo de tiers de
-    // ConsultarSugestaoRecurso) -- COUNT(DISTINCT especificidade_rank),
-    // nunca COUNT(*): Recursos do mesmo tier consomem 1 posicao no total,
-    // nunca uma por Recurso (Boundaries "Always" da spec 3.2b3).
-    // findById(UUID) usado para buscar o Recurso pelo path {id} ja vem
-    // herdado de JpaRepository -- nao precisa de metodo novo aqui (Code Map
-    // da spec 3.2b3).
-    @Query(value = "SELECT COUNT(DISTINCT especificidade_rank) FROM matching_alocacao.recurso "
-            + "WHERE disponivel = true AND especificidade_rank < :rank",
-            nativeQuery = true)
-    long contarTiersMaisGenericosDisponiveis(@Param("rank") int rank);
-
-    // Story 3-3b1 (ConfirmarAlocacao): marca o Recurso indisponivel apos uma
-    // confirmacao aceita. JPQL simples (nao native, ao contrario do upsert
-    // acima) -- e so um UPDATE de 1 coluna por PK, sem necessidade de SQL
-    // nativo. Sem WHERE disponivel = true: idempotente por natureza (uma
-    // segunda chamada para o mesmo recursoId ja indisponivel nao falha, so
-    // nao muda nada).
+    // ConfirmarAlocacao: marca o Recurso indisponivel apos uma confirmacao
+    // aceita. JPQL simples (nao native, ao contrario do upsert acima) -- e
+    // so um UPDATE de 1 coluna por PK, sem necessidade de SQL nativo. Sem
+    // WHERE disponivel = true: idempotente por natureza (uma segunda
+    // chamada para o mesmo recursoId ja indisponivel nao falha, so nao
+    // muda nada).
     @Modifying
     @Query("UPDATE RecursoJpaEntity r SET r.disponivel = false WHERE r.recursoId = :recursoId")
     void marcarIndisponivel(@Param("recursoId") UUID recursoId);
 
-    // Story 3-4b1 (LiberarRecurso): espelho exato de marcarIndisponivel
-    // acima -- JPQL simples (nao nativo), void, sem WHERE disponivel = false:
-    // idempotente por natureza (uma segunda chamada para o mesmo recursoId
-    // ja disponivel nao falha, so nao muda nada).
+    // LiberarRecurso: espelho exato de marcarIndisponivel acima -- JPQL
+    // simples (nao nativo), void, sem WHERE disponivel = false: idempotente
+    // por natureza (uma segunda chamada para o mesmo recursoId ja
+    // disponivel nao falha, so nao muda nada).
     @Modifying
     @Query("UPDATE RecursoJpaEntity r SET r.disponivel = true WHERE r.recursoId = :recursoId")
     void marcarDisponivel(@Param("recursoId") UUID recursoId);

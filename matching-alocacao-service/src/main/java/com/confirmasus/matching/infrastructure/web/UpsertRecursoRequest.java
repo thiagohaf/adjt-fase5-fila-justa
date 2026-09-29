@@ -5,20 +5,19 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 /**
- * Corpo de {@code POST /internal/recursos} e {@code POST /v1/recursos}
- * (Story 3.2b2, expandido em Story 5.1). Bean Validation (diferente de
- * {@code RegistrarTriagemRequest}, triagem-score-service, que delega tudo
- * ao domínio de propósito) -- endpoint interno simples, sem exigência de
- * ordem determinística de erro (Code Map/I/O &amp; Edge-Case Matrix da spec
- * 3.2b2).
+ * Corpo de {@code POST /internal/recursos} e {@code POST /v1/recursos}.
+ * Bean Validation -- endpoint interno simples, sem exigência de ordem
+ * determinística de erro.
  *
  * <p>{@code especificidadeRank} leva {@code @NotNull} além de {@code
  * @Positive}: sozinho, {@code @Positive} considera {@code null} válido
  * (Bean Validation trata ausência como responsabilidade de {@code
- * @NotNull}) -- sem ele, o campo ausente do I/O Matrix não seria rejeitado.
+ * @NotNull}) -- sem ele, o campo ausente não seria rejeitado. Usado hoje só
+ * para calibrar a duração de liberação automática do Recurso (ver {@code
+ * LiberacaoDuracaoProperties}), não para priorização de paciente.
  *
- * <p>{@code especialidade} e {@code unidade} são opcionais (Story 5.1) para
- * suportar seed-data com categorização de recursos.
+ * <p>{@code especialidade} e {@code unidade} são opcionais, para suportar
+ * seed-data com categorização de recursos.
  */
 record UpsertRecursoRequest(
         @NotBlank String codigoRecurso,

@@ -58,7 +58,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "Token ausente, expirado ou com assinatura invalida";
 
     // HS256 exige >= 256 bits (32 bytes) de segredo -- sem esta checagem, um
-    // FILAJUSTA_JWT_SECRET vazio ou curto so falharia no boot com uma
+    // CONFIRMASUS_JWT_SECRET vazio ou curto so falharia no boot com uma
     // WeakKeyException opaca do jjwt. Mesmo espirito do guard de
     // expiration-seconds em auth-service/.../JwtTokenIssuer.java.
     private static final int HS256_MIN_SECRET_BYTES = 32;

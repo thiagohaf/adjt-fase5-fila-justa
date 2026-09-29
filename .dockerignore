@@ -1,5 +1,5 @@
 # Contexto de build docker dos assets CDK (ContainerImage.fromAsset("..") em
-# infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java) e a raiz
+# infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java) e a raiz
 # do repo. Excluir tudo que nao e preciso para o multi-stage build dos
 # Dockerfiles de gateway-service/auth-service (CDK le este .dockerignore
 # automaticamente ao empacotar o asset -- evita copiar infra-cdk/cdk.out

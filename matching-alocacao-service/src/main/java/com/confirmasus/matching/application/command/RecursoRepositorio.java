@@ -11,10 +11,9 @@ import java.util.UUID;
  *
  * <p>{@link #upsert(Recurso)} cria uma linha nova (quando {@code
  * codigoRecurso} é inédito) ou atualiza {@code especificidadeRank}/{@code
- * disponivel} de uma já existente (mesmo {@code recursoId}) -- upsert
- * direto e idempotente por {@code codigoRecurso}, sem comparação temporal
- * (Boundaries da spec 3.2b2, ao contrário de {@link
- * ScoreReplicaRepositorio#upsertSeMaisRecente}).
+ * disponivel}/{@code especialidade}/{@code unidade} de uma já existente
+ * (mesmo {@code recursoId}) -- upsert direto e idempotente por {@code
+ * codigoRecurso}, sem comparação temporal.
  *
  * <p>Devolve o {@link Recurso} efetivamente persistido, não o parâmetro
  * recebido: como {@code recursoId} é uma identidade sintética atribuída

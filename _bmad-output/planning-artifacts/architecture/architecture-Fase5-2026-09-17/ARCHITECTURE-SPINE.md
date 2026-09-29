@@ -19,6 +19,23 @@ companions: []
 
 # Architecture Spine — ConfirmaSUS
 
+> **Nota de execução (adicionada após o build, não integrada ao corpo do spine
+> abaixo — este documento permanece `status: final` como registro da decisão
+> original):** o rename `triagem-score-service` → `agendamento-confirmacao-service`
+> e `matching-alocacao-service` → `liberacao-repasse-service` descrito no
+> parágrafo seguinte não foi executado como planejado. Na prática:
+> `agendamento-confirmacao-service` foi criado como diretório **novo**, sem
+> reaproveitar `triagem-score-service` — que continuou existindo em paralelo,
+> ainda calculando Score de Prioridade Clínica, até ser **decomissionado por
+> completo** (removido do repositório, não renomeado). `matching-alocacao-service`
+> nunca foi renomeado para `liberacao-repasse-service` — continua com o nome
+> antigo, mas teve toda a infraestrutura de score/prioridade removida
+> (`PrioridadeEfetiva`, `ScoreReplica`, `ConsultarFilaPriorizada`, bootstrap via
+> `triagem-score-service`); a Sugestão de Repasse (`GET
+> /v1/recursos/{id}/sugestao`) hoje é FIFO pura por Lista de Espera (`criadoEm`),
+> como o AD-6 abaixo sempre descreveu — só o nome do serviço ficou para trás. A
+> renomeação de módulo/pacote continua um débito técnico em aberto.
+
 ## Design Paradigm
 
 Microsserviços, um por bounded context, herdado silenciosamente da fase anterior do mesmo projeto (memlog, PRD §8) — o mesmo modelo, não uma reavaliação. Dos serviços de runtime existentes, dois são **renomeados e podados** em vez de reescritos (decisão do memlog): `triagem-score-service` → `agendamento-confirmacao-service`, `matching-alocacao-service` → `liberacao-repasse-service`. Um terceiro é novo: `auditoria-service` (desenho já existente no spine antigo como AD-10, nunca implementado — retomado agora). `auth-service`, `gateway-service` e `infra-cdk` são reaproveitados sem alteração. `seed-adapter` continua um job Lambda (Quarkus), não um serviço de runtime — carga única no deploy, sem ciclo de vida próprio que justifique um serviço sempre no ar.
@@ -151,9 +168,9 @@ graph LR
 | --- | --- |
 | Java | 25 (LTS) |
 | Spring Boot | 4.1.1 — `gateway-service`, `auth-service`, `agendamento-confirmacao-service`, `liberacao-repasse-service`, `auditoria-service` |
-| Spring Cloud | 2025.1.3 ("Oakwood", compatível com Spring Boot 4.1.x) — Gateway, Config, Netflix Eureka (discovery) |
-| Spring gRPC | 1.1.1 — suporte gRPC nativo integrado ao Spring Boot 4.1; a starter standalone `org.springframework.grpc` 1.0.x é só para quem está preso ao Boot 4.0 — não se aplica aqui, sem alternativa real a considerar |
-| Quarkus | `seed-adapter` (job Lambda) — AD-12, cold-start otimizado |
+| Spring Cloud | 2025.1.2 ("Oakwood", compatível com Spring Boot 4.1.x) — Gateway, Config, Netflix Eureka (discovery) — `[nota de execução]` fixado em `2025.1.2` no `pom.xml` real, não `2025.1.3` |
+| Spring gRPC | 1.1.1 — planejado para `ResolverOuCriarPaciente` (AD-8) — `[nota de execução]` nunca implementado: essa chamada é REST hoje, sem nenhuma dependência gRPC no repositório |
+| — (não Quarkus) | `seed-adapter` — `[nota de execução]` implementado como CLI Java standalone (Apache HttpClient5 + fat JAR via `maven-shade-plugin`), não Quarkus nem Lambda; AD-12 (mistura de runtime) nunca se concretizou |
 | JWT (jjwt ou Spring Security Resource Server) | emissão em `auth-service`, validação em `gateway-service` (AD-13) |
 | PostgreSQL | 18, em container Fargate + EFS (não RDS — reaproveitado de `infra-cdk`, ver Structural Seed) |
 | AWS SNS + SQS FIFO | mensageria assíncrona de eventos de domínio (Outbox/fan-out, AD-3) |

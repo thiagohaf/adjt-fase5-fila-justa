@@ -16,9 +16,9 @@ if [[ ! -f "${OUTPUTS_FILE}" ]]; then
   exit 1
 fi
 
-CLUSTER_NAME=$(jq -r '.FilaJustaStack.ClusterName' "${OUTPUTS_FILE}")
-GATEWAY_SERVICE_NAME=$(jq -r '.FilaJustaStack.GatewayServiceName' "${OUTPUTS_FILE}")
-AUTH_SERVICE_NAME=$(jq -r '.FilaJustaStack.AuthServiceName' "${OUTPUTS_FILE}")
+CLUSTER_NAME=$(jq -r '.ConfirmaSusStack.ClusterName' "${OUTPUTS_FILE}")
+GATEWAY_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.GatewayServiceName' "${OUTPUTS_FILE}")
+AUTH_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.AuthServiceName' "${OUTPUTS_FILE}")
 
 resolve_public_ip() {
   local cluster="$1" service="$2"
