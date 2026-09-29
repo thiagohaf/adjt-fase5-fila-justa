@@ -30,7 +30,7 @@ import java.util.UUID;
  * o MESMO Agendamento duas vezes. A segunda tentativa não encontra linha para atualizar
  * e retorna {@code false} (já processado por outra instância).
  *
- * <p>Atomicidade transacional (AD-3/AD-4): {@code @Transactional} em {@code processar()}
+ * <p>Atomicidade transacional (AD-3/AD-4): a transação de {@code processar()} ({@code TransactionOperations})
  * envolve UPDATE + gravação dos dois eventos ({@code AgendamentoNaoConfirmado} +
  * {@code VagaLiberada}) em uma única transação: garante que se qualquer um dos dois
  * eventos falhar, o UPDATE também é revertido, mantendo consistência. Nunca há um
@@ -91,7 +91,7 @@ public class ExpirarJanelaDeConfirmacao {
             } catch (RuntimeException e) {
                 // Isolamento de falhas por item: a excecao nao propaga, permitindo
                 // que o poller continue processando os demais itens. Cada agendamento
-                // tem sua propria transacao (@Transactional em processar()), entao
+                // tem sua propria transacao (TransactionOperations em processar()), entao
                 // o rollback de um nao afeta os outros.
                 log.error("Falha ao processar expiracao de janela do Agendamento {} "
                         + "-- tenta de novo na proxima execucao",
