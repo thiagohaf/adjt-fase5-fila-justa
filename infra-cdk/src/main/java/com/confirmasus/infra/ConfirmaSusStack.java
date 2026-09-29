@@ -44,8 +44,6 @@ import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.amazon.awscdk.services.secretsmanager.SecretStringGenerator;
 import software.amazon.awscdk.services.servicediscovery.INamespace;
 import software.amazon.awscdk.services.sns.Topic;
-import software.amazon.awscdk.services.sns.subscriptions.SqsSubscription;
-import software.amazon.awscdk.services.sns.subscriptions.SqsSubscriptionProps;
 import software.amazon.awscdk.services.sqs.DeadLetterQueue;
 import software.amazon.awscdk.services.sqs.Queue;
 import software.constructs.Construct;
@@ -82,20 +80,15 @@ import java.util.Map;
  *
  * <p>Os demais servicos de dominio deferidos (ver deferred-work.md) nao
  * entram aqui -- seguirao o mesmo padrao (task/service + par de security
- * groups app/health) quando suas stories comecarem. Story 3.0 (relay real do
- * evento {@code ScoreCalculado}) e a primeira excecao parcial: declara o
- * topico SNS FIFO {@code score-calculado.fifo} (AD-3) para que
- * {@code matching-alocacao-service} (Story 3.1b, abaixo) ja tenha uma fila
- * assinante -- o publisher real deste topico (a IAM role de publish que
- * existia como {@code TriagemScoreServiceTaskRole}, do extinto
- * triagem-score-service) foi removido na Story 1.1 do Epic 1 (AD-1, sem
- * substituto: nenhum outbox/publisher existe ainda em
- * agendamento-confirmacao-service, entra na Story 1.2). Story 3.1b acrescenta o mesmo
- * padrao do lado consumidor: fila SQS FIFO assinante do topico (+ DLQ,
- * {@code maxReceiveCount=5}) e a IAM role de consumo de
- * {@code matching-alocacao-service} -- deploy ECS daquele servico tambem
- * continua deferido; a futura {@code FargateTaskDefinition} deve reusar
- * {@code MatchingAlocacaoServiceTaskRole}. Story 3-3a acrescenta o topico
+ * groups app/health) quando suas stories comecarem. O antigo topico/fila do
+ * evento {@code ScoreCalculado} (consumido pelo extinto
+ * triagem-score-service para priorizar por Score de gravidade clinica) foi
+ * removido: a priorizacao clinica automatizada foi decomissionada por
+ * restricao legal, sem substituto -- a Sugestao de Repasse de
+ * {@code matching-alocacao-service} e FIFO pura por Lista de Espera (AD-6).
+ * {@code MatchingAlocacaoServiceTaskRole} continua criada antecipadamente
+ * (deploy ECS daquele servico ainda deferido); a futura
+ * {@code FargateTaskDefinition} deve reusa-la. Story 3-3a acrescenta o topico
  * SNS FIFO proprio de {@code matching-alocacao-service}
  * ({@code matching-alocacao-eventos.fifo}, relay outbox daquele servico) --
  * publish concedido a mesma {@code MatchingAlocacaoServiceTaskRole} acima
@@ -273,29 +266,19 @@ public class ConfirmaSusStack extends Stack {
             agendamentoConfirmacaoService.getNode().addDependency(cloudMapNamespace);
         }
 
-        // --- Topico do evento ScoreCalculado (Epic 3, AD-3) ----------------
-        // So o topico -- a role de publish do extinto triagem-score-service
-        // (TriagemScoreServiceTaskRole) foi removida nesta story (Story 1.1,
-        // AD-1): nenhum publisher outbox existe ainda em
-        // agendamento-confirmacao-service (entra na Story 1.2), e recriar a
-        // role sem uso seria uma role fantasma. O topico continua existindo
-        // so porque buildScoreCalculadoConsumerQueue (Story 3.1b, abaixo)
-        // ja assina nele -- quando o outbox real deste servico existir, a
-        // role/publish sera adicionada de volta na story correspondente.
-        Topic scoreCalculadoTopic = buildScoreCalculadoTopic();
-
-        // --- Consumidor do evento ScoreCalculado (Story 3.1b) --------------
-        // Fila SQS FIFO assinante do topico acima + DLQ + a role de consumo
-        // -- deploy do matching-alocacao-service no ECS tambem continua
-        // deferido (deferred-work.md, ver javadoc da classe).
-        Queue scoreCalculadoConsumerQueue = buildScoreCalculadoConsumerQueue(scoreCalculadoTopic);
-        Role matchingAlocacaoServiceTaskRole = buildMatchingAlocacaoServiceTaskRole(scoreCalculadoConsumerQueue);
+        // --- Task role do matching-alocacao-service --------------------
+        // Deploy ECS deste servico continua deferido (deferred-work.md) --
+        // role criada antecipadamente so para as policies de publish/consume
+        // abaixo ja existirem; reusar esta role (nao criar outra) quando a
+        // FargateTaskDefinition for adicionada. O antigo topico/fila de
+        // ScoreCalculado (consumido pelo extinto triagem-score-service) foi
+        // removido: a priorizacao por score foi decomissionada por restricao
+        // legal, sem substituto -- a Sugestao de Repasse e FIFO pura (AD-6).
+        Role matchingAlocacaoServiceTaskRole = buildMatchingAlocacaoServiceTaskRole();
 
         // --- Relay outbox proprio do matching-alocacao-service (Story 3-3a, AD-3) ---
         // So o topico + a permissao de publish -- deploy ECS deste servico
-        // continua deferido (deferred-work.md, ver javadoc da classe); reusa
-        // a MatchingAlocacaoServiceTaskRole ja existente (Story 3.1b), nao
-        // cria outra role (mesmo principio do topico ScoreCalculado acima).
+        // continua deferido (deferred-work.md, ver javadoc da classe).
         // Nenhuma fila/subscription assinante nesta story -- Epic 4
         // (auditoria-service) assina depois, fora de escopo.
         Topic matchingAlocacaoEventosTopic = buildMatchingAlocacaoEventosTopic();
@@ -317,10 +300,6 @@ public class ConfirmaSusStack extends Stack {
                 .value(agendamentoConfirmacaoService.getServiceName())
                 .build();
         CfnOutput.Builder.create(this, "PostgresServiceName").value(postgresService.getServiceName()).build();
-        CfnOutput.Builder.create(this, "ScoreCalculadoTopicArn").value(scoreCalculadoTopic.getTopicArn()).build();
-        CfnOutput.Builder.create(this, "ScoreCalculadoConsumerQueueUrl")
-                .value(scoreCalculadoConsumerQueue.getQueueUrl())
-                .build();
         CfnOutput.Builder.create(this, "MatchingAlocacaoEventosTopicArn")
                 .value(matchingAlocacaoEventosTopic.getTopicArn())
                 .build();
@@ -346,70 +325,14 @@ public class ConfirmaSusStack extends Stack {
                 .build();
     }
 
-    private Topic buildScoreCalculadoTopic() {
-        // FIFO (nao standard) -- ordem determinística por paciente via
-        // MessageGroupId = pacienteId (AD-3, ARCHITECTURE-SPINE.md).
-        // contentBasedDeduplication=false: RelaySnsPublisherJob sempre manda
-        // um MessageDeduplicationId explicito (o eventId do outbox), nunca
-        // depende de deduplicacao por conteudo.
-        return Topic.Builder.create(this, "ScoreCalculadoTopic")
-                .topicName("score-calculado.fifo")
-                .fifo(true)
-                .contentBasedDeduplication(false)
-                .build();
-    }
-
-    private Queue buildScoreCalculadoConsumerQueue(final Topic scoreCalculadoTopic) {
-        // DLQ com maxReceiveCount=5 (mesma convencao ja usada na fila de
-        // teste da Story 3.0, RelaySnsPublisherJobIntegrationTest -- Design
-        // Notes da spec 3.1b: convencao do projeto, nao fixada no
-        // epic-3-context.md). FIFO (nao standard) -- consistente com o
-        // topico origem, preserva ordem por pacienteId dentro do grupo.
-        Queue dlq = Queue.Builder.create(this, "ScoreCalculadoConsumerDlq")
-                .queueName("score-calculado-matching-dlq.fifo")
-                .fifo(true)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-
-        Queue queue = Queue.Builder.create(this, "ScoreCalculadoConsumerQueue")
-                .queueName("score-calculado-matching.fifo")
-                .fifo(true)
-                .deadLetterQueue(DeadLetterQueue.builder()
-                        .queue(dlq)
-                        .maxReceiveCount(5)
-                        .build())
-                // Achado do code review: default do SQS e 30s. O poller
-                // (ScoreCalculadoConsumerJob) processa ate batch-size (10)
-                // mensagens sequencialmente numa unica execucao @Scheduled --
-                // sob lentidao do banco o tempo cumulativo pode se
-                // aproximar/exceder 30s, causando redelivery prematuro antes
-                // do deleteMessage rodar (idempotencia cobre a correcao, mas
-                // gera reprocessamento/log desnecessario). 60s da margem de
-                // seguranca confortavel para um lote inteiro.
-                .visibilityTimeout(Duration.seconds(60))
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-
-        // RawMessageDelivery=true (mesma escolha da fila de teste da Story
-        // 3.0): o corpo da mensagem SQS e o envelope publicado direto, sem
-        // o wrapper JSON padrao do SNS -- e o que ScoreCalculadoConsumerJob
-        // (matching-alocacao-service) espera ler.
-        scoreCalculadoTopic.addSubscription(new SqsSubscription(queue,
-                SqsSubscriptionProps.builder().rawMessageDelivery(true).build()));
-
-        return queue;
-    }
-
-    private Role buildMatchingAlocacaoServiceTaskRole(final Queue scoreCalculadoConsumerQueue) {
-        Role role = Role.Builder.create(this, "MatchingAlocacaoServiceTaskRole")
+    private Role buildMatchingAlocacaoServiceTaskRole() {
+        return Role.Builder.create(this, "MatchingAlocacaoServiceTaskRole")
                 .assumedBy(new ServicePrincipal("ecs-tasks.amazonaws.com"))
-                .description("Task role de matching-alocacao-service (Story 3.1b, ScoreCalculadoConsumerJob) -- "
-                        + "criada antes do deploy ECS daquele servico (deferred-work.md) so para a policy de "
-                        + "consumo da fila SQS FIFO ja existir; reusar esta role (nao criar outra) quando a "
-                        + "FargateTaskDefinition for adicionada.")
+                .description("Task role de matching-alocacao-service -- criada antes do deploy ECS daquele "
+                        + "servico (deferred-work.md) so para as policies de publish/consume abaixo ja "
+                        + "existirem; reusar esta role (nao criar outra) quando a FargateTaskDefinition for "
+                        + "adicionada.")
                 .build();
-        scoreCalculadoConsumerQueue.grantConsumeMessages(role);
-        return role;
     }
 
     private Topic buildMatchingAlocacaoEventosTopic() {

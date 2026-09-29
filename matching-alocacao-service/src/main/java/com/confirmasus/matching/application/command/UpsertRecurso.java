@@ -5,14 +5,12 @@ import com.confirmasus.matching.domain.Recurso;
 import java.util.UUID;
 
 /**
- * Caso de uso de upsert de {@link Recurso} (Story 3.2b2, expandido em Story
- * 5.1, Code Map): consumido por {@code POST /internal/recursos} ({@code
- * infrastructure.web.RecursosInternalController}) e {@code POST /v1/recursos}
- * ({@code infrastructure.web.RecursoPublicController}). Upsert direto e
- * idempotente por {@code codigoRecurso} -- sem comparação temporal, ao
- * contrário de {@link AtualizarScoreReplica} (Boundaries da spec 3.2b2):
- * cria um {@code Recurso} novo (com um {@code recursoId} UUID v4 gerado
- * aqui) quando {@code codigoRecurso} é inédito, ou atualiza {@code
+ * Caso de uso de upsert de {@link Recurso}: consumido por {@code POST
+ * /internal/recursos} ({@code infrastructure.web.RecursosInternalController})
+ * e {@code POST /v1/recursos} ({@code infrastructure.web.RecursoPublicController}).
+ * Upsert direto e idempotente por {@code codigoRecurso} -- sem comparação
+ * temporal: cria um {@code Recurso} novo (com um {@code recursoId} UUID v4
+ * gerado aqui) quando {@code codigoRecurso} é inédito, ou atualiza {@code
  * especificidadeRank}/{@code disponivel}/{@code especialidade}/{@code unidade}
  * preservando o {@code recursoId} já existente quando já cadastrado.
  *
@@ -51,8 +49,7 @@ public class UpsertRecurso {
      * {@code criado}: {@code true} quando o upsert efetivamente inseriu uma
      * linha nova ({@code codigoRecurso} inédito); {@code false} quando
      * atualizou uma linha já existente (mesmo {@code recursoId} preservado).
-     * Consumido pelo controller para decidir {@code 201} vs {@code 200}
-     * (I/O &amp; Edge-Case Matrix da spec 3.2b2).
+     * Consumido pelo controller para decidir {@code 201} vs {@code 200}.
      */
     public record Resultado(Recurso recurso, boolean criado) {
     }

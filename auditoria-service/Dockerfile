@@ -6,8 +6,8 @@ COPY . .
 RUN mvn -q -pl auditoria-service -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
-RUN useradd --system --create-home --shell /usr/sbin/nologin filajusta
-USER filajusta
+RUN useradd --system --create-home --shell /usr/sbin/nologin confirmasus
+USER confirmasus
 WORKDIR /app
 COPY --from=build /workspace/auditoria-service/target/auditoria-service.jar app.jar
 

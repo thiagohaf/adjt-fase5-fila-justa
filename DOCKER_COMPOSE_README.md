@@ -1,6 +1,6 @@
 # ConfirmaSUS Local Development Environment (docker-compose)
 
-Esta configuração permite executar todo o ambiente ConfirmaSUS localmente usando Docker Compose, facilitando desenvolvimento, testes e validação de deferred items.
+Esta configuração permite executar o backend do ConfirmaSUS localmente usando Docker Compose, facilitando desenvolvimento e testes manuais sem depender da AWS.
 
 ## Arquitetura
 
@@ -15,16 +15,16 @@ Esta configuração permite executar todo o ambiente ConfirmaSUS localmente usan
 │  │                  │  └──────────────────┘  │  (SQS/SNS)   │   │
 │  └────────┬─────────┘                        └──────────────┘   │
 │           │                                                       │
-│   ┌───────┴────────┬────────────┬────────────┬────────────┐    │
-│   │                │            │            │            │    │
-│   ▼                ▼            ▼            ▼            ▼    │
-│ ┌──────────────┐ ┌──────────────────┐ ┌──────────────┐ ┌────┐ │
-│ │   Triagem    │ │    Matching/     │ │ Agendamento  │ │Aud │ │
-│ │    Score     │ │   Alocacao       │ │ Confirmacao  │ │    │ │
-│ │   :8084      │ │    :8083         │ │   :8082      │ │ :8085
-│ └──────────────┘ └──────────────────┘ └──────────────┘ └────┘ │
-│        │                │                   │            │      │
-│        └────────────────┴───────────────────┴────────────┘      │
+│   ┌───────┴────────┬────────────────────────┐                   │
+│   │                │                         │                   │
+│   ▼                ▼                         ▼                   │
+│ ┌──────────────────┐ ┌──────────────┐ ┌────────────┐             │
+│ │    Matching/     │ │ Agendamento  │ │ Auditoria  │             │
+│ │   Alocacao       │ │ Confirmacao  │ │            │             │
+│ │    :8083         │ │   :8082      │ │   :8085    │             │
+│ └──────────────────┘ └──────────────┘ └────────────┘             │
+│        │                   │                │                    │
+│        └───────────────────┴────────────────┘                    │
 │                         │                                        │
 │                         ▼                                        │
 │                    ┌──────────────┐                             │
@@ -34,14 +34,10 @@ Esta configuração permite executar todo o ambiente ConfirmaSUS localmente usan
 │                    │ confirmasus  │                             │
 │                    └──────────────┘                             │
 │                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Seed Adapter (runs once on startup)                       │ │
-│  │  - Loads seed-data.json                                    │ │
-│  │  - Populates Recursos → Agendamentos → ListaEspera        │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+`matching-alocacao-service` é hoje o dono de `Recurso`/`Lista de Espera`/`Alocacao` — cumpre o papel de "liberação e repasse" (Sugestão de Repasse FIFO pura por ordem de chegada, AD-6), mas mantém o nome herdado do produto anterior; a renomeação para `liberacao-repasse-service` prevista na arquitetura não foi executada (ver `_bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-17/ARCHITECTURE-SPINE.md`). O antigo `triagem-score-service` (Score de Prioridade Clínica) foi decomissionado por restrição legal — não existe mais no repositório.
 
 ## Pré-requisitos
 
@@ -54,7 +50,7 @@ Esta configuração permite executar todo o ambiente ConfirmaSUS localmente usan
 ### 1. Build das imagens (primeira execução)
 
 ```bash
-cd /path/to/adjt-fase5-fila-justa
+cd /path/to/adjt-fase5-confirmasus
 docker-compose build
 ```
 
@@ -72,12 +68,23 @@ docker-compose up
 ✓ localstack is healthy
 ✓ auth-service is healthy
 ✓ gateway-service started
-✓ triagem-score-service started
 ✓ matching-alocacao-service started
 ✓ agendamento-confirmacao-service started
 ✓ auditoria-service started
-✓ seed-adapter loaded seed-data.json (5 recursos, 10 agendamentos, 5 lista-espera)
 ```
+
+O `seed-adapter` **não** sobe junto com `docker-compose up` — o serviço está comentado em `docker-compose.yml` (é um CLI Java standalone, não um serviço de longa duração). Para carregar dados de seed, construa e rode manualmente:
+
+```bash
+cd seed-adapter && mvn clean package
+docker build -f seed-adapter/Dockerfile -t seed-adapter:latest .
+docker run --network confirmasus-network \
+  -e GATEWAY_URL=http://gateway-service:8080 \
+  -e TECH_USERNAME=admin-tecnico -e TECH_PASSWORD=senha-tecnica-segura \
+  seed-adapter:latest
+```
+
+**Importante:** por padrão, os relays de outbox/SNS/SQS estão **desabilitados** neste ambiente (`CONFIRMASUS_*_RELAY_ENABLED=false` em `docker-compose.yml`) — mesmo com o `localstack` (SQS/SNS mock) rodando, nenhum evento de domínio é de fato publicado/consumido entre serviços aqui. Para validar o fluxo assíncrono completo (outbox → SNS FIFO → SQS FIFO), habilite as flags de relay antes de subir o ambiente.
 
 ### 3. Validar que ambiente está pronto
 
@@ -85,8 +92,8 @@ docker-compose up
 # Gateway health
 curl -s http://localhost:8080/actuator/health | jq .
 
-# Database connection
-psql -U postgres -h localhost -d confirmasus -c "SELECT COUNT(*) FROM recurso;" # Expected: 5
+# Database connection (tabelas são qualificadas por schema, um por serviço — AD-10)
+psql -U postgres -h localhost -d confirmasus -c "SELECT COUNT(*) FROM matching_alocacao.recurso;"
 ```
 
 ## Comandos Úteis
@@ -108,13 +115,12 @@ docker-compose down -v
 ```bash
 docker-compose logs -f auth-service
 docker-compose logs -f gateway-service
-docker-compose logs -f seed-adapter
 ```
 
 ### Executar comando em container
 
 ```bash
-docker-compose exec postgres psql -U postgres -d confirmasus -c "SELECT * FROM recurso LIMIT 5;"
+docker-compose exec postgres psql -U postgres -d confirmasus -c "SELECT * FROM matching_alocacao.recurso LIMIT 5;"
 ```
 
 ### Reconstruir uma imagem específica
@@ -136,69 +142,25 @@ docker-compose ps
 |---------|-------|-----|-------|
 | Gateway | 8080 | http://localhost:8080 | Entry point (Spring Cloud Gateway) |
 | Auth | 8081 | http://localhost:8081 | JWT issuer (health: /actuator/health) |
-| Agendamento | 8082 | http://localhost:8082 | Agendamento service (health: :8091/actuator/health) |
-| Matching | 8083 | http://localhost:8083 | Matching/Alocacao (health: :8092/actuator/health) |
-| Triagem | 8084 | http://localhost:8084 | Triagem Score (health: :8093/actuator/health) |
+| Agendamento | 8082 | http://localhost:8082 | Agendamento/Confirmação (health: :8091/actuator/health) |
+| Matching/Alocação | 8083 | http://localhost:8083 | Recursos/Lista de Espera/Repasse (health: :8092/actuator/health) |
 | Auditoria | 8085 | http://localhost:8085 | Auditoria (health: :8094/actuator/health) |
 | LocalStack | 4566 | http://localhost:4566 | SQS/SNS (AWS mock) |
 | PostgreSQL | 5432 | localhost:5432 | Database |
 
-## Deferred Items Validation
+## Validando uma carga de seed
 
-Agora que o ambiente está rodando, você pode executar as validações dos deferred items:
-
-### Item 1: E2E Manual com Gateway Real + Banco Real
+Depois de rodar o `seed-adapter` manualmente (passo 2 acima), confira as contagens (schemas reais, AD-10 — sem prefixo de schema a query falha):
 
 ```bash
-# Verificar contagens de dados carregados
 psql -U postgres -h localhost -d confirmasus -c \
-  "SELECT 
-     (SELECT COUNT(*) FROM recurso) as recursos,
-     (SELECT COUNT(*) FROM agendamentos) as agendamentos,
-     (SELECT COUNT(*) FROM lista_espera) as lista_espera;"
-
-# Expected output:
-#  recursos | agendamentos | lista_espera
-# ----------+--------------+--------------
-#         5 |           10 |            5
+  "SELECT
+     (SELECT COUNT(*) FROM matching_alocacao.recurso) as recursos,
+     (SELECT COUNT(*) FROM agendamento_confirmacao.agendamentos) as agendamentos,
+     (SELECT COUNT(*) FROM matching_alocacao.lista_espera_entrada) as lista_espera;"
 ```
 
-### Item 2: Validação de Idempotência com Reexecução
-
-```bash
-# 1. Verificar contagens antes (já feito acima)
-
-# 2. Parar seed-adapter, modificar e reiniciar (simular reexecução)
-docker-compose down
-docker-compose up seed-adapter -d
-
-# 3. Verificar contagens novamente (devem ser idênticas)
-psql -U postgres -h localhost -d confirmasus -c \
-  "SELECT 
-     (SELECT COUNT(*) FROM recurso) as recursos,
-     (SELECT COUNT(*) FROM agendamentos) as agendamentos,
-     (SELECT COUNT(*) FROM lista_espera) as lista_espera;"
-
-# Expected: Mesmas contagens (idempotência garantida)
-```
-
-### Item 3: Teste de Resiliência com Gateway Indisponível
-
-```bash
-# 1. Parar gateway
-docker-compose stop gateway-service
-
-# 2. Tentar rodar seed-adapter (deve falhar com erro claro)
-docker-compose run --rm seed-adapter 2>&1 | grep -i "gateway"
-
-# Expected: Error message "Gateway indisponível"
-
-# 3. Reiniciar gateway
-docker-compose start gateway-service
-
-# 4. Executar seed-adapter novamente (deve suceder)
-docker-compose run --rm seed-adapter
-```
+O `seed-adapter` faz upsert idempotente (por `codigoRecurso`/CPF) — reexecutá-lo não deve alterar as contagens numa segunda carga com o mesmo `seed-data.json`.
 
 ## Troubleshooting
 
@@ -311,13 +273,6 @@ docker system prune -a
 docker-compose down
 docker rmi $(docker images -q 'confirmasus*')
 ```
-
-## Próximos Passos
-
-1. **Validar deferred items:** Execute as validações acima
-2. **Mergear feature/epic-5-deferred-items** em develop
-3. **Mergear develop em master** com aprovação de QA
-4. **Considerar:** Adicionar docker-compose ao CI/CD
 
 ## Suporte
 

@@ -10,8 +10,8 @@ COPY . .
 RUN mvn -q -pl agendamento-confirmacao-service -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
-RUN useradd --system --create-home --shell /usr/sbin/nologin filajusta
-USER filajusta
+RUN useradd --system --create-home --shell /usr/sbin/nologin confirmasus
+USER confirmasus
 WORKDIR /app
 COPY --from=build /workspace/agendamento-confirmacao-service/target/agendamento-confirmacao-service.jar app.jar
 

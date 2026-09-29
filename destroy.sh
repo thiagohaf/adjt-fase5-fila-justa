@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove todos os recursos da stack FilaJusta, sem deixar recursos orfaos
+# Remove todos os recursos da stack ConfirmaSusStack, sem deixar recursos orfaos
 # cobrando fora da janela de demo (NFR-7, spec 1.1).
 #
 # Acao real e DESTRUTIVA na conta AWS -- confirmar com o usuario antes de
@@ -16,5 +16,5 @@ rm -f "${INFRA_DIR}/cdk-outputs.json"
 
 echo ""
 echo "Stack destruida. Verifique manualmente se nao sobrou recurso orfao:"
-echo "  aws cloudformation describe-stacks --stack-name FilaJustaStack"
+echo "  aws cloudformation describe-stacks --stack-name ConfirmaSusStack"
 echo "  aws ecs list-clusters"

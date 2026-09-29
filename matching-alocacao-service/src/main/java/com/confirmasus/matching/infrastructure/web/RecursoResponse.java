@@ -6,9 +6,7 @@ import java.util.UUID;
 
 /**
  * Corpo de {@code 200}/{@code 201} de {@code POST /internal/recursos} e
- * {@code POST /v1/recursos} (Story 3.2b2, expandido em Story 5.1), mesmo
- * padrão de factory {@code de(...)} de {@code ScoreAtualResponse}
- * (triagem-score-service).
+ * {@code POST /v1/recursos}, e de {@code GET /v1/recursos/{id}}.
  */
 record RecursoResponse(UUID recursoId, String codigoRecurso, int especificidadeRank, boolean disponivel,
                        String especialidade, String unidade) {

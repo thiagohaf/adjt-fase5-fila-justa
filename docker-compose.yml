@@ -99,47 +99,11 @@ services:
       SPRING_CLOUD_GATEWAY_ROUTES_3_ID: agendamento
       SPRING_CLOUD_GATEWAY_ROUTES_3_URI: http://agendamento-confirmacao-service:8082
       SPRING_CLOUD_GATEWAY_ROUTES_3_PREDICATES_0: Path=/v1/agendamentos/**
-      SPRING_CLOUD_GATEWAY_ROUTES_4_ID: triagem
-      SPRING_CLOUD_GATEWAY_ROUTES_4_URI: http://triagem-score-service:8084
-      SPRING_CLOUD_GATEWAY_ROUTES_4_PREDICATES_0: Path=/v1/triagens/**
-      SPRING_CLOUD_GATEWAY_ROUTES_5_ID: auditoria
-      SPRING_CLOUD_GATEWAY_ROUTES_5_URI: http://auditoria-service:8085
-      SPRING_CLOUD_GATEWAY_ROUTES_5_PREDICATES_0: Path=/v1/auditoria/**
+      SPRING_CLOUD_GATEWAY_ROUTES_4_ID: auditoria
+      SPRING_CLOUD_GATEWAY_ROUTES_4_URI: http://auditoria-service:8085
+      SPRING_CLOUD_GATEWAY_ROUTES_4_PREDICATES_0: Path=/v1/auditoria/**
     ports:
       - "8080:8080"
-    networks:
-      - confirmasus-network
-    restart: unless-stopped
-
-  # Auth Service (Triagem Score)
-  triagem-score-service:
-    build:
-      context: .
-      dockerfile: triagem-score-service/Dockerfile
-    container_name: confirmasus-triagem-score-service
-    depends_on:
-      postgres:
-        condition: service_healthy
-      gateway-service:
-        condition: service_started
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/confirmasus
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
-      SERVER_PORT: 8084
-      MANAGEMENT_SERVER_PORT: 8093
-      GATEWAY_URL: http://gateway-service:8080
-      AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
-      AWS_SQS_ENDPOINT: http://localstack:4566
-      AWS_SNS_ENDPOINT: http://localstack:4566
-    ports:
-      - "8084:8084"
-      - "8093:8093"
     networks:
       - confirmasus-network
     restart: unless-stopped
@@ -249,7 +213,8 @@ services:
     restart: unless-stopped
 
   # Seed Adapter (runs once to load seed data)
-  # TODO: seed-adapter é Quarkus standalone (não Spring Boot, não no pom.xml reactor)
+  # TODO: seed-adapter é um CLI Java standalone (Apache HttpClient5 + fat JAR via shade-plugin;
+  # não é Quarkus nem Spring Boot, e não está no pom.xml reactor)
   # Construir separadamente: cd seed-adapter && mvn clean package
   # docker build -f seed-adapter/Dockerfile -t seed-adapter:latest .
   # docker run -e GATEWAY_URL=http://gateway-service:8080 ... seed-adapter:latest

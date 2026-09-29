@@ -1,6 +1,6 @@
 name: CI
 
-# Build/test do reactor Maven (todos 7 serviços Spring Boot + seed-adapter) e
+# Build/test do reactor Maven (6 serviços Spring Boot + seed-adapter) e
 # validação da stack CDK (cdk synth) em todo push/PR. Não toca a conta AWS —
 # distinto do deploy/pause/destroy real, que segue manual.
 on:
@@ -37,13 +37,11 @@ jobs:
         with:
           filters: |
             backend:
-              - 'api-gateway/**'
-              - 'agendamento-service/**'
-              - 'lista-espera-service/**'
-              - 'recurso-service/**'
+              - 'gateway-service/**'
               - 'auth-service/**'
-              - 'notificacao-service/**'
-              - 'historico-service/**'
+              - 'agendamento-confirmacao-service/**'
+              - 'matching-alocacao-service/**'
+              - 'auditoria-service/**'
               - 'seed-adapter/**'
               - 'infra-cdk/**'
               - 'pom.xml'
@@ -64,11 +62,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: mvn test (todos 7 serviços Spring Boot)
+      - name: mvn test (6 serviços Spring Boot do reactor)
         run: mvn -B test
 
   test-seed-adapter:
-    name: Test Seed Adapter (Quarkus)
+    name: Test Seed Adapter (CLI Java standalone)
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -82,7 +80,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: mvn test seed-adapter (Quarkus/Lambda)
+      - name: mvn test seed-adapter (fora do reactor Spring Boot)
         working-directory: seed-adapter
         run: mvn -B test
 

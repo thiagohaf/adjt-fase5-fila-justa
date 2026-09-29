@@ -21,8 +21,7 @@ import java.util.UUID;
  * matching-alocacao-service) com JWT autenticado. Usa header
  * {@code Authorization: Bearer {token}} para autenticação.
  *
- * <p>Padrão idêntico a {@code TriagemScoreClient} (triagem-score-service).
- * Falha com erro claro se gateway indisponível.
+ * <p>Falha com erro claro se gateway indisponível.
  */
 public class RecursoClient {
     private static final Logger logger = LoggerFactory.getLogger(RecursoClient.class);

@@ -75,7 +75,7 @@ confirmasus:
     #
     # enabled=true (mesmo padrao real de confirmasus.triagem.relay.enabled) --
     # topico SNS FIFO proprio (matching-alocacao-eventos.fifo) ja
-    # provisionado em infra-cdk (FilaJustaStack). topic-arn fica vazio por
+    # provisionado em infra-cdk (ConfirmaSusStack). topic-arn fica vazio por
     # padrao (injetado so no deploy real via
     # CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN) -- deploy ECS deste servico
     # ainda pendente (gap pre-existente, deferred-work.md, nao desta story).
@@ -97,7 +97,7 @@ confirmasus:
     #
     # enabled=true (mesmo padrao real de outbox-relay.enabled) -- fila SQS
     # standard propria (liberacao-agendada) ja provisionada em infra-cdk
-    # (FilaJustaStack). queue-url fica vazio por padrao (injetado so no
+    # (ConfirmaSusStack). queue-url fica vazio por padrao (injetado so no
     # deploy real via CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL)
     # -- deploy ECS deste servico ainda pendente (gap pre-existente,
     # deferred-work.md, nao desta story). Testes @SpringBootTest

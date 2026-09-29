@@ -14,12 +14,10 @@ public class PacienteClient {
   private static final Logger logger = LoggerFactory.getLogger(PacienteClient.class);
 
   private final RestTemplate restTemplate;
-  private final String triagemScoreBaseUrl;
   private final String agendamentoConfirmacaoBaseUrl;
 
   public PacienteClient(RestTemplate restTemplate) {
     this.restTemplate = restTemplate;
-    this.triagemScoreBaseUrl = "http://triagem-score-service:8084";
     this.agendamentoConfirmacaoBaseUrl = "http://agendamento-confirmacao-service:8082";
   }
 
@@ -27,13 +25,7 @@ public class PacienteClient {
     try {
       return tentarAgendamentoConfirmacao(pacienteId);
     } catch (RestClientException e) {
-      logger.debug("Paciente {} não encontrado em agendamento-confirmacao, tentando triagem-score", pacienteId);
-    }
-
-    try {
-      return tentarTriagemScore(pacienteId);
-    } catch (RestClientException e) {
-      logger.warn("Paciente {} não encontrado em nenhum serviço", pacienteId);
+      logger.warn("Paciente {} não encontrado em agendamento-confirmacao", pacienteId);
     }
 
     return Optional.empty();
@@ -46,18 +38,6 @@ public class PacienteClient {
       return Optional.ofNullable(dto);
     } catch (RestClientException e) {
       logger.debug("Erro ao chamar agendamento-confirmacao para paciente {}: {}", pacienteId, e.getMessage());
-      throw e;
-    }
-  }
-
-  private Optional<PacienteDTO> tentarTriagemScore(Long pacienteId) {
-    // triagem-score usa UUID, mas vamos tentar com BIGINT como fallback
-    String url = triagemScoreBaseUrl + "/internal/pacientes/" + pacienteId;
-    try {
-      PacienteDTO dto = restTemplate.getForObject(url, PacienteDTO.class);
-      return Optional.ofNullable(dto);
-    } catch (RestClientException e) {
-      logger.debug("Erro ao chamar triagem-score para paciente {}: {}", pacienteId, e.getMessage());
       throw e;
     }
   }

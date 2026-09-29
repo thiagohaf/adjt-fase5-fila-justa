@@ -9,8 +9,8 @@ COPY . .
 RUN mvn -q -pl matching-alocacao-service -am package -DskipTests
 
 FROM eclipse-temurin:25-jre
-RUN useradd --system --create-home --shell /usr/sbin/nologin filajusta
-USER filajusta
+RUN useradd --system --create-home --shell /usr/sbin/nologin confirmasus
+USER confirmasus
 WORKDIR /app
 COPY --from=build /workspace/matching-alocacao-service/target/matching-alocacao-service.jar app.jar
 

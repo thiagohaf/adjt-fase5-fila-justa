@@ -16,7 +16,7 @@ spring:
             #
             # Host "auth-service" (SEM sufixo ".confirmasus.local"): o dnsName
             # do Service Connect e resolvido pelo Envoy pela string exata
-            # configurada (FilaJustaStack.buildAuthService), nao pelo nome
+            # configurada (ConfirmaSusStack.buildAuthService), nao pelo nome
             # qualificado com o namespace -- mesmo bug de DNS encontrado e
             # corrigido no datasource do auth-service (ver application.yml).
             - id: auth-login
@@ -31,7 +31,7 @@ spring:
             # Host "agendamento-confirmacao-service" (SEM sufixo de
             # namespace -- mesmo padrao de "auth-service" acima, resolvido
             # pelo Envoy do Service Connect pela string exata do dnsName
-            # configurado em FilaJustaStack.buildAgendamentoConfirmacaoService).
+            # configurado em ConfirmaSusStack.buildAgendamentoConfirmacaoService).
             - id: agendamento-confirmacao-registrar
               uri: http://agendamento-confirmacao-service:8082
               predicates:
@@ -63,12 +63,6 @@ spring:
               uri: http://matching-alocacao-service:8083
               predicates:
                 - Path=/v1/recursos/**,/v1/alocacoes/**
-
-            # Triagem/Score (Story 2, Epic 2) -- rota publica protegida
-            - id: triagem-score
-              uri: http://triagem-score-service:8084
-              predicates:
-                - Path=/v1/triagens/**
 
             # Lista de Espera (Story 5.3, Epic 5) -- rota publica protegida
             - id: lista-espera

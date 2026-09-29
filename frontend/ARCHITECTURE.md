@@ -1,12 +1,13 @@
 # ConfirmaSUS Frontend — Architecture
 
 ## Stack
-- **Framework:** React 18 + TypeScript
-- **Build tool:** Vite
+- **Framework:** React 18.3 + TypeScript
+- **Build tool:** Vite (dev server em `:3000`, proxy `/v1/*` → `http://localhost:8080`)
 - **Router:** React Router v6
-- **State & Data Fetching:** TanStack Query + Zustand (para auth)
-- **HTTP Client:** Axios com interceptors
+- **State & Data Fetching:** TanStack Query; autenticação via React Context (`AuthProvider`/`useAuth`) + `useState`, sem lib de state management externa
+- **HTTP Client:** Axios
 - **Styling:** Tailwind CSS
+- **Testes E2E:** Cypress
 
 ## Estrutura de Pastas
 
@@ -19,10 +20,16 @@ src/
 │   ├── RepassePage.tsx            # UJ-3: Gestor repassa
 │   └── AuditoriaPage.tsx          # UJ-4: Auditor investiga
 ├── components/      # Componentes reutilizáveis
-│   └── ProtectedRoute.tsx
+│   ├── ProtectedRoute.tsx
+│   ├── ConfirmacaoButtons.tsx     # Confirmar/Recusar presença (UJ-1)
+│   ├── CountdownDisplay.tsx       # Countdown da janela de confirmação
+│   ├── RecusarSugestaoModal.tsx   # Modal de recusa de repasse (UJ-3)
+│   ├── RecursoNome.tsx            # Resolve nome do Recurso a partir do id
+│   ├── ErrorBoundary.tsx
+│   └── Toast.tsx
 ├── hooks/           # Custom hooks
-│   ├── useAuth.ts
-│   └── (outros hooks de negócio)
+│   ├── useAuth.tsx                # AuthProvider + useAuth (Context API)
+│   └── useCountdown.ts
 ├── services/        # Clientes HTTP e APIs
 │   └── api.ts
 ├── types/           # TypeScript types
@@ -34,10 +41,10 @@ src/
 
 ## Fluxo de Autenticação
 
-1. **Login:** `LoginPage` → `useAuth.login()` → JWT salvo em localStorage
-2. **Protected Routes:** `ProtectedRoute` verifica token antes de renderizar
+1. **Login:** `LoginPage` → `useAuth().login()` → `POST /v1/auth/login` → JWT decodificado (payload `sub`/`role`) e salvo em `localStorage` (`auth_token`)
+2. **Protected Routes:** `ProtectedRoute` verifica `isAuthenticated` do contexto antes de renderizar
 3. **HTTP Interceptor:** Axios adiciona `Authorization: Bearer {token}` em todas as requisições
-4. **Logout automático:** Se 401, token é limpo e redireciona para `/login`
+4. **Logout automático:** interceptor de resposta do Axios (`services/api.ts`) detecta `401`, limpa `auth_token` do `localStorage` e redireciona para `/login` via `window.location.href`
 
 ## User Journeys (Stories)
 
@@ -49,18 +56,18 @@ src/
 - POST `/v1/agendamentos/{id}/confirmacao` → sucesso redireciona
 
 ### UJ-2: Paciente Não Responde (Não interativo)
-- Polling na dashboard detecta mudanças de status
-- Exibir notificação quando vaga é liberada
+- `DashboardPage` faz `refetchInterval: 15000` (polling a cada 15s) sobre `GET /v1/agendamentos`
+- Mudança de status (ex. vaga liberada) aparece na próxima atualização automática, sem ação do usuário
 
 ### UJ-3: Gestor Decide Repasse
 **Página:** `/repasse/:recursoId`
 - GET `/v1/recursos/{id}/sugestao` → exibir paciente sugerido
-- Botões: Confirmar / Recusar repasse
-- POST `/v1/recursos/{id}/alocacoes` ou `alocacoes/recusa`
+- Botões: Confirmar / Recusar repasse (`RecusarSugestaoModal` para captura do motivo)
+- POST `/v1/recursos/{id}/alocacoes` (confirmar) ou `/v1/recursos/{id}/alocacoes/recusa` (recusar)
 
 ### UJ-4: Auditor Investiga
 **Página:** `/auditoria/:agendamentoId`
-- GET `/v1/auditoria?agendamentoId=...` → histórico cronológico
+- GET `/v1/auditoria/agendamento/{agendamentoId}` → histórico cronológico
 - Exibir timeline com eventos: notificação, confirmação, liberação, sugestão, decisão
 
 ## Padrões de Desenvolvimento
@@ -69,40 +76,28 @@ src/
 ```typescript
 const { data, isLoading, error } = useQuery({
   queryKey: ['agendamento', agendamentoId],
-  queryFn: () => api.get(`/agendamentos/${agendamentoId}`),
+  queryFn: () => api.get(`/v1/agendamentos/${agendamentoId}`),
 })
 ```
 
 ### Tratamento de Erro
-- Interceptor axios redireciona 401 para login
-- Erro 4xx/5xx exibido ao usuário em toast/modal
-- Retry automático em falhas de conexão (configurável)
+- Interceptor axios (`services/api.ts`) redireciona 401 para login
+- `ErrorBoundary` captura falhas de renderização
+- `Toast` exibe erro 4xx/5xx ao usuário
 
-## Next Steps (BMAD)
-
-1. **Epics/Stories:** Decompor UJ-1 a UJ-4 em stories individuais
-2. **Feature branches:** `feature/uj-1-confirmacao`, `feature/uj-3-repasse`, etc.
-3. **Code review:** Cada story fechada com test coverage (React Testing Library)
-4. **Merge:** Para `develop` após PR review
-
-## Endpoint Mapping
+## Endpoint Mapping (real)
 
 | UJ | Endpoint | Método | Descrição |
 |----|----------|--------|-----------|
 | 1 | `/v1/auth/login` | POST | Autenticação |
-| 1 | `/v1/agendamentos` | GET | Listar agendamentos do paciente |
-| 1 | `/v1/agendamentos/{id}` | POST | Confirmar presença |
-| 2 | (polling) | GET | Monitorar status de agendamento |
-| 3 | `/v1/recursos/{id}/sugestao` | GET | Sugestão de repasse |
+| 1 | `/v1/agendamentos` | GET | Listar agendamentos (polling 15s, também cobre UJ-2) |
+| 1 | `/v1/agendamentos/{id}` | GET | Detalhe do agendamento (`ConfirmacaoPage`) |
+| 1 | `/v1/agendamentos/{id}/confirmacao` | POST | Confirmar presença |
+| 1 | `/v1/agendamentos/{id}/recusa` | POST | Recusar presença |
+| 3 | `/v1/recursos/{id}/sugestao` | GET | Sugestão de repasse pendente |
 | 3 | `/v1/recursos/{id}/alocacoes` | POST | Confirmar repasse |
 | 3 | `/v1/recursos/{id}/alocacoes/recusa` | POST | Recusar repasse |
-| 4 | `/v1/auditoria` | GET | Histórico auditável |
+| 4 | `/v1/auditoria/agendamento/{id}` | GET | Histórico auditável do agendamento |
 
-## Decisões Técnicas Abertas
-
-- [ ] Styling: Tailwind direto ou + componentes (Headless UI)?
-- [ ] State management: Context + useReducer ou Zustand?
-- [ ] Formulários: React Hook Form?
-- [ ] Testes: Jest + React Testing Library? Vitest?
-- [ ] E2E: Playwright / Cypress?
+Estes endpoints são servidos hoje por `agendamento-confirmacao-service` (agendamentos), `matching-alocacao-service` (recursos/alocações) e `auditoria-service` — ver nota de nomenclatura em `_bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-17/ARCHITECTURE-SPINE.md` (o serviço `matching-alocacao-service` cumpre hoje o papel de repasse, mas a renomeação para `liberacao-repasse-service` prevista na arquitetura não foi executada).
 

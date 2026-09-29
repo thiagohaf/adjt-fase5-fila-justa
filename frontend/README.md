@@ -81,9 +81,19 @@ Base URL: `http://localhost:8080/v1` (em desenvolvimento, via proxy)
 2. Frontend em desenvolvimento: `npm run dev` (localhost:3000)
 3. Vite proxy redireciona `/v1/*` para backend
 
+## Testes E2E
+
+```bash
+npm run e2e            # Cypress headless
+npm run e2e:open       # Cypress interativo
+npm run e2e:run-fluxo      # spec cypress/e2e/fluxo-completo.cy.ts
+npm run e2e:run-auditoria  # spec cypress/e2e/auditoria-detalhes.cy.ts
+```
+
+Não há suíte de testes unitários (Jest/Vitest) — a cobertura de comportamento é feita via Cypress.
+
 ## Git Workflow
 
-- Branches: `feature/uj-1-confirmacao`, `feature/uj-3-repasse`, etc.
-- Base: `develop`
+- Branches: `feature/`, `bugfix/`, `chore/` a partir de `develop`
 - CR obrigatório antes de merge
-- Commit com: `Co-Authored-By: Claude <noreply@anthropic.com>`
+- Commit com: `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`

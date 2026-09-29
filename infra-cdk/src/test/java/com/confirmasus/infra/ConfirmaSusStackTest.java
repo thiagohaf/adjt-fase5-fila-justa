@@ -219,25 +219,10 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void scoreCalculadoTopicIsFifo() {
-        // Story 3.0 (AD-3): topico SNS FIFO que RelaySnsPublisherJob
-        // (triagem-score-service) publica -- ordem determinística por
-        // paciente via MessageGroupId, nao um topico standard.
-        template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
-                "TopicName", "score-calculado.fifo",
-                "FifoTopic", true)));
-    }
-
-    @Test
     void noTaskRoleWithTriagemScoreServiceDescriptionExistsAnymore() {
-        // Story 1.1 do Epic 1 (AD-1): triagem-score-service foi renomeado
-        // para agendamento-confirmacao-service e a
-        // TriagemScoreServiceTaskRole (Story 3.0) foi removida sem
-        // substituto nesta story -- nenhum outbox/publisher existe ainda em
-        // agendamento-confirmacao-service (entra na Story 1.2). Este teste
-        // documenta a remocao intencional (Boundaries/Design Notes da spec
-        // 1.1: "nao recriar role fantasma sem uso") e evita que ela volte
-        // por engano num merge futuro.
+        // triagem-score-service (produto anterior, Score de Prioridade
+        // Clinica) foi decomissionado por restricao legal, sem substituto:
+        // nenhuma role com essa descricao deve existir na stack.
         Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "Description", Match.stringLikeRegexp(".*triagem-score-service.*"))))));
@@ -245,88 +230,20 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void scoreCalculadoConsumerQueueIsFifoWithDeadLetterQueue() {
-        // Story 3.1b (Code Map): fila SQS FIFO consumidora + DLQ com
-        // maxReceiveCount=5 (mesma convencao das demais filas do projeto).
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "score-calculado-matching.fifo",
-                "FifoQueue", true)));
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "score-calculado-matching-dlq.fifo",
-                "FifoQueue", true)));
-
-        Map<String, Map<String, Object>> dlqs = template.findResources("AWS::SQS::Queue",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "score-calculado-matching-dlq.fifo")))));
-        assertThat(dlqs).hasSize(1);
-        String dlqLogicalId = dlqs.keySet().iterator().next();
-
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "score-calculado-matching.fifo",
-                "RedrivePolicy", Match.objectLike(Map.of(
-                        "deadLetterTargetArn", Match.objectLike(Map.of(
-                                "Fn::GetAtt", Match.arrayWith(java.util.List.of(dlqLogicalId, "Arn")))),
-                        "maxReceiveCount", 5)))));
-    }
-
-    @Test
-    void scoreCalculadoConsumerQueueIsSubscribedToScoreCalculadoTopicWithRawMessageDelivery() {
-        // Story 3.1b: a fila consumidora assina o topico SNS FIFO da Story
-        // 3.0 com RawMessageDelivery=true -- ScoreCalculadoConsumerJob le o
-        // envelope direto, sem o wrapper JSON padrao do SNS.
+    void noScoreCalculadoTopicOrQueueExistsAnymore() {
+        // O topico/fila do evento ScoreCalculado (consumido pelo extinto
+        // triagem-score-service para priorizar por score de gravidade) foi
+        // removido junto com a priorizacao clinica -- nao deve haver
+        // resquicio na stack.
         Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "TopicName", "score-calculado.fifo")))));
-        assertThat(topicos).hasSize(1);
-        String topicoLogicalId = topicos.keySet().iterator().next();
+        assertThat(topicos).isEmpty();
 
         Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "score-calculado-matching.fifo")))));
-        assertThat(filas).hasSize(1);
-        String filaLogicalId = filas.keySet().iterator().next();
-
-        template.hasResourceProperties("AWS::SNS::Subscription", Match.objectLike(Map.of(
-                "Protocol", "sqs",
-                "TopicArn", Match.objectLike(Map.of("Ref", topicoLogicalId)),
-                "Endpoint", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(java.util.List.of(
-                        filaLogicalId, "Arn")))),
-                "RawMessageDelivery", true)));
-    }
-
-    @Test
-    void matchingAlocacaoServiceTaskRoleCanConsumeFromScoreCalculadoConsumerQueue() {
-        // Deploy do matching-alocacao-service no ECS continua deferido --
-        // mas a policy de consumo ja precisa existir (Code Map da spec
-        // 3.1b), presa a ESTA role, apontando para ESTA fila (mesmo
-        // raciocinio de matchingAlocacaoServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic
-        // abaixo).
-        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "score-calculado-matching.fifo")))));
-        assertThat(filas).hasSize(1);
-        String filaLogicalId = filas.keySet().iterator().next();
-
-        Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
-        assertThat(roles).hasSize(1);
-        String roleLogicalId = roles.keySet().iterator().next();
-
-        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
-                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
-                "PolicyDocument", Match.objectLike(Map.of(
-                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
-                                // Achado do code review: grantConsumeMessages concede tanto
-                                // ReceiveMessage quanto DeleteMessage (entre outras) -- o
-                                // teste so travava a primeira, deixando DeleteMessage (a
-                                // permissao que o codigo de fato exercita via
-                                // sqsClient.deleteMessage) sem cobertura de regressao.
-                                "Action", Match.arrayWith(java.util.List.of(
-                                        "sqs:ReceiveMessage", "sqs:DeleteMessage")),
-                                "Effect", "Allow",
-                                "Resource", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(
-                                        java.util.List.of(filaLogicalId, "Arn")))))))))))));
+                        "QueueName", Match.stringLikeRegexp("score-calculado.*"))))));
+        assertThat(filas).isEmpty();
     }
 
     @Test
@@ -344,7 +261,7 @@ class ConfirmaSusStackTest {
         // Story 3-3a (emenda, AD-3): topico SNS FIFO proprio do
         // matching-alocacao-service que RelaySnsPublisherJob publica --
         // ordem deterministica por recurso via MessageGroupId=recursoId,
-        // mesma propriedade do topico irmao ScoreCalculadoTopic
+        // mesma propriedade do topico irmao AgendamentoConfirmacaoEventosTopic
         // (ContentBasedDeduplication=false: MessageDeduplicationId sempre
         // explicito, o eventId do outbox).
         template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
@@ -358,7 +275,7 @@ class ConfirmaSusStackTest {
         // Deploy ECS do matching-alocacao-service continua deferido -- mas a
         // policy de publish no topico outbox proprio ja precisa existir
         // (Code Map da spec 3-3a), presa a MESMA MatchingAlocacaoServiceTaskRole
-        // ja usada pelo consumo da fila ScoreCalculado (Story 3.1b), nao uma
+        // ja usada pela role de matching-alocacao-service, nao uma
         // role nova: resolve os logical IDs reais do topico e da role,
         // confirma que E esta policy, presa a ESTA role, que aponta para
         // ESTE topico (mesmo raciocinio usado nos demais testes de
@@ -434,7 +351,7 @@ class ConfirmaSusStackTest {
         // agendamento-confirmacao-service que RelaySnsPublisherJob publica --
         // ordem deterministica por Agendamento via
         // MessageGroupId=agendamentoId, mesma propriedade dos topicos irmaos
-        // ScoreCalculadoTopic/MatchingAlocacaoEventosTopic
+        // MatchingAlocacaoEventosTopic
         // (ContentBasedDeduplication=false: MessageDeduplicationId sempre
         // explicito, o eventId do outbox).
         template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(

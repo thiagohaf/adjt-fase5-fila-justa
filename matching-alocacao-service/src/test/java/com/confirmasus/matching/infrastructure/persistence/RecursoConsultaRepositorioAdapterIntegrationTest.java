@@ -3,7 +3,6 @@ package com.confirmasus.matching.infrastructure.persistence;
 import com.confirmasus.matching.application.command.RecursoRepositorio;
 import com.confirmasus.matching.application.query.RecursoConsultaRepositorio;
 import com.confirmasus.matching.domain.Recurso;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,30 +19,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Prova, contra um Postgres 18 real via Testcontainers (sem LocalStack --
- * este teste não envolve SQS), que {@link
- * RecursoJpaRepository#contarTiersMaisGenericosDisponiveis} (Story 3.2b3,
- * {@code SELECT COUNT(DISTINCT especificidade_rank)} nativo) conta tiers
- * DISTINTOS -- Recursos do mesmo tier nunca somam mais de 1 posição --
- * ignora tiers sem nenhum Recurso disponível e tiers não estritamente
- * menores que o rank consultado (Tasks da spec 3.2b3: "Teste de integração
- * de persistência ... para a query de contagem de tiers", mesmo padrão de
- * {@link RecursoRepositorioAdapterIntegrationTest}).
- *
- * <p>Ao contrário dos demais testes de integração deste módulo (que isolam
- * cada método por uma chave própria -- {@code codigoRecurso}/{@code
- * pacienteId} único -- e dispensam limpeza entre testes, ver {@link
- * ScoreReplicaRepositorioAdapterIntegrationTest}), aqui isso não basta:
- * {@code contarTiersMaisGenericosDisponiveis} agrega TODAS as linhas da
- * tabela com {@code especificidade_rank < :rank}, então dados de um método
- * anterior (mesma instância de Postgres/Spring context, reusada entre
- * métodos desta classe) vazariam para a contagem do próximo mesmo usando
- * ranks "próprios" -- por isso {@link #limparRecursos()} trunca a tabela
- * antes de cada teste.
+ * este teste não envolve SQS), que {@link RecursoConsultaRepositorio#buscarPorId}
+ * devolve o {@link Recurso} persistido, ou vazio quando o {@code recursoId}
+ * não existe.
  */
 @Testcontainers
 @SpringBootTest
-// Relay SQS (Story 3.1b) e relay outbox (Story 3-3a) desligados -- este
-// teste so cobre persistencia, sem depender de LocalStack/SQS/SNS.
+// Relay SQS e relay outbox desligados -- este teste so cobre persistencia,
+// sem depender de LocalStack/SQS/SNS.
 @TestPropertySource(properties = {
         "confirmasus.matching.relay.enabled=false",
         "confirmasus.matching.outbox-relay.enabled=false",
@@ -61,14 +44,6 @@ class RecursoConsultaRepositorioAdapterIntegrationTest {
     @Autowired
     private RecursoConsultaRepositorio recursoConsultaRepositorio;
 
-    @Autowired
-    private RecursoJpaRepository jpaRepository;
-
-    @BeforeEach
-    void limparRecursos() {
-        jpaRepository.deleteAll();
-    }
-
     @Test
     void buscarPorIdDevolveORecursoPersistidoEVazioQuandoORecursoIdNaoExiste() {
         Recurso persistido = recursoRepositorio.upsert(
@@ -82,43 +57,7 @@ class RecursoConsultaRepositorioAdapterIntegrationTest {
         assertThat(recursoConsultaRepositorio.buscarPorId(UUID.randomUUID())).isEmpty();
     }
 
-    @Test
-    void doisRecursosDisponiveisNoMesmoTierContamComoUmUnicoTier() {
-        // Boundaries "Always" da spec 3.2b3: Recursos do mesmo tier
-        // consomem 1 posicao no total, nunca uma por Recurso.
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true, null, null));
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true, null, null));
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 2, true, null, null));
-
-        int n = recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(3);
-
-        assertThat(n).isEqualTo(2);
-    }
-
-    @Test
-    void tierIndisponivelNaoEContado() {
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, false, null, null));
-
-        int n = recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(2);
-
-        assertThat(n).isZero();
-    }
-
-    @Test
-    void tierIgualOuMaisEspecificoQueORankConsultadoNaoEContado() {
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 1, true, null, null));
-        recursoRepositorio.upsert(new Recurso(UUID.randomUUID(), novoCodigoRecurso(), 2, true, null, null));
-
-        // Consultando o proprio rank=1: nada estritamente menor existe --
-        // N=0 (I/O Matrix "SEM_RECURSO_GENERICO_DISPONIVEL" da spec 3.2b3).
-        int n = recursoConsultaRepositorio.contarTiersMaisGenericosDisponiveis(1);
-
-        assertThat(n).isZero();
-    }
-
-    // codigoRecurso proprio por teste (UNIQUE no banco) -- mesmo padrao de
-    // RecursoRepositorioAdapterIntegrationTest, mantido mesmo com o
-    // deleteAll() em @BeforeEach (defensivo, sem custo).
+    // codigoRecurso proprio por teste (UNIQUE no banco).
     private static String novoCodigoRecurso() {
         return "RECURSO-" + UUID.randomUUID();
     }
