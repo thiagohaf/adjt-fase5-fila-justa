@@ -9,8 +9,8 @@ import java.util.UUID;
  * infrastructure.persistence} (JPA nativo, schema {@code matching_alocacao},
  * tabela {@code sugestao_recusada}).
  *
- * <p>{@link #registrar(UUID, long, String, Instant)} é upsert idempotente
- * pela PK composta {@code (recurso_id, paciente_id)} -- ao contrário de
+ * <p>{@link #registrar(UUID, long, long, String, Instant)} é upsert idempotente
+ * pelo par {@code (agendamento_id, paciente_id)} -- a recusa vale só para a Vaga -- ao contrário de
  * {@link AlocacaoRepositorio#confirmar}, não há índice único parcial nem
  * exceção de conflito: recusar o mesmo par de novo apenas atualiza {@code
  * motivo}/{@code recusado_em} (Boundaries da spec 3-3c1), nunca duplica
@@ -18,5 +18,5 @@ import java.util.UUID;
  */
 public interface SugestaoRecusadaRepositorio {
 
-    void registrar(UUID recursoId, long pacienteId, String motivo, Instant recusadoEm);
+    void registrar(UUID recursoId, long agendamentoId, long pacienteId, String motivo, Instant recusadoEm);
 }

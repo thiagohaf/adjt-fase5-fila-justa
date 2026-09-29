@@ -29,7 +29,7 @@ class SugestaoRecusadaRepositorioAdapter implements SugestaoRecusadaRepositorio 
 
     @Override
     @Transactional
-    public void registrar(UUID recursoId, long pacienteId, String motivo, Instant recusadoEm) {
-        jpaRepository.upsert(recursoId, pacienteId, motivo, recusadoEm);
+    public void registrar(UUID recursoId, long agendamentoId, long pacienteId, String motivo, Instant recusadoEm) {
+        jpaRepository.upsert(recursoId, agendamentoId, pacienteId, motivo, recusadoEm);
     }
 }

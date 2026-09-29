@@ -37,4 +37,7 @@ public interface RecursoRepositorio {
      * falha, apenas não altera nada.
      */
     void marcarIndisponivel(UUID recursoId);
+
+    /** Devolve o Recurso ao pool ({@code VagaLiberada}, Story 6.1). Idempotente. */
+    void marcarDisponivel(UUID recursoId);
 }

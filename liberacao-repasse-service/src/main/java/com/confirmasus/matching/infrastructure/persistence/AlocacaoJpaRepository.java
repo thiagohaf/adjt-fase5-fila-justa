@@ -28,6 +28,13 @@ interface AlocacaoJpaRepository extends JpaRepository<AlocacaoJpaEntity, UUID> {
                  @Param("status") String status,
                  @Param("confirmadoEm") Instant confirmadoEm);
 
+    @Modifying
+    @Query(value = "UPDATE matching_alocacao.alocacao SET status = :novo "
+            + "WHERE recurso_id = :recursoId AND status = :atual", nativeQuery = true)
+    int trocarStatusPorRecurso(@Param("recursoId") UUID recursoId,
+                               @Param("atual") String atual,
+                               @Param("novo") String novo);
+
     // Story 3-3b2a (AlocacaoConsultaRepositorio): fonte dos paciente_id com
     // Alocacao ATIVA -- mesmo padrao 100% nativo do INSERT acima. Sem
     // nenhuma linha :status -> Set vazio (comportamento padrao do Spring

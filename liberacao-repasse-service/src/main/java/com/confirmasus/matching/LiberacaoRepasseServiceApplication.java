@@ -1,22 +1,25 @@
 package com.confirmasus.matching;
 
 import com.confirmasus.matching.application.command.AlocacaoRepositorio;
-import com.confirmasus.matching.application.command.ConfirmarAlocacao;
+import com.confirmasus.matching.application.command.ConfirmarRepasse;
 import com.confirmasus.matching.application.command.CriarEntradaListaEspera;
+import com.confirmasus.matching.application.command.GerarSugestaoRepasse;
+import com.confirmasus.matching.application.command.RecusarSugestaoRepasse;
+import com.confirmasus.matching.application.command.SelecionadorCandidatoFifo;
+import com.confirmasus.matching.application.command.SugestaoRepasseRepositorio;
 import com.confirmasus.matching.application.command.EventoOutboxRepositorio;
 import com.confirmasus.matching.application.command.ListaEsperaEntradaRepositorio;
 import com.confirmasus.matching.application.command.PacienteRepositorio;
 import com.confirmasus.matching.application.command.RecursoRepositorio;
-import com.confirmasus.matching.application.command.RecusarSugestao;
 import com.confirmasus.matching.application.command.ResolverOuCriarPaciente;
 import com.confirmasus.matching.application.command.SugestaoRecusadaRepositorio;
-import com.confirmasus.matching.application.command.UltimaSugestaoRegistradaRepositorio;
 import com.confirmasus.matching.application.command.UpsertRecurso;
 import com.confirmasus.matching.application.query.AlocacaoConsultaRepositorio;
 import com.confirmasus.matching.application.query.ConsultarSugestaoRecurso;
 import com.confirmasus.matching.application.query.ListaEsperaEntradaConsultaRepositorio;
 import com.confirmasus.matching.application.query.RecursoConsultaRepositorio;
 import com.confirmasus.matching.application.query.SugestaoRecusadaConsultaRepositorio;
+import com.confirmasus.matching.application.query.SugestaoRepasseConsultaRepositorio;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -28,17 +31,11 @@ import java.time.Clock;
  * Ponto de entrada do liberacao-repasse-service -- Clean Architecture,
  * schema {@code matching_alocacao}. Raiz de composição.
  *
- * <p>{@link UpsertRecurso} conecta a porta {@link RecursoRepositorio} --
- * atende {@code POST /internal/recursos}/{@code POST /v1/recursos}
- * (infrastructure/web). {@link ConsultarSugestaoRecurso} conecta as portas
- * {@link RecursoConsultaRepositorio}, {@link ListaEsperaEntradaConsultaRepositorio}
- * (Sugestão de Repasse FIFO por {@code criadoEm}, AD-6), {@link
- * AlocacaoConsultaRepositorio} (exclui paciente já alocado), {@link
- * SugestaoRecusadaConsultaRepositorio} (pula paciente já recusado para o
- * Recurso), {@link UltimaSugestaoRegistradaRepositorio} e {@link
- * EventoOutboxRepositorio} (rastreamento: {@code SugestaoGerada} só quando
- * a sugestão muda) -- atende {@code GET /v1/recursos/{id}/sugestao}
- * (infrastructure/web).
+ * <p>{@link UpsertRecurso} conecta a porta {@link RecursoRepositorio}. {@link
+ * GerarSugestaoRepasse} (reação a {@code VagaLiberada}), {@link ConfirmarRepasse}
+ * e {@link RecusarSugestaoRepasse} (Story 6.1, AD-6) usam {@link
+ * SelecionadorCandidatoFifo} (Lista de Espera FIFO por {@code criadoEm});
+ * {@link ConsultarSugestaoRecurso} lê a sugestão pendente.
  *
  * <p>Infraestrutura outbox própria deste serviço (AD-3) --
  * {@code EventoOutboxRepositorioAdapter} (infrastructure/persistence) e
@@ -53,10 +50,6 @@ import java.time.Clock;
  * dependência de construtor. {@code @EnableScheduling} habilita o
  * {@code @Scheduled} de {@code RelaySnsPublisherJob}.
  *
- * <p>{@link RecusarSugestao} conecta a porta {@link SugestaoRecusadaRepositorio}
- * (implementada em {@code infrastructure.persistence}) -- atende {@code
- * POST /v1/recursos/{id}/alocacoes/recusa} (infrastructure/web), mesmo
- * molde de {@link ConfirmarAlocacao}.
  */
 @SpringBootApplication
 @EnableScheduling
@@ -78,35 +71,50 @@ public class LiberacaoRepasseServiceApplication {
 
     @Bean
     ConsultarSugestaoRecurso consultarSugestaoRecurso(RecursoConsultaRepositorio recursoConsultaRepositorio,
-                                                        ListaEsperaEntradaConsultaRepositorio listaEsperaEntradaConsultaRepositorio,
-                                                        AlocacaoConsultaRepositorio alocacaoConsultaRepositorio,
-                                                        SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio,
-                                                        UltimaSugestaoRegistradaRepositorio ultimaSugestaoRegistradaRepositorio,
-                                                        EventoOutboxRepositorio eventoOutboxRepositorio,
-                                                        Clock clock) {
-        return new ConsultarSugestaoRecurso(
-                recursoConsultaRepositorio, listaEsperaEntradaConsultaRepositorio, alocacaoConsultaRepositorio,
-                sugestaoRecusadaConsultaRepositorio, ultimaSugestaoRegistradaRepositorio, eventoOutboxRepositorio,
-                clock);
+                                                        SugestaoRepasseConsultaRepositorio sugestaoRepasseConsultaRepositorio) {
+        return new ConsultarSugestaoRecurso(recursoConsultaRepositorio, sugestaoRepasseConsultaRepositorio);
     }
 
     @Bean
-    ConfirmarAlocacao confirmarAlocacao(AlocacaoRepositorio alocacaoRepositorio,
-                                         RecursoRepositorio recursoRepositorio,
-                                         RecursoConsultaRepositorio recursoConsultaRepositorio,
-                                         EventoOutboxRepositorio eventoOutboxRepositorio,
-                                         Clock clock) {
-        return new ConfirmarAlocacao(
+    SelecionadorCandidatoFifo selecionadorCandidatoFifo(
+            ListaEsperaEntradaConsultaRepositorio listaEsperaEntradaConsultaRepositorio,
+            AlocacaoConsultaRepositorio alocacaoConsultaRepositorio,
+            SugestaoRecusadaConsultaRepositorio sugestaoRecusadaConsultaRepositorio) {
+        return new SelecionadorCandidatoFifo(
+                listaEsperaEntradaConsultaRepositorio, alocacaoConsultaRepositorio,
+                sugestaoRecusadaConsultaRepositorio);
+    }
+
+    @Bean
+    GerarSugestaoRepasse gerarSugestaoRepasse(SugestaoRepasseRepositorio sugestaoRepasseRepositorio,
+                                                SelecionadorCandidatoFifo selecionadorCandidatoFifo,
+                                                AlocacaoRepositorio alocacaoRepositorio,
+                                                RecursoRepositorio recursoRepositorio,
+                                                RecursoConsultaRepositorio recursoConsultaRepositorio,
+                                                EventoOutboxRepositorio eventoOutboxRepositorio,
+                                                Clock clock) {
+        return new GerarSugestaoRepasse(sugestaoRepasseRepositorio, selecionadorCandidatoFifo,
                 alocacaoRepositorio, recursoRepositorio, recursoConsultaRepositorio, eventoOutboxRepositorio, clock);
     }
 
     @Bean
-    RecusarSugestao recusarSugestao(SugestaoRecusadaRepositorio sugestaoRecusadaRepositorio,
-                                      EventoOutboxRepositorio eventoOutboxRepositorio,
-                                      RecursoConsultaRepositorio recursoConsultaRepositorio,
-                                      Clock clock) {
-        return new RecusarSugestao(
-                sugestaoRecusadaRepositorio, eventoOutboxRepositorio, recursoConsultaRepositorio, clock);
+    ConfirmarRepasse confirmarRepasse(SugestaoRepasseRepositorio sugestaoRepasseRepositorio,
+                                        AlocacaoRepositorio alocacaoRepositorio,
+                                        RecursoRepositorio recursoRepositorio,
+                                        EventoOutboxRepositorio eventoOutboxRepositorio,
+                                        Clock clock) {
+        return new ConfirmarRepasse(
+                sugestaoRepasseRepositorio, alocacaoRepositorio, recursoRepositorio, eventoOutboxRepositorio, clock);
+    }
+
+    @Bean
+    RecusarSugestaoRepasse recusarSugestaoRepasse(SugestaoRepasseRepositorio sugestaoRepasseRepositorio,
+                                                    SugestaoRecusadaRepositorio sugestaoRecusadaRepositorio,
+                                                    SelecionadorCandidatoFifo selecionadorCandidatoFifo,
+                                                    EventoOutboxRepositorio eventoOutboxRepositorio,
+                                                    Clock clock) {
+        return new RecusarSugestaoRepasse(sugestaoRepasseRepositorio, sugestaoRecusadaRepositorio,
+                selecionadorCandidatoFifo, eventoOutboxRepositorio, clock);
     }
 
     @Bean

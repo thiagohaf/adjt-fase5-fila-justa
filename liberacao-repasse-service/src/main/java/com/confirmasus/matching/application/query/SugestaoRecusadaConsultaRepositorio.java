@@ -16,9 +16,9 @@ import java.util.UUID;
 public interface SugestaoRecusadaConsultaRepositorio {
 
     /**
-     * {@code pacienteId} de todo par recusado para {@code recursoId} -- {@code
+     * {@code pacienteId} de todo paciente que recusou a Vaga {@code agendamentoId} -- {@code
      * Set} vazio quando não há nenhum (nunca exceção, mesmo Boundaries de
      * {@link AlocacaoConsultaRepositorio#pacientesComAlocacaoAtiva()}).
      */
-    Set<Long> recusadosPara(UUID recursoId);
+    Set<Long> recusadosPara(long agendamentoId);
 }

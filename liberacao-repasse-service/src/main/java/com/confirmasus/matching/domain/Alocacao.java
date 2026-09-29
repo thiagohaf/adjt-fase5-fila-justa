@@ -5,12 +5,12 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Alocação (Story 3-3b1): registro de confirmação de uma Sugestão de
- * Matching -- criada por {@code ConfirmarAlocacao} (application/command) a
- * partir de {@code POST /v1/recursos/{id}/alocacoes}.
+ * Alocação (Story 3-3b1): registro persistido do Repasse Confirmado --
+ * criada por {@code ConfirmarRepasse} (application/command, Story 6.1) e
+ * passa a {@link #STATUS_LIBERADA} quando a Vaga volta a ser liberada
+ * ({@code VagaLiberada}).
  *
- * <p>{@code status} é sempre {@code "ATIVA"} (criado por
- * {@code ConfirmarAlocacao}). {@code alocacaoId} é gerado pela aplicação
+ * <p>{@code status} nasce sempre {@code "ATIVA"}. {@code alocacaoId} é gerado pela aplicação
  * (UUID v4) antes da persistência; ao contrário de {@link Recurso}, não há
  * "candidato descartado": um INSERT ou cria a linha com este id, ou falha
  * inteiro por violação de um dos 2 índices únicos parciais (Boundaries da
@@ -19,6 +19,7 @@ import java.util.UUID;
 public final class Alocacao {
 
     public static final String STATUS_ATIVA = "ATIVA";
+    public static final String STATUS_LIBERADA = "LIBERADA";
 
     private final UUID alocacaoId;
     private final UUID recursoId;

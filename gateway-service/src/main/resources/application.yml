@@ -62,7 +62,7 @@ spring:
             - id: matching-recursos
               uri: http://liberacao-repasse-service:8083
               predicates:
-                - Path=/v1/recursos/**,/v1/alocacoes/**
+                - Path=/v1/recursos/**,/v1/alocacoes/**,/v1/sugestoes-repasse/**
 
             # Lista de Espera (Story 5.3, Epic 5) -- rota publica protegida
             - id: lista-espera

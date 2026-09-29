@@ -50,4 +50,8 @@ interface RecursoJpaRepository extends JpaRepository<RecursoJpaEntity, UUID> {
     @Modifying
     @Query("UPDATE RecursoJpaEntity r SET r.disponivel = false WHERE r.recursoId = :recursoId")
     void marcarIndisponivel(@Param("recursoId") UUID recursoId);
+
+    @Modifying
+    @Query("UPDATE RecursoJpaEntity r SET r.disponivel = true WHERE r.recursoId = :recursoId")
+    void marcarDisponivel(@Param("recursoId") UUID recursoId);
 }
