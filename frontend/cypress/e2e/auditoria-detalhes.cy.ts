@@ -10,60 +10,46 @@ describe('FE-6: Auditoria - Histórico de Eventos Detalhado', () => {
 
   describe('Exibição de Eventos', () => {
     it('deve exibir todos os 9 tipos de evento com badges corretos', () => {
-      // IDs de agendamentos com histórico variado (precisam existir no banco)
       cy.visit('/dashboard')
 
-      // Encontrar agendamento com eventos
-      cy.get('[data-testid="agendamento-item"]').first().then(($item) => {
-        const agendamentoId = $item.attr('data-agendamento-id') ||
-          $item.find('a').attr('href')?.match(/\/confirmacao\/(\d+)/)?.[1]
+      cy.get('[data-testid="agendamento-item"]')
+        .first()
+        .find('a, button')
+        .first()
+        .invoke('attr', 'href')
+        .then((href) => {
+          const match = href?.match(/\/confirmacao\/(\d+)/)
+          if (match?.[1]) {
+            const agendamentoId = match[1]
+            cy.visit(`/auditoria/${agendamentoId}`)
 
-        if (agendamentoId) {
-          cy.visit(`/auditoria/${agendamentoId}`)
+            // Validar tipos de evento esperados
+            const tiposEsperados = [
+              'NOTIFICACAO',
+              'CONFIRMACAO',
+              'RECUSA',
+              'NAO_CONFIRMADO',
+              'LIBERACAO',
+              'SUGESTAO_GERADA',
+              'REPASSE_CONFIRMADO',
+              'SUGESTAO_RECUSADA',
+              'GENERICO'
+            ]
 
-          // Validar tipos de evento esperados
-          const tiposEsperados = [
-            'NOTIFICACAO',
-            'CONFIRMACAO',
-            'RECUSA',
-            'NAO_CONFIRMADO',
-            'LIBERACAO',
-            'SUGESTAO_GERADA',
-            'REPASSE_CONFIRMADO',
-            'SUGESTAO_RECUSADA',
-            'GENERICO'
-          ]
-
-          cy.get('[data-testid="evento-item"]').each(($evento) => {
-            cy.wrap($evento).within(() => {
-              // Validar que tem um tipo válido
-              let hasValidType = false
-              tiposEsperados.forEach(tipo => {
-                cy.get('body').then(() => {
-                  if ($evento.text().includes(tipo)) {
-                    hasValidType = true
-                  }
+            cy.get('[data-testid="evento-item"]').each(($evento) => {
+              // Validar que tem badge
+              cy.wrap($evento)
+                .find('[data-testid="evento-badge"]')
+                .should('be.visible')
+                .invoke('attr', 'class')
+                .then((classes) => {
+                  const hasValidColor = ['bg-blue', 'bg-green', 'bg-red', 'bg-yellow', 'bg-purple', 'bg-gray']
+                    .some(color => classes?.includes(color))
+                  expect(hasValidColor).to.be.true
                 })
-              })
-
-              // Validar badge colorida (deve ter classe de cor)
-              cy.get('[data-testid="evento-badge"]').should(($badge) => {
-                const classes = $badge.attr('class') || ''
-                expect(classes).to.include.oneOf([
-                  'bg-blue',
-                  'bg-green',
-                  'bg-red',
-                  'bg-yellow',
-                  'bg-purple',
-                  'bg-indigo',
-                  'bg-pink',
-                  'bg-gray'
-                ])
-              })
             })
-          })
-        }
-      })
+          }
+        })
     })
 
     it('deve exibir datas formatadas em pt-BR', () => {
@@ -101,13 +87,9 @@ describe('FE-6: Auditoria - Histórico de Eventos Detalhado', () => {
               cy.get('[data-testid="evento-motivo"]').then(($motivo) => {
                 if ($motivo.length > 0) {
                   // Validar que está em box destacado
-                  expect($motivo).to.have.class.oneOf([
-                    'bg-yellow-50',
-                    'bg-red-50',
-                    'bg-blue-50',
-                    'p-3',
-                    'rounded'
-                  ])
+                  const classes = $motivo.attr('class') || ''
+                  const hasHighlightClass = ['bg-yellow-50', 'bg-red-50', 'bg-blue-50'].some(c => classes.includes(c))
+                  expect(hasHighlightClass).to.be.true
                   expect($motivo.text()).to.not.be.empty
                 }
               })

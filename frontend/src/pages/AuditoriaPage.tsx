@@ -137,7 +137,10 @@ export default function AuditoriaPage() {
               {error instanceof Error ? error.message : 'Não foi possível carregar o histórico de auditoria.'}
             </p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => {
+                // Recarrega a página mantendo a URL com agendamentoId
+                window.location.href = window.location.href
+              }}
               className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition"
               data-testid="btn-retry"
             >

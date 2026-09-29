@@ -4,8 +4,10 @@ describe('Fluxo Completo ConfirmaSUS (UJ-1 a UJ-6)', () => {
     password: 'regulador#2026'
   }
 
-  let agendamentoId: string
-  let recursoId: string
+  const testData = {
+    agendamentoId: '',
+    recursoId: ''
+  }
 
   before(() => {
     cy.log('Iniciando testes E2E do fluxo completo ConfirmaSUS')
@@ -58,9 +60,9 @@ describe('Fluxo Completo ConfirmaSUS (UJ-1 a UJ-6)', () => {
       // Aguardar carregamento da lista
       cy.get('[data-testid="agendamento-item"]', { timeout: 10000 })
         .first()
-        .within(() => {
-          cy.get('a, button').first().click()
-        })
+        .find('a, button')
+        .first()
+        .click()
 
       // Validar que estamos em uma página de confirmação
       cy.url().should('match', /\/confirmacao\/\d+/)
@@ -331,38 +333,22 @@ describe('Fluxo Completo ConfirmaSUS (UJ-1 a UJ-6)', () => {
     it('deve validar transições de estado corretas', () => {
       cy.login(testUser.username, testUser.password)
 
-      // Coletar agendamento em estado AGUARDANDO_JANELA
+      // Coletar agendamento em estado válido
       cy.visit('/dashboard')
       cy.get('[data-testid="agendamento-item"]')
         .first()
         .then(($item) => {
           const status = $item.data('status') || $item.text()
-          expect(status).to.include.oneOf([
+          const validStatuses = [
             'AGUARDANDO_JANELA',
             'CONFIRMADO',
             'LIBERADO',
             'REPASSE_AGUARDANDO',
             'REPASSE_ACEITO',
             'REPASSE_RECUSADO'
-          ])
+          ]
+          expect(validStatuses.some(s => status.includes(s))).to.be.true
         })
     })
   })
 })
-
-// Adicionar comando customizado para login
-Cypress.Commands.add('login', (username: string, password: string) => {
-  cy.visit('/login')
-  cy.get('input[name="username"]').type(username)
-  cy.get('input[name="password"]').type(password)
-  cy.get('button[type="submit"]').click()
-  cy.url().should('include', '/dashboard')
-})
-
-declare global {
-  namespace Cypress {
-    interface Chainable {
-      login(username: string, password: string): Chainable<void>
-    }
-  }
-}

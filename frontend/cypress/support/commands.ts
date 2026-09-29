@@ -31,6 +31,25 @@ Cypress.Commands.add('recusarPresenca', () => {
   cy.contains(/recusado|sucesso/i, { timeout: 10000 }).should('be.visible')
 })
 
+Cypress.Commands.add('navigateToAuditoria', (agendamentoId?: string) => {
+  if (agendamentoId) {
+    cy.visit(`/auditoria/${agendamentoId}`)
+  } else {
+    cy.visit('/dashboard')
+    cy.get('[data-testid="agendamento-item"]')
+      .first()
+      .find('a, button')
+      .first()
+      .invoke('attr', 'href')
+      .then((href) => {
+        const match = href?.match(/\/confirmacao\/(\d+)/)
+        if (match?.[1]) {
+          cy.visit(`/auditoria/${match[1]}`)
+        }
+      })
+  }
+})
+
 declare global {
   namespace Cypress {
     interface Chainable {
@@ -39,6 +58,7 @@ declare global {
       navigateToAgendamento(): Chainable<void>
       confirmPresenca(): Chainable<void>
       recusarPresenca(): Chainable<void>
+      navigateToAuditoria(agendamentoId?: string): Chainable<void>
     }
   }
 }
