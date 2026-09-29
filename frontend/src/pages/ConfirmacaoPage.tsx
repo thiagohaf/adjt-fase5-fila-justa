@@ -5,6 +5,7 @@ import api from '../services/api'
 import { Agendamento } from '../types'
 import CountdownDisplay from '../components/CountdownDisplay'
 import ConfirmacaoButtons from '../components/ConfirmacaoButtons'
+import RecursoNome from '../components/RecursoNome'
 
 export default function ConfirmacaoPage() {
   const { agendamentoId } = useParams<{ agendamentoId: string }>()
@@ -108,7 +109,9 @@ export default function ConfirmacaoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Recurso
               </label>
-              <p className="text-gray-900 font-mono text-sm">{agendamento.recursoId}</p>
+              <p className="text-gray-900">
+                <RecursoNome recursoId={agendamento.recursoId} />
+              </p>
             </div>
 
             {agendamento.janelaExpiraEm && (

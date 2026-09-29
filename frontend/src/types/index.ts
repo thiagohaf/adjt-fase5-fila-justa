@@ -25,6 +25,15 @@ export interface Agendamento {
   motivoLiberacao?: 'RECUSA' | 'NAO_CONFIRMADO'
 }
 
+export interface Recurso {
+  recursoId: string
+  codigoRecurso: string
+  especificidadeRank: number
+  disponivel: boolean
+  especialidade?: string
+  unidade?: string
+}
+
 export interface Confirmacao {
   agendamentoId: string
   status: 'CONFIRMADO' | 'RECUSADO' | 'NAO_CONFIRMADO'
