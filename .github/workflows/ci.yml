@@ -1,6 +1,6 @@
 name: CI
 
-# Build/test do reactor Maven (6 serviços Spring Boot + seed-adapter) e
+# Build/test dos serviços Spring Boot (matrix por módulo) + seed-adapter e
 # validação da stack CDK (cdk synth) em todo push/PR. Não toca a conta AWS —
 # distinto do deploy/pause/destroy real, que segue manual.
 on:
@@ -47,11 +47,22 @@ jobs:
               - 'pom.xml'
               - '.github/workflows/ci.yml'
 
-  test-reactor:
-    name: Test Spring Boot Reactor (mvn test)
+  # Um job por módulo, em paralelo: os testes de integração (Testcontainers +
+  # @SpringBootTest) dominam o tempo, e o reactor os rodava em série.
+  test-modules:
+    name: Test ${{ matrix.module }}
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ needs.changes.outputs.backend == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - agendamento-confirmacao-service
+          - liberacao-repasse-service
+          - auditoria-service
+          - auth-service
+          - gateway-service
     steps:
       - uses: actions/checkout@v4
 
@@ -62,8 +73,23 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: mvn test (6 serviços Spring Boot do reactor)
-        run: mvn -B test
+      - name: mvn test (${{ matrix.module }})
+        run: mvn -B -pl ${{ matrix.module }} -am test
+
+  # Check agregador com o nome do antigo job único, para não quebrar
+  # required checks de branch protection. Passa quando os módulos passam ou
+  # quando foram pulados (nenhuma mudança de backend).
+  test-reactor:
+    name: Test Spring Boot Reactor (mvn test)
+    runs-on: ubuntu-latest
+    needs: test-modules
+    if: ${{ always() }}
+    steps:
+      - name: Verifica resultado dos módulos
+        run: |
+          result='${{ needs.test-modules.result }}'
+          echo "test-modules: $result"
+          [[ "$result" == "success" || "$result" == "skipped" ]]
 
   test-seed-adapter:
     name: Test Seed Adapter (CLI Java standalone)
