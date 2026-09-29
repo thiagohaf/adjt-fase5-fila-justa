@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
  * índices únicos parciais REALMENTE rejeitam sob concorrência fica em
  * {@code AlocacaoRepositorioAdapterIntegrationTest} (Testcontainers) -- aqui
  * só se prova a orquestração do caso de uso.
- * */
+ */
 class ConfirmarAlocacaoTest {
 
     private static final Instant AGORA = Instant.parse("2026-09-11T12:00:00Z");

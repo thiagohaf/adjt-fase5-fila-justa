@@ -70,7 +70,7 @@ public class ConfirmarAlocacao {
         this.recursoRepositorio = recursoRepositorio;
         this.recursoConsultaRepositorio = recursoConsultaRepositorio;
         this.eventoOutboxRepositorio = eventoOutboxRepositorio;
-                this.clock = clock;
+        this.clock = clock;
     }
 
     @Transactional
