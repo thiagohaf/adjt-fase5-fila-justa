@@ -13,13 +13,13 @@ export interface AuthUser {
 }
 
 export interface Agendamento {
-  id: string
-  pacienteId: string
-  pacienteCpf?: string
+  id: number
+  agendamentoId: string
+  pacienteId: number
   recursoId: string
-  recursoNome: string
-  dataHora: string
+  dataHoraAgendamento: string
   status: 'AGUARDANDO_JANELA' | 'AGUARDANDO_CONFIRMACAO' | 'CONFIRMADO' | 'LIBERADO'
+  criadoEm: string
   janelaAbreEm?: string
   janelaExpiraEm?: string
   motivoLiberacao?: 'RECUSA' | 'NAO_CONFIRMADO'

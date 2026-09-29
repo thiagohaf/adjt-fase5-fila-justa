@@ -100,25 +100,16 @@ export default function ConfirmacaoPage() {
                 Data e Hora
               </label>
               <p className="text-gray-900">
-                {new Date(agendamento.dataHora).toLocaleString('pt-BR')}
+                {new Date(agendamento.dataHoraAgendamento).toLocaleString('pt-BR')}
               </p>
             </div>
 
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Recurso
               </label>
-              <p className="text-gray-900">{agendamento.recursoNome}</p>
+              <p className="text-gray-900 font-mono text-sm">{agendamento.recursoId}</p>
             </div>
-
-            {agendamento.pacienteCpf && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  CPF (mascarado)
-                </label>
-                <p className="text-gray-900 font-mono">{agendamento.pacienteCpf}</p>
-              </div>
-            )}
 
             {agendamento.janelaExpiraEm && (
               <div>
