@@ -19,9 +19,11 @@ import java.util.UUID;
  * contexts para a mesma pessoa (agendamento-confirmacao-service e
  * matching-alocacao-service também resolvem Paciente por CPF de forma
  * independente, com sequências próprias). Por isso {@code pacienteId} é
- * derivado deterministicamente do UUID interno ({@code
- * ScoreInternalController#derivarPacienteIdNumerico}) -- estável para o
- * mesmo paciente entre chamadas, mas só tem significado dentro da réplica
+ * derivado deterministicamente do UUID interno ({@link
+ * com.confirmasus.triagem.domain.Paciente#idNumerico}, mesma derivação
+ * usada pelo publisher do evento ScoreCalculado em {@code RegistrarTriagem}
+ * para as duas vias nunca divergirem) -- estável para o mesmo paciente
+ * entre chamadas, mas só tem significado dentro da réplica
  * de Score do matching-alocacao-service, nunca deve ser comparado com o
  * {@code pacienteId} de outro serviço.
  */

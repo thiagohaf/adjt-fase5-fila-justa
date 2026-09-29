@@ -230,6 +230,16 @@ class ScoreCalculadoConsumerJob {
         if (!payload.get("scoreValor").isNumber()) {
             throw new IllegalArgumentException("payload.scoreValor nao e numerico");
         }
+        // Mesmo raciocinio para pacienteId: o publisher (triagem-score-service)
+        // ja envia um long (Paciente.idNumerico), mas sem esta checagem um
+        // payload malformado com pacienteId nao-numerico (ex.: um UUID
+        // literal) passaria por JsonNode#asLong() em silencio, retornando 0
+        // -- corromperia a replica com pacienteId=0 (ScoreReplica rejeita
+        // isso no upsert, mas so DEPOIS de a mensagem ja ter sido lida como
+        // "envelope valido", misturando "malformado" com "falha de upsert").
+        if (!payload.get("pacienteId").isIntegralNumber()) {
+            throw new IllegalArgumentException("payload.pacienteId nao e numerico");
+        }
         if (envelope.get("occurredAt") == null || envelope.get("eventId") == null) {
             throw new IllegalArgumentException("envelope sem occurredAt/eventId");
         }
