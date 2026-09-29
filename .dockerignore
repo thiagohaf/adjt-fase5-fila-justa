@@ -18,3 +18,13 @@ infra-cdk/cdk.out/
 infra-cdk/.cdk.staging/
 *.md
 README.md
+# Nao fazem parte do reactor Maven buildado pelos Dockerfiles. frontend/node_modules
+# (~11k arquivos) fazia o fingerprint do asset CDK parecer um deadlock JSII;
+# .env nunca deve ir para o contexto de build.
+frontend/
+.env
+.env.*
+.vscode/
+.DS_Store
+**/.DS_Store
+scripts/
