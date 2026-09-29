@@ -13,6 +13,34 @@
       "unidade": "Hospital Central",
       "especificidadeRank": 2,
       "disponivel": true
+    },
+    {
+      "codigoRecurso": "03",
+      "especialidade": "Ortopedia",
+      "unidade": "Hospital Central",
+      "especificidadeRank": 1,
+      "disponivel": true
+    },
+    {
+      "codigoRecurso": "04",
+      "especialidade": "Pediatria",
+      "unidade": "UBS Vila Nova",
+      "especificidadeRank": 1,
+      "disponivel": true
+    },
+    {
+      "codigoRecurso": "05",
+      "especialidade": "Dermatologia",
+      "unidade": "Hospital Central",
+      "especificidadeRank": 2,
+      "disponivel": true
+    },
+    {
+      "codigoRecurso": "06",
+      "especialidade": "Cardiologia",
+      "unidade": "UBS Vila Nova",
+      "especificidadeRank": 1,
+      "disponivel": true
     }
   ],
   "agendamentos": [
@@ -20,6 +48,24 @@
       "cpf": "11144477735",
       "recursoId": "550e8400-e29b-41d4-a716-446655440001",
       "dataHoraAgendamento": "2026-10-01T14:00:00Z",
+      "estado": "AGUARDANDO_JANELA"
+    },
+    {
+      "cpf": "52998224725",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440002",
+      "dataHoraAgendamento": "2026-10-05T10:00:00Z",
+      "estado": "AGUARDANDO_JANELA"
+    },
+    {
+      "cpf": "15350946056",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440002",
+      "dataHoraAgendamento": "2026-10-05T11:00:00Z",
+      "estado": "AGUARDANDO_JANELA"
+    },
+    {
+      "cpf": "71701577569",
+      "recursoId": "550e8400-e29b-41d4-a716-446655440001",
+      "dataHoraAgendamento": "2026-10-05T12:00:00Z",
       "estado": "AGUARDANDO_JANELA"
     }
   ],

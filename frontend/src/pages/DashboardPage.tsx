@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Agendamento } from '../types'
+import RecursoNome from '../components/RecursoNome'
 
 type StatusFiltro = 'TODOS' | Agendamento['status']
 
@@ -127,8 +128,8 @@ export default function DashboardPage() {
                         <tr key={agendamento.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-900 font-mono">{agendamento.id}</td>
                           <td className="px-4 py-3 text-sm text-gray-900">{agendamento.pacienteId}</td>
-                          <td className="px-4 py-3 text-sm text-gray-500 font-mono truncate max-w-[10rem]" title={agendamento.recursoId}>
-                            {agendamento.recursoId}
+                          <td className="px-4 py-3 text-sm text-gray-700 max-w-[16rem]">
+                            <RecursoNome recursoId={agendamento.recursoId} />
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-500">
                             {new Date(agendamento.dataHoraAgendamento).toLocaleString('pt-BR')}

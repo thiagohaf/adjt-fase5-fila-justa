@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import RecusarSugestaoModal from '../components/RecusarSugestaoModal'
 import Toast from '../components/Toast'
+import RecursoNome from '../components/RecursoNome'
 
 interface SugestaoRecursoResponse {
   recursoId: string
@@ -186,9 +187,11 @@ export default function RepassePage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID do Recurso
+                Recurso
               </label>
-              <p className="text-gray-900 font-mono text-lg">{sugestao.recursoId}</p>
+              <p className="text-gray-900 text-lg">
+                <RecursoNome recursoId={sugestao.recursoId} />
+              </p>
             </div>
           </div>
 
