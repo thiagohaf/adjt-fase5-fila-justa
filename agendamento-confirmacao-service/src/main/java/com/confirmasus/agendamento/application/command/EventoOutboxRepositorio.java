@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Porta de saida para persistencia de {@link EventoOutbox} (AD-3, spec 1.2),
- * copia do molde de {@code matching-alocacao-service/.../application/command/
+ * copia do molde de {@code liberacao-repasse-service/.../application/command/
  * EventoOutboxRepositorio.java}. Implementada em
  * {@code infrastructure/persistence} (JPA, schema
  * {@code agendamento_confirmacao}, tabela {@code eventos_outbox}).

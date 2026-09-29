@@ -93,16 +93,16 @@ NFR-6: ACs de provisionamento CDK (Secrets Manager, Stories 1.1, 2.1, 3.1).
 
 > **Nota de execução:** os renomeios `triagem-score-service`→`agendamento-confirmacao-service`
 > e `matching-alocacao-service`→`liberacao-repasse-service` descritos abaixo
-> (AD-1) não ocorreram como planejado. Na prática: `agendamento-confirmacao-service`
-> foi criado como diretório novo; `triagem-score-service` foi decomissionado
-> por completo (removido do repositório, não renomeado); `matching-alocacao-service`
-> nunca foi renomeado — continua com esse nome, mas cumpre hoje o papel de
-> Epic 2 (Lista de Espera/Sugestão de Repasse, FIFO pura), com toda a
-> infraestrutura de Score removida. Onde este documento diz
-> `liberacao-repasse-service`, leia `matching-alocacao-service`.
+> (AD-1): `agendamento-confirmacao-service` foi criado como diretório novo e
+> `triagem-score-service` foi decomissionado por completo (removido do
+> repositório, não renomeado). `matching-alocacao-service` foi renomeado para
+> `liberacao-repasse-service` em 2026-09-29 (o schema Postgres
+> `matching_alocacao` e o pacote Java `com.confirmasus.matching` mantêm o nome
+> legado) e cumpre o papel do Epic 2 (Lista de Espera/Sugestão de Repasse, FIFO
+> pura), com toda a infraestrutura de Score removida.
 
 1. **Epic 1: Confirmação Ativa de Presença** — FR-2–FR-7 (+ base de FR-1) — `agendamento-confirmacao-service`
-2. **Epic 2: Liberação e Repasse de Vaga** — FR-8–FR-11 (+ base de FR-1) — `liberacao-repasse-service` (nome-alvo; implementado em `matching-alocacao-service`, rename pendente)
+2. **Epic 2: Liberação e Repasse de Vaga** — FR-8–FR-11 (+ base de FR-1) — `liberacao-repasse-service` (renomeado de `matching-alocacao-service`)
 3. **Epic 3: Log Auditável e Consulta de Auditoria** — FR-12, FR-13 — `auditoria-service`
 4. **Epic 4: Carga de Dados Sintéticos (Camada Adaptadora)** — FR-1 completa — `seed-adapter`
 

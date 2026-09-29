@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Cobre {@link RelaySnsPublisherJob} com {@link SnsClient} mockado --
- * adaptado de {@code matching-alocacao-service/.../relay/
+ * adaptado de {@code liberacao-repasse-service/.../relay/
  * RelaySnsPublisherJobTest.java} para {@code agendamentoId}/
  * {@code MessageGroupId} deste servico (spec 1.2, AD-3).
  *

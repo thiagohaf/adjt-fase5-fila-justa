@@ -23,18 +23,22 @@ companions: []
 > abaixo — este documento permanece `status: final` como registro da decisão
 > original):** o rename `triagem-score-service` → `agendamento-confirmacao-service`
 > e `matching-alocacao-service` → `liberacao-repasse-service` descrito no
-> parágrafo seguinte não foi executado como planejado. Na prática:
-> `agendamento-confirmacao-service` foi criado como diretório **novo**, sem
-> reaproveitar `triagem-score-service` — que continuou existindo em paralelo,
-> ainda calculando Score de Prioridade Clínica, até ser **decomissionado por
-> completo** (removido do repositório, não renomeado). `matching-alocacao-service`
-> nunca foi renomeado para `liberacao-repasse-service` — continua com o nome
-> antigo, mas teve toda a infraestrutura de score/prioridade removida
-> (`PrioridadeEfetiva`, `ScoreReplica`, `ConsultarFilaPriorizada`, bootstrap via
-> `triagem-score-service`); a Sugestão de Repasse (`GET
-> /v1/recursos/{id}/sugestao`) hoje é FIFO pura por Lista de Espera (`criadoEm`),
-> como o AD-6 abaixo sempre descreveu — só o nome do serviço ficou para trás. A
-> renomeação de módulo/pacote continua um débito técnico em aberto.
+> parágrafo seguinte não foi executado como planejado para o primeiro. Na
+> prática: `agendamento-confirmacao-service` foi criado como diretório **novo**,
+> sem reaproveitar `triagem-score-service` — que continuou existindo em
+> paralelo, ainda calculando Score de Prioridade Clínica, até ser
+> **decomissionado por completo** (removido do repositório, não renomeado).
+> `matching-alocacao-service` teve toda a infraestrutura de score/prioridade
+> removida (`PrioridadeEfetiva`, `ScoreReplica`, `ConsultarFilaPriorizada`,
+> bootstrap via `triagem-score-service`); a Sugestão de Repasse (`GET
+> /v1/recursos/{id}/sugestao`) é FIFO pura por Lista de Espera (`criadoEm`),
+> como o AD-6 abaixo sempre descreveu. **Atualização (2026-09-29):** o serviço
+> foi renomeado para `liberacao-repasse-service` (módulo Maven, diretório,
+> imagem Docker, `docker-compose`, CDK, CI e gateway). Mantidos com o nome
+> legado, de propósito: o pacote Java `com.confirmasus.matching`, o schema
+> Postgres `matching_alocacao` (renomear exigiria migração de dados), os
+> prefixos de env `CONFIRMASUS_MATCHING_*` e o tópico SNS
+> `matching-alocacao-eventos.fifo` (contrato entre serviços).
 
 ## Design Paradigm
 

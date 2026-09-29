@@ -247,7 +247,7 @@
   <h2>Três serviços de domínio. Cada um dono de um pedaço só seu.</h2>
   <p class="lede">Microsserviços por bounded context, Clean Architecture dentro de cada um. Cada serviço nunca lê o banco do outro — mas a integração em runtime entre Confirmação e Repasse ainda não existe (ver nota abaixo do diagrama).</p>
   <figure>
-    <svg viewBox="0 0 860 300" role="img" aria-label="Topologia real: gateway-service na frente de agendamento-confirmacao-service, matching-alocacao-service e auditoria-service; auditoria-service consome eventos publicados pelos outros dois; seed-adapter carrega dados via gateway; não há hoje integração em runtime entre agendamento-confirmacao-service e matching-alocacao-service.">
+    <svg viewBox="0 0 860 300" role="img" aria-label="Topologia real: gateway-service na frente de agendamento-confirmacao-service, liberacao-repasse-service e auditoria-service; auditoria-service consome eventos publicados pelos outros dois; seed-adapter carrega dados via gateway; não há hoje integração em runtime entre agendamento-confirmacao-service e liberacao-repasse-service.">
       <defs>
         <marker id="arw2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
@@ -292,7 +292,7 @@
       <path d="M310,150 L 438,150" fill="none" stroke="currentColor" opacity=".35" stroke-dasharray="2,3"/>
       <text x="374" y="140" text-anchor="middle" font-size="10" class="lbl-mono" fill="var(--coral)" opacity=".9">sem integração hoje</text>
       <text x="374" y="186" text-anchor="middle" font-size="9.5" class="lbl-mono" opacity=".7">(VagaLiberada é publicada,</text>
-      <text x="374" y="198" text-anchor="middle" font-size="9.5" class="lbl-mono" opacity=".7">nada em matching-alocacao a consome)</text>
+      <text x="374" y="198" text-anchor="middle" font-size="9.5" class="lbl-mono" opacity=".7">nada em liberacao-repasse a consome)</text>
 
       <!-- AC/MA -> AUD -->
       <path d="M280,172 C 350,225 620,225 690,172" fill="none" stroke="currentColor" opacity=".55" marker-end="url(#arw2)"/>
@@ -303,7 +303,7 @@
       <rect x="120" y="255" width="710" height="34" rx="4" fill="none" stroke="currentColor" stroke-dasharray="2,3" opacity=".4"/>
       <text x="475" y="276" text-anchor="middle" font-size="10.5" class="lbl-mono" opacity=".75">outbox na mesma transação do comando → relay → SNS FIFO → fila SQS FIFO dedicada por consumidor + DLQ</text>
     </svg>
-    <figcaption>Um serviço nunca lê o banco do outro. <code class="k">agendamento-confirmacao-service</code> publica <code class="k">VagaLiberada</code>, mas hoje nenhum consumidor liga esse evento à Lista de Espera de <code class="k">matching-alocacao-service</code> — a Sugestão de Repasse é consultada sob demanda (<code class="k">GET /v1/recursos/{id}/sugestao</code>), não disparada automaticamente pela liberação. <code class="k">ResolverOuCriarPaciente</code> também não é uma chamada gRPC entre serviços como planejado no AD-8: <code class="k">matching-alocacao-service</code> resolve/armazena seu próprio Paciente/CPF localmente.</figcaption>
+    <figcaption>Um serviço nunca lê o banco do outro. <code class="k">agendamento-confirmacao-service</code> publica <code class="k">VagaLiberada</code>, mas hoje nenhum consumidor liga esse evento à Lista de Espera de <code class="k">liberacao-repasse-service</code> — a Sugestão de Repasse é consultada sob demanda (<code class="k">GET /v1/recursos/{id}/sugestao</code>), não disparada automaticamente pela liberação. <code class="k">ResolverOuCriarPaciente</code> também não é uma chamada gRPC entre serviços como planejado no AD-8: <code class="k">liberacao-repasse-service</code> resolve/armazena seu próprio Paciente/CPF localmente.</figcaption>
   </figure>
 </section>
 
@@ -342,7 +342,7 @@
       <p style="margin-top:8px; font-size:.86rem; color:var(--mut);"><code class="k">agendamento-confirmacao-service</code> foi construído como diretório novo (Paciente/Cpf/Agendamento), não como renomeação deste.</p>
     </div>
     <div class="card">
-      <h4>matching-alocacao-service — podado, nome mantido</h4>
+      <h4>liberacao-repasse-service — podado e renomeado (2026-09-29)</h4>
       <p class="keep">✓ mantém a máquina de estados de Confirmar/Recusar Alocação</p>
       <p class="drop">✗ descartou ScoreReplica, PrioridadeEfetiva e a fila ordenada por score — Sugestão de Repasse hoje é FIFO pura por Lista de Espera</p>
       <p style="margin-top:8px; font-size:.86rem; color:var(--mut);">Renomeação para <code class="k">liberacao-repasse-service</code> nunca executada — débito técnico em aberto.</p>
@@ -355,7 +355,7 @@
     <div class="card">
       <h4>auth-service, gateway-service, infra-cdk</h4>
       <p class="keep">✓ reaproveitados sem alteração de comportamento</p>
-      <p style="margin-top:8px; font-size:.86rem; color:var(--mut);">CDK hoje só provisiona <code class="k">gateway-service</code>/<code class="k">auth-service</code>/<code class="k">agendamento-confirmacao-service</code> — deploy AWS de <code class="k">matching-alocacao-service</code>/<code class="k">auditoria-service</code> continua deferido.</p>
+      <p style="margin-top:8px; font-size:.86rem; color:var(--mut);">CDK hoje só provisiona <code class="k">gateway-service</code>/<code class="k">auth-service</code>/<code class="k">agendamento-confirmacao-service</code> — deploy AWS de <code class="k">liberacao-repasse-service</code>/<code class="k">auditoria-service</code> continua deferido.</p>
     </div>
   </div>
 </section>
@@ -385,12 +385,12 @@
     <div class="tl-item">
       <div class="who">Executado</div>
       <h4>Epics 1–4 construídos, story a story</h4>
-      <p>Spec → checkpoint → implementação → revisão multi-agente → commit, mesmo fluxo validado no domínio anterior. <code class="k">triagem-score-service</code> decomissionado; score/prioridade removidos de <code class="k">matching-alocacao-service</code>.</p>
+      <p>Spec → checkpoint → implementação → revisão multi-agente → commit, mesmo fluxo validado no domínio anterior. <code class="k">triagem-score-service</code> decomissionado; score/prioridade removidos de <code class="k">liberacao-repasse-service</code>.</p>
     </div>
     <div class="tl-item">
       <div class="who">Em aberto</div>
       <h4>Débito técnico conhecido</h4>
-      <p>Renomeação de <code class="k">matching-alocacao-service</code> para <code class="k">liberacao-repasse-service</code>; integração em runtime entre <code class="k">VagaLiberada</code> e a Lista de Espera (hoje a Sugestão de Repasse é consultada sob demanda); deploy AWS de <code class="k">matching-alocacao-service</code>/<code class="k">auditoria-service</code>.</p>
+      <p>Integração em runtime entre <code class="k">VagaLiberada</code> e a Lista de Espera (hoje a Sugestão de Repasse é consultada sob demanda); deploy AWS de <code class="k">liberacao-repasse-service</code>/<code class="k">auditoria-service</code>.</p>
     </div>
   </div>
 </section>

@@ -14,7 +14,7 @@ import java.util.Map;
  * Adapter que implementa a porta {@link EventoOutboxRepositorio}
  * (application/command) usando {@link EventoOutboxJpaRepository} (Spring
  * Data, schema {@code agendamento_confirmacao}) -- mesmo padrao do homonimo
- * em {@code matching-alocacao-service}. {@link ObjectMapper} e o Jackson 3
+ * em {@code liberacao-repasse-service}. {@link ObjectMapper} e o Jackson 3
  * compartilhado do Spring Boot 4.1 ({@code writeValueAsString}/
  * {@code readValue} lancam {@code tools.jackson.core.JacksonException},
  * unchecked -- sem try/catch necessario; no caminho de leitura do relay,

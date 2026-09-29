@@ -37,7 +37,7 @@ Esta configuração permite executar o backend do ConfirmaSUS localmente usando 
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-`matching-alocacao-service` é hoje o dono de `Recurso`/`Lista de Espera`/`Alocacao` — cumpre o papel de "liberação e repasse" (Sugestão de Repasse FIFO pura por ordem de chegada, AD-6), mas mantém o nome herdado do produto anterior; a renomeação para `liberacao-repasse-service` prevista na arquitetura não foi executada (ver `_bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-17/ARCHITECTURE-SPINE.md`). O antigo `triagem-score-service` (Score de Prioridade Clínica) foi decomissionado por restrição legal — não existe mais no repositório.
+`liberacao-repasse-service` (renomeado de `matching-alocacao-service`) é o dono de `Recurso`/`Lista de Espera`/`Alocacao` — Sugestão de Repasse FIFO pura por ordem de chegada (AD-6). O schema Postgres continua `matching_alocacao` (nome legado mantido; ver `_bmad-output/planning-artifacts/architecture/architecture-Fase5-2026-09-17/ARCHITECTURE-SPINE.md`). O antigo `triagem-score-service` (Score de Prioridade Clínica) foi decomissionado por restrição legal — não existe mais no repositório.
 
 ## Pré-requisitos
 
@@ -68,7 +68,7 @@ docker-compose up
 ✓ localstack is healthy
 ✓ auth-service is healthy
 ✓ gateway-service started
-✓ matching-alocacao-service started
+✓ liberacao-repasse-service started
 ✓ agendamento-confirmacao-service started
 ✓ auditoria-service started
 ```
@@ -143,7 +143,7 @@ docker-compose ps
 | Gateway | 8080 | http://localhost:8080 | Entry point (Spring Cloud Gateway) |
 | Auth | 8081 | http://localhost:8081 | JWT issuer (health: /actuator/health) |
 | Agendamento | 8082 | http://localhost:8082 | Agendamento/Confirmação (health: :8091/actuator/health) |
-| Matching/Alocação | 8083 | http://localhost:8083 | Recursos/Lista de Espera/Repasse (health: :8092/actuator/health) |
+| Liberação/Repasse | 8083 | http://localhost:8083 | Recursos/Lista de Espera/Repasse (health: :8092/actuator/health) |
 | Auditoria | 8085 | http://localhost:8085 | Auditoria (health: :8094/actuator/health) |
 | LocalStack | 4566 | http://localhost:4566 | SQS/SNS (AWS mock) |
 | PostgreSQL | 5432 | localhost:5432 | Database |

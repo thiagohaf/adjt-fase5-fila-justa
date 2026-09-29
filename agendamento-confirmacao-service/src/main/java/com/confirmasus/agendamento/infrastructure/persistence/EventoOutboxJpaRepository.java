@@ -10,7 +10,7 @@ import java.util.List;
 
 interface EventoOutboxJpaRepository extends JpaRepository<EventoOutboxJpaEntity, Long> {
 
-    // Mesmo padrao do homonimo em matching-alocacao-service: a I/O Matrix da
+    // Mesmo padrao do homonimo em liberacao-repasse-service: a I/O Matrix da
     // spec 1.2 exige SELECT...FOR UPDATE SKIP LOCKED para o cenario
     // "Multiplas tasks ECS concorrentes" -- um SELECT simples so protegeria a
     // MARCACAO (marcarPublicado, abaixo), nao a LEITURA (duas instancias

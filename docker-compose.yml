@@ -91,10 +91,10 @@ services:
       SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://auth-service:8081
       SPRING_CLOUD_GATEWAY_ROUTES_0_PREDICATES_0: Path=/v1/auth/**
       SPRING_CLOUD_GATEWAY_ROUTES_1_ID: matching
-      SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://matching-alocacao-service:8083
+      SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://liberacao-repasse-service:8083
       SPRING_CLOUD_GATEWAY_ROUTES_1_PREDICATES_0: Path=/v1/recursos/**,/v1/alocacoes/**
       SPRING_CLOUD_GATEWAY_ROUTES_2_ID: lista-espera
-      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://matching-alocacao-service:8083
+      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://liberacao-repasse-service:8083
       SPRING_CLOUD_GATEWAY_ROUTES_2_PREDICATES_0: Path=/v1/lista-espera/**
       SPRING_CLOUD_GATEWAY_ROUTES_3_ID: agendamento
       SPRING_CLOUD_GATEWAY_ROUTES_3_URI: http://agendamento-confirmacao-service:8082
@@ -108,12 +108,12 @@ services:
       - confirmasus-network
     restart: unless-stopped
 
-  # Matching/Alocacao Service
-  matching-alocacao-service:
+  # Liberação/Repasse Service
+  liberacao-repasse-service:
     build:
       context: .
-      dockerfile: matching-alocacao-service/Dockerfile
-    container_name: confirmasus-matching-alocacao-service
+      dockerfile: liberacao-repasse-service/Dockerfile
+    container_name: confirmasus-liberacao-repasse-service
     depends_on:
       postgres:
         condition: service_healthy

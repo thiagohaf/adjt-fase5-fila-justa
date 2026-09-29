@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * "Multiplas tasks ECS concorrentes" da I/O &amp; Edge-Case Matrix da spec
  * 1.2: "2+ instancias rodando o mesmo poller -&gt; SKIP LOCKED garante que
  * cada linha e processada por uma unica instancia". Molde de
- * {@code matching-alocacao-service/.../
+ * {@code liberacao-repasse-service/.../
  * LiberacaoAgendadaRelayJobConcurrencyIntegrationTest} -- N threads chamando
  * {@code poller.abrirJanelas()} concorrentemente no MESMO bean Spring
  * simula "N instancias do poller disparando ao mesmo tempo": cada chamada,
