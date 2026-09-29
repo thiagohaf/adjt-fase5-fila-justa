@@ -34,8 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 @TestPropertySource(properties = {
         "confirmasus.matching.relay.enabled=false",
-        "confirmasus.matching.outbox-relay.enabled=false",
-        "confirmasus.matching.liberacao-agendada-relay.enabled=false"
+        "confirmasus.matching.outbox-relay.enabled=false"
 })
 class AlocacaoRepositorioAdapterIntegrationTest {
 

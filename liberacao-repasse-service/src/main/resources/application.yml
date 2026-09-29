@@ -89,47 +89,6 @@ confirmasus:
       endpoint-override: ${CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENDPOINT_OVERRIDE:}
       poll-interval-ms: 5000
       batch-size: 50
-    # Relay de publicacao da liberacao agendada (Story 3-4a2) --
-    # LiberacaoAgendadaRelayJob (infrastructure/relay). Namespace
-    # "liberacao-agendada-relay" isolado (nao "relay" nem "outbox-relay"
-    # acima) para nao colidir os pollers/beans SqsClient independentes
-    # (Boundaries da spec 3-4a2).
-    #
-    # enabled=true (mesmo padrao real de outbox-relay.enabled) -- fila SQS
-    # standard propria (liberacao-agendada) ja provisionada em infra-cdk
-    # (ConfirmaSusStack). queue-url fica vazio por padrao (injetado so no
-    # deploy real via CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL)
-    # -- deploy ECS deste servico ainda pendente (gap pre-existente,
-    # deferred-work.md, nao desta story). Testes @SpringBootTest
-    # pre-existentes que nao exercitam este relay setam
-    # liberacao-agendada-relay.enabled=false explicitamente (mesmo padrao de
-    # outbox-relay acima).
-    liberacao-agendada-relay:
-      enabled: true
-      queue-url: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_QUEUE_URL:}
-      region: ${AWS_REGION:us-east-1}
-      endpoint-override: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_RELAY_ENDPOINT_OVERRIDE:}
-      poll-interval-ms: 5000
-      batch-size: 50
-    # Consumidor SQS da fila de liberacao agendada (Story 3-4b2) --
-    # LiberacaoAgendadaSqsConsumerJob (infrastructure/relay). Namespace
-    # "liberacao-agendada-consumer" isolado do relay de publicacao para
-    # permitir ligar/desligar cada um independentemente.
-    #
-    # enabled=false por padrao (mesmo padrao real de relay.enabled, que e
-    # true por padrao mas pode ser desligado em testes especificos).
-    # queue-url e dlq-url ficam vazios por padrao (injetados so no deploy
-    # real). Testes @SpringBootTest que nao exercitam este consumidor setam
-    # liberacao-agendada-consumer.enabled=false explicitamente (mesmo padrao
-    # de relay/outbox-relay).
-    liberacao-agendada-consumer:
-      enabled: false
-      queue-url: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_CONSUMER_QUEUE_URL:}
-      dlq-url: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_CONSUMER_DLQ_URL:}
-      region: ${AWS_REGION:us-east-1}
-      endpoint-override: ${CONFIRMASUS_MATCHING_LIBERACAO_AGENDADA_CONSUMER_ENDPOINT_OVERRIDE:}
-      poll-interval-ms: 5000
-      batch-size: 10
 
   # Prioridade Efetiva = score + min(k * max(0, horas_espera), teto)
   # (Story 3.1c, epic-3-context.md) -- teto = 20% da amplitude do Score
@@ -139,23 +98,5 @@ confirmasus:
   aging:
     k: 1.1111111111111112
     teto: 20
-
-  # Duracao de LiberacaoAgendada por especificidadeRank do Recurso (Story
-  # 3-4a1) -- ConfirmarAlocacao grava, na mesma transacao da confirmacao,
-  # quanto tempo (simulado) o Recurso leva para voltar ao pool. Os 4 ranks
-  # (1-4, unicos valores que Recurso.especificidadeRank assume hoje, seed do
-  # Epic 5) sao obrigatorios: LiberacaoDuracaoProperties falha o boot se
-  # algum faltar ou exceder o limite fisico de 15min do DelaySeconds do SQS
-  # (Boundaries da spec 3-4a1, respeitado ja aqui mesmo sem publicar nada
-  # ainda, para nao exigir revalidacao em 3-4a2). Valores crescentes com o
-  # rank (recurso mais generico primeiro, mais especifico por ultimo) --
-  # nenhuma regra de negocio alem de "calibravel", apenas uma progressao
-  # razoavel para a simulacao.
-  liberacao:
-    duracao:
-      rank-1: PT2M
-      rank-2: PT4M
-      rank-3: PT6M
-      rank-4: PT8M
 
 # Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)
