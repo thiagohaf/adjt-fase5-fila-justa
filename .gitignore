@@ -53,3 +53,8 @@ infra-cdk/cdk.context.json
 # Node.js / npm
 node_modules/
 package-lock.json
+
+# Cypress E2E testing
+cypress/videos/
+cypress/screenshots/
+.cypress/

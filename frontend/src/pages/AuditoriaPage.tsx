@@ -109,7 +109,7 @@ export default function AuditoriaPage() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 py-12 px-4 flex items-center justify-center" data-testid="estado-loading">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Carregando histórico de auditoria...</p>
@@ -120,7 +120,7 @@ export default function AuditoriaPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="min-h-screen bg-gray-50 py-12 px-4" data-testid="estado-erro">
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => navigate('/dashboard')}
@@ -137,10 +137,14 @@ export default function AuditoriaPage() {
               {error instanceof Error ? error.message : 'Não foi possível carregar o histórico de auditoria.'}
             </p>
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => {
+                // Recarrega a página mantendo a URL com agendamentoId
+                window.location.href = window.location.href
+              }}
               className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition"
+              data-testid="btn-retry"
             >
-              Voltar para Dashboard
+              Tentar Novamente
             </button>
           </div>
         </div>
@@ -166,11 +170,11 @@ export default function AuditoriaPage() {
         </div>
 
         {/* Filtro por tipo de evento */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6 mb-8" data-testid="container-filtros">
           <label className="block text-sm font-medium text-gray-700 mb-3">
             Filtrar por tipo de evento:
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col md:flex-row flex-wrap gap-2">
             <button
               onClick={() => setFiltroTipo('')}
               className={`px-4 py-2 rounded-lg font-medium transition ${
@@ -178,6 +182,8 @@ export default function AuditoriaPage() {
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
               }`}
+              data-testid="filtro-tipo-opcao"
+              aria-label="Ver todos os eventos"
             >
               Todos ({eventos?.length || 0})
             </button>
@@ -201,8 +207,10 @@ export default function AuditoriaPage() {
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
+                  data-testid="filtro-tipo-opcao"
+                  aria-label={`Filtrar por ${getTipoDecisaoLabel(tipo)}`}
                 >
-                  {getTipoDecisaoLabel(tipo)} ({count})
+                  <span data-testid="filtro-label">{getTipoDecisaoLabel(tipo)}</span> <span data-testid="filtro-count">({count})</span>
                 </button>
               )
             })}
@@ -211,7 +219,7 @@ export default function AuditoriaPage() {
 
         {/* Lista de eventos */}
         {eventosFiltrados.length === 0 ? (
-          <div className="bg-gray-100 rounded-lg p-8 text-center">
+          <div className="bg-gray-100 rounded-lg p-8 text-center" data-testid="estado-vazio">
             <p className="text-gray-600">
               {filtroTipo
                 ? `Nenhum evento do tipo "${getTipoDecisaoLabel(filtroTipo)}" encontrado.`
@@ -219,18 +227,19 @@ export default function AuditoriaPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <ul className="space-y-4" data-testid="lista-eventos">
             {eventosFiltrados.map((evento) => {
               const badgeColor = getTipoDecisaoBadgeColor(evento.tipoDecisao)
               return (
-                <div
+                <li
                   key={evento.eventId}
                   className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-600"
+                  data-testid="evento-item"
                 >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className={getBadgeClasses(badgeColor)}>
+                        <span className={getBadgeClasses(badgeColor)} data-testid="evento-badge">
                           {getTipoDecisaoLabel(evento.tipoDecisao)}
                         </span>
                         <span className="text-xs text-gray-500">
@@ -250,7 +259,7 @@ export default function AuditoriaPage() {
                       </div>
 
                       {evento.motivo && (
-                        <div className="mt-3 p-3 bg-gray-50 rounded border-l-2 border-yellow-500">
+                        <div className="mt-3 p-3 bg-yellow-50 rounded border-l-2 border-yellow-500" data-testid="evento-motivo">
                           <label className="text-gray-500 font-medium text-sm">Motivo:</label>
                           <p className="text-gray-700 text-sm mt-1">{evento.motivo}</p>
                         </div>
@@ -259,7 +268,7 @@ export default function AuditoriaPage() {
 
                     <div className="flex-shrink-0 text-right">
                       <p className="text-xs text-gray-500">Data/Hora do Evento</p>
-                      <p className="text-gray-900 font-mono text-sm">
+                      <p className="text-gray-900 font-mono text-sm" data-testid="evento-data">
                         {formatarData(evento.timestamp)}
                       </p>
                       <p className="text-xs text-gray-400 mt-2">Registrado</p>
@@ -268,10 +277,10 @@ export default function AuditoriaPage() {
                       </p>
                     </div>
                   </div>
-                </div>
+                </li>
               )
             })}
-          </div>
+          </ul>
         )}
       </div>
     </div>
