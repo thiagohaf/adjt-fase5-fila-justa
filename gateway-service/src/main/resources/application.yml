@@ -38,6 +38,19 @@ spring:
                 - Path=/v1/agendamentos
                 - Method=POST
 
+            # Confirmacao/recusa de presenca (Story 1.3/1.4, Epic 1) --
+            # POST /v1/agendamentos/{id}/confirmacao e /recusa. Faltava esta
+            # rota: so existiam GET (consultar/listar) e POST exato em
+            # /v1/agendamentos (registrar), entao o gateway devolvia 404
+            # para qualquer POST em subpath, mesmo com o servico respondendo
+            # 200 quando chamado direto (achado ao investigar confirmar/
+            # recusar quebrados end-to-end via gateway).
+            - id: agendamento-confirmacao-acoes
+              uri: http://agendamento-confirmacao-service:8082
+              predicates:
+                - Path=/v1/agendamentos/**
+                - Method=POST
+
             - id: agendamento-confirmacao-consultar
               uri: http://agendamento-confirmacao-service:8082
               predicates:
