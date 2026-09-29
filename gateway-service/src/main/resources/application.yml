@@ -38,6 +38,12 @@ spring:
                 - Path=/v1/agendamentos
                 - Method=POST
 
+            - id: agendamento-confirmacao-consultar
+              uri: http://agendamento-confirmacao-service:8082
+              predicates:
+                - Path=/v1/agendamentos/**
+                - Method=GET
+
             # Recursos e Alocacoes (Story 3, Epic 3) -- rota publica protegida
             # pelo JwtAuthenticationFilter
             - id: matching-recursos

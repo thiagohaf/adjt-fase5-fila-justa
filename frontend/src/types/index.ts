@@ -5,11 +5,11 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string
-  user: {
-    id: string
-    username: string
-    role: string
-  }
+}
+
+export interface AuthUser {
+  username: string
+  role: string
 }
 
 export interface Agendamento {

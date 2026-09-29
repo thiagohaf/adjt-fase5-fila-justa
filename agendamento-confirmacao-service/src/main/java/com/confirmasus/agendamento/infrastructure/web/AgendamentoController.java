@@ -4,6 +4,7 @@ import com.confirmasus.agendamento.application.command.ConfirmarPresenca;
 import com.confirmasus.agendamento.application.command.RegistrarAgendamento;
 import com.confirmasus.agendamento.application.command.RecusarPresenca;
 import com.confirmasus.agendamento.application.query.ConsultarAgendamento;
+import com.confirmasus.agendamento.application.query.ListarAgendamentos;
 import com.confirmasus.agendamento.domain.Agendamento;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Endpoints publicos do agendamento-confirmacao-service. {@code POST
@@ -36,13 +39,16 @@ public class AgendamentoController {
     private final ConfirmarPresenca confirmarPresenca;
     private final RecusarPresenca recusarPresenca;
     private final ConsultarAgendamento consultarAgendamento;
+    private final ListarAgendamentos listarAgendamentos;
 
     public AgendamentoController(RegistrarAgendamento registrarAgendamento, ConfirmarPresenca confirmarPresenca,
-                                  RecusarPresenca recusarPresenca, ConsultarAgendamento consultarAgendamento) {
+                                  RecusarPresenca recusarPresenca, ConsultarAgendamento consultarAgendamento,
+                                  ListarAgendamentos listarAgendamentos) {
         this.registrarAgendamento = registrarAgendamento;
         this.confirmarPresenca = confirmarPresenca;
         this.recusarPresenca = recusarPresenca;
         this.consultarAgendamento = consultarAgendamento;
+        this.listarAgendamentos = listarAgendamentos;
     }
 
     @PostMapping("/v1/agendamentos")
@@ -51,6 +57,14 @@ public class AgendamentoController {
         Agendamento agendamento = registrarAgendamento.registrar(
                 request.cpf(), request.recursoId(), request.dataHoraAgendamento());
         return RegistrarAgendamentoResponse.de(agendamento);
+    }
+
+    @GetMapping("/v1/agendamentos")
+    @ResponseStatus(HttpStatus.OK)
+    public List<RegistrarAgendamentoResponse> listar() {
+        return listarAgendamentos.listar().stream()
+                .map(RegistrarAgendamentoResponse::de)
+                .toList();
     }
 
     @GetMapping("/v1/agendamentos/{id}")
