@@ -12,9 +12,8 @@ import jakarta.validation.constraints.Positive;
  * <p>{@code especificidadeRank} leva {@code @NotNull} além de {@code
  * @Positive}: sozinho, {@code @Positive} considera {@code null} válido
  * (Bean Validation trata ausência como responsabilidade de {@code
- * @NotNull}) -- sem ele, o campo ausente não seria rejeitado. Usado hoje só
- * para calibrar a duração de liberação automática do Recurso (ver {@code
- * LiberacaoDuracaoProperties}), não para priorização de paciente.
+ * @NotNull}) -- sem ele, o campo ausente não seria rejeitado. Atributo de
+ * catálogo do Recurso, não usado para priorização de paciente.
  *
  * <p>{@code especialidade} e {@code unidade} são opcionais, para suportar
  * seed-data com categorização de recursos.

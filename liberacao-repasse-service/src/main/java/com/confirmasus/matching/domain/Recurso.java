@@ -19,10 +19,8 @@ import java.util.UUID;
  *
  * <p>{@code especificidadeRank} (inteiro positivo, {@code >= 1}) não decide
  * mais nenhuma sugestão/priorização (a fila de repasse é FIFO pura, AD-6) --
- * o único consumidor restante é {@link com.confirmasus.matching.infrastructure.config.LiberacaoDuracaoProperties#duracaoParaRank(int)},
- * que calibra por quanto tempo um Recurso fica reservado antes de
- * auto-liberar, por tipo/especificidade do recurso (não por gravidade ou
- * prioridade de paciente).
+ * hoje é só um atributo de catálogo do Recurso (a auto-liberação por
+ * duração foi removida).
  *
  * <p>{@code disponivel} é obrigatório, sem default implícito -- quem chama
  * sempre declara o estado explicitamente.

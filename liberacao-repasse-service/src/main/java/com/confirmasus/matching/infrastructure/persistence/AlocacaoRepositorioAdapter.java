@@ -57,12 +57,6 @@ class AlocacaoRepositorioAdapter implements AlocacaoRepositorio {
         return alocacao;
     }
 
-    @Override
-    @Transactional
-    public boolean liberar(UUID alocacaoId) {
-        return jpaRepository.liberar(alocacaoId) > 0;
-    }
-
     private static RuntimeException traduzir(DataIntegrityViolationException ex, Alocacao alocacao) {
         String constraintName = nomeDaConstraintViolada(ex);
         if (CONSTRAINT_RECURSO_ATIVA.equals(constraintName)) {

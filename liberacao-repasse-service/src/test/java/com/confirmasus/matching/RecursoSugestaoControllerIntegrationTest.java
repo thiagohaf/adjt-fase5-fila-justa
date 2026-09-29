@@ -41,8 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 // /v1/recursos/{id}/sugestao, sem depender de LocalStack/SQS/SNS.
 @TestPropertySource(properties = {
         "confirmasus.matching.relay.enabled=false",
-        "confirmasus.matching.outbox-relay.enabled=false",
-        "confirmasus.matching.liberacao-agendada-relay.enabled=false"
+        "confirmasus.matching.outbox-relay.enabled=false"
 })
 class RecursoSugestaoControllerIntegrationTest {
 

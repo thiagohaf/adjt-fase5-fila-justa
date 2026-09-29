@@ -36,8 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(properties = {
         "confirmasus.matching.relay.enabled=false",
-        "confirmasus.matching.outbox-relay.enabled=false",
-        "confirmasus.matching.liberacao-agendada-relay.enabled=false"
+        "confirmasus.matching.outbox-relay.enabled=false"
 })
 class AlocacaoControllerIntegrationTest {
 
@@ -139,25 +138,6 @@ class AlocacaoControllerIntegrationTest {
                         + "AND payload ->> 'recursoId' = ?",
                 Integer.class, recursoId.toString());
         assertThat(linhasOutboxPendentes).isEqualTo(1);
-
-        // Story 3-4a1, achado do code review multi-agente: prova, contra o
-        // binding REAL de application.yml (nao os valores arbitrarios de
-        // ConfirmarAlocacaoTest/LiberacaoDuracaoPropertiesTest), que
-        // ConfirmarAlocacao grava LiberacaoAgendada na mesma transacao --
-        // upsertRecursoDisponivel() sempre usa especificidadeRank=1, cuja
-        // duracao configurada e confirmasus.liberacao.duracao.rank-1=PT2M
-        // (120s). Os 4 @Value posicionais de
-        // LiberacaoRepasseServiceApplication#liberacaoDuracaoProperties nao
-        // tem vinculo em tempo de compilacao com a chave de propriedade --
-        // uma inversao de ordem so seria detectada aqui, contra o YAML real.
-        UUID alocacaoId = UUID.fromString(json.get("alocacaoId").asText());
-        Map<String, Object> liberacaoAgendada = jdbcTemplate.queryForMap(
-                "SELECT recurso_id, delay_segundos, enviado_em FROM matching_alocacao.liberacao_agendada "
-                        + "WHERE alocacao_id = ?::uuid",
-                alocacaoId.toString());
-        assertThat(liberacaoAgendada.get("recurso_id")).isEqualTo(recursoId);
-        assertThat(liberacaoAgendada.get("delay_segundos")).isEqualTo(120);
-        assertThat(liberacaoAgendada.get("enviado_em")).isNull();
     }
 
     @Test

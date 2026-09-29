@@ -124,11 +124,9 @@ class RelaySnsPublisherJobIntegrationTest {
         registry.add("confirmasus.matching.outbox-relay.region", localstack::getRegion);
         registry.add("confirmasus.matching.outbox-relay.topic-arn", () -> topicArn);
         registry.add("confirmasus.matching.outbox-relay.poll-interval-ms", () -> "300");
-        // Consumidor SQS de ScoreCalculado (Story 3.1b) e relay de
-        // liberacao agendada (Story 3-4a2) desligados -- este teste nao os
-        // exercita, mesmo padrao dos demais testes deste servico.
+        // Consumidor SQS de ScoreCalculado (Story 3.1b) desligado -- este
+        // teste nao o exercita, mesmo padrao dos demais testes deste servico.
         registry.add("confirmasus.matching.relay.enabled", () -> "false");
-        registry.add("confirmasus.matching.liberacao-agendada-relay.enabled", () -> "false");
     }
 
     private static String criarFilaFifo(SqsClient sqs, String nome) {
