@@ -80,4 +80,10 @@ public interface AgendamentoRepositorio {
      * Sem filtro de status, para ser resiliente a qualquer estado.
      */
     Optional<Agendamento> buscarPorPacienteIdERecursoId(Long pacienteId, UUID recursoId);
+
+    /**
+     * Todos os Agendamentos, ordenados por {@code id} ascendente (dashboard
+     * do regulador, FE-4: visao geral por status).
+     */
+    List<Agendamento> listarTodos();
 }

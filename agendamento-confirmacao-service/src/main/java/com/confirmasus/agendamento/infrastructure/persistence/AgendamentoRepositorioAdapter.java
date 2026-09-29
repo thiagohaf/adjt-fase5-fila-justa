@@ -3,6 +3,7 @@ package com.confirmasus.agendamento.infrastructure.persistence;
 import com.confirmasus.agendamento.application.command.AgendamentoRepositorio;
 import com.confirmasus.agendamento.domain.Agendamento;
 import com.confirmasus.agendamento.domain.StatusAgendamento;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,6 +90,14 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     @Override
     public Optional<Agendamento> buscarPorPacienteIdERecursoId(Long pacienteId, UUID recursoId) {
         return jpaRepository.findByPacienteIdAndRecursoId(pacienteId, recursoId).map(this::paraDominio);
+    }
+
+    @Override
+    public List<Agendamento> listarTodos() {
+        return jpaRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+                .stream()
+                .map(this::paraDominio)
+                .toList();
     }
 
     private Agendamento paraDominio(AgendamentoJpaEntity entity) {

@@ -95,7 +95,7 @@ export default function AuditoriaPage() {
     queryKey: ['auditoria', agendamentoId],
     queryFn: async () => {
       const response = await api.get<DecisaoAuditoria[]>(
-        `/auditoria/agendamento/${agendamentoId}`
+        `/v1/auditoria/agendamento/${agendamentoId}`
       )
       return response.data
     },

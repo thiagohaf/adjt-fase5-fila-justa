@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from 'axios'
 
-const API_BASE_URL = '/v1'
+const API_BASE_URL = ''
 
 class ApiClient {
   private client: AxiosInstance

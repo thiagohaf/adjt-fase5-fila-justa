@@ -10,6 +10,7 @@ import com.confirmasus.agendamento.application.command.RecusarPresenca;
 import com.confirmasus.agendamento.application.command.ExpirarJanelaDeConfirmacao;
 import com.confirmasus.agendamento.application.command.ResolverOuCriarPaciente;
 import com.confirmasus.agendamento.application.query.ConsultarAgendamento;
+import com.confirmasus.agendamento.application.query.ListarAgendamentos;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -54,6 +55,11 @@ public class AgendamentoConfirmacaoServiceApplication {
     @Bean
     ConsultarAgendamento consultarAgendamento(AgendamentoRepositorio agendamentoRepositorio) {
         return new ConsultarAgendamento(agendamentoRepositorio);
+    }
+
+    @Bean
+    ListarAgendamentos listarAgendamentos(AgendamentoRepositorio agendamentoRepositorio) {
+        return new ListarAgendamentos(agendamentoRepositorio);
     }
 
     @Bean
