@@ -67,7 +67,7 @@ confirmasus:
       # "http://auth-service:8081"). Sem override real fora do valor
       # injetado pela task ECS fica deferido (mesmo chore de deploy de
       # 2.1/3.0/3.1a/3.1b, deferred-work.md).
-      base-url: ${CONFIRMASUS_MATCHING_BOOTSTRAP_BASE_URL:http://triagem-score-service:8082}
+      base-url: ${CONFIRMASUS_MATCHING_BOOTSTRAP_BASE_URL:http://triagem-score-service:8084}
     # Infraestrutura outbox propria deste servico (Story 3-3a, AD-3) --
     # RelaySnsPublisherJob (infrastructure/relay). Namespace
     # "outbox-relay" (nao "relay" acima, ja usado pelo consumidor SQS de
