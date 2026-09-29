@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   # Database: PostgreSQL 15 (18 tem problemas com volumes antigos)
   postgres:
