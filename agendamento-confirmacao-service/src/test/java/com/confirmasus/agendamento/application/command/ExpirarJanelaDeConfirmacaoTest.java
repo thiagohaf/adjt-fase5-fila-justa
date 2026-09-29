@@ -64,7 +64,8 @@ class ExpirarJanelaDeConfirmacaoTest {
     private final Clock clock = Clock.fixed(AGORA, ZoneOffset.UTC);
 
     private ExpirarJanelaDeConfirmacao poller(int loteTamanho) {
-        return new ExpirarJanelaDeConfirmacao(agendamentoRepositorio, eventoOutboxRepositorio, clock, loteTamanho);
+        return new ExpirarJanelaDeConfirmacao(agendamentoRepositorio, eventoOutboxRepositorio, clock, loteTamanho,
+                org.springframework.transaction.support.TransactionOperations.withoutTransaction());
     }
 
     private static Agendamento agendamento(long id, long pacienteId, UUID recursoId) {

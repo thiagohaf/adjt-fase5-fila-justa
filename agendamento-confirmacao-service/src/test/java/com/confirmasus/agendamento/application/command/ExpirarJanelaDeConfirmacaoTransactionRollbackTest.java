@@ -48,7 +48,7 @@ class ExpirarJanelaDeConfirmacaoTransactionRollbackTest {
                 .when(eventoOutboxRepositorio).salvar(any());
 
         ExpirarJanelaDeConfirmacao handler = new ExpirarJanelaDeConfirmacao(
-                agendamentoRepositorio, eventoOutboxRepositorio, clock, 10);
+                agendamentoRepositorio, eventoOutboxRepositorio, clock, 10, org.springframework.transaction.support.TransactionOperations.withoutTransaction());
 
         assertThatThrownBy(() -> handler.processar(agendamento))
                 .isInstanceOf(RuntimeException.class)
