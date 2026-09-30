@@ -2,6 +2,8 @@ package com.confirmasus.auditoria.infrastructure.persistence;
 
 import com.confirmasus.auditoria.domain.TipoDecisao;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -52,6 +54,7 @@ class DecisaoAuditoriaJpaEntity {
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload_bruto", columnDefinition = "JSONB")
     private String payloadBruto;
 

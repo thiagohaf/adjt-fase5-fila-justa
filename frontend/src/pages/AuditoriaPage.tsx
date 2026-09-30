@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { mensagemDeErro } from '../services/api'
+import { Agendamento } from '../types'
+import RecursoNome from '../components/RecursoNome'
 
 interface DecisaoAuditoria {
   eventId: string
@@ -32,7 +34,7 @@ function getTipoDecisaoLabel(tipo: string): string {
     SUGESTAO_GERADA: 'Sugestão Gerada',
     REPASSE_CONFIRMADO: 'Repasse Confirmado',
     SUGESTAO_RECUSADA: 'Sugestão Recusada',
-    GENERICO: 'Genérico',
+    GENERICO: 'Outro evento',
   }
   return labels[tipo] || tipo
 }
@@ -102,6 +104,16 @@ export default function AuditoriaPage() {
     enabled: !!agendamentoId,
   })
 
+  const { data: agendamento } = useQuery({
+    queryKey: ['agendamento', agendamentoId],
+    queryFn: async () => {
+      const response = await api.get<Agendamento>(`/v1/agendamentos/${agendamentoId}`)
+      return response.data
+    },
+    enabled: !!agendamentoId,
+    retry: false,
+  })
+
   const eventosFiltrados =
     filtroTipo && eventos
       ? eventos.filter((e) => e.tipoDecisao === filtroTipo)
@@ -124,7 +136,7 @@ export default function AuditoriaPage() {
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2"
+            className="btn btn-outline mb-6"
           >
             ← Voltar para Dashboard
           </button>
@@ -134,14 +146,14 @@ export default function AuditoriaPage() {
               Erro ao Carregar Auditoria
             </h2>
             <p className="text-red-700 mb-4">
-              {error instanceof Error ? error.message : 'Não foi possível carregar o histórico de auditoria.'}
+              {mensagemDeErro(error, 'Não foi possível carregar o histórico de auditoria.')}
             </p>
             <button
               onClick={() => {
                 // Recarrega a página mantendo a URL com agendamentoId
                 window.location.reload()
               }}
-              className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition"
+              className="btn btn-danger"
               data-testid="btn-retry"
             >
               Tentar Novamente
@@ -157,16 +169,23 @@ export default function AuditoriaPage() {
       <div className="max-w-4xl mx-auto">
         <button
           onClick={() => navigate('/dashboard')}
-          className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2"
+          className="btn btn-outline mb-6"
         >
           ← Voltar para Dashboard
         </button>
 
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Histórico de Auditoria</h1>
-          <p className="text-gray-600">
-            Agendamento: <span className="font-mono font-semibold">{agendamentoId}</span>
-          </p>
+          {agendamento ? (
+            <p className="text-gray-600">
+              <RecursoNome recursoId={agendamento.recursoId} mostrarUnidade={false} />
+              {' · '}
+              {new Date(agendamento.dataHoraAgendamento).toLocaleString('pt-BR')}
+              {' · '}Paciente #{agendamento.pacienteId}
+            </p>
+          ) : (
+            <p className="text-gray-600">Agendamento #{agendamentoId}</p>
+          )}
         </div>
 
         {/* Filtro por tipo de evento */}
@@ -177,10 +196,10 @@ export default function AuditoriaPage() {
           <div className="flex flex-col md:flex-row flex-wrap gap-2">
             <button
               onClick={() => setFiltroTipo('')}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
+              className={`btn btn-sm ${
                 filtroTipo === ''
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  ? 'btn-primary'
+                  : 'btn-outline'
               }`}
               data-testid="filtro-tipo-opcao"
               aria-label="Ver todos os eventos"
@@ -202,10 +221,10 @@ export default function AuditoriaPage() {
                 <button
                   key={tipo}
                   onClick={() => setFiltroTipo(tipo)}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                  className={`btn btn-sm ${
                     filtroTipo === tipo
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      ? 'btn-primary'
+                      : 'btn-outline'
                   }`}
                   data-testid="filtro-tipo-opcao"
                   aria-label={`Filtrar por ${getTipoDecisaoLabel(tipo)}`}
@@ -242,19 +261,22 @@ export default function AuditoriaPage() {
                         <span className={getBadgeClasses(badgeColor)} data-testid="evento-badge">
                           {getTipoDecisaoLabel(evento.tipoDecisao)}
                         </span>
-                        <span className="text-xs text-gray-500">
-                          ID: {evento.eventId.substring(0, 8)}...
-                        </span>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <div>
                           <label className="text-gray-500 font-medium">Paciente:</label>
-                          <p className="text-gray-900 font-mono">{evento.pacienteId}</p>
+                          <p className="text-gray-900">Paciente #{evento.pacienteId}</p>
                         </div>
                         <div>
-                          <label className="text-gray-500 font-medium">Agendamento:</label>
-                          <p className="text-gray-900 font-mono">{evento.agendamentoId}</p>
+                          <label className="text-gray-500 font-medium">Recurso:</label>
+                          <p className="text-gray-900">
+                            {agendamento ? (
+                              <RecursoNome recursoId={agendamento.recursoId} mostrarUnidade={false} />
+                            ) : (
+                              `Agendamento #${evento.agendamentoId}`
+                            )}
+                          </p>
                         </div>
                       </div>
 

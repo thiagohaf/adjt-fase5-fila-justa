@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { mensagemDeErro } from '../services/api'
 import RecusarSugestaoModal from '../components/RecusarSugestaoModal'
 import Toast from '../components/Toast'
 import RecursoNome from '../components/RecursoNome'
@@ -52,9 +52,7 @@ export default function RepassePage() {
         navigate('/dashboard', { replace: true })
       }, 2000)
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Erro ao confirmar repasse'
-      )
+      setErrorMessage(mensagemDeErro(err, 'Erro ao confirmar repasse'))
       setIsConfirmingRepasse(false)
     }
   }
@@ -76,9 +74,7 @@ export default function RepassePage() {
         navigate('/dashboard', { replace: true })
       }, 2000)
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : 'Erro ao recusar sugestão'
-      )
+      setErrorMessage(mensagemDeErro(err, 'Erro ao recusar sugestão'))
       setIsRecusandoSugestao(false)
     }
   }
@@ -100,7 +96,7 @@ export default function RepassePage() {
         <div className="max-w-2xl mx-auto">
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2"
+            className="btn btn-outline mb-6"
           >
             ← Voltar para Dashboard
           </button>
@@ -110,11 +106,11 @@ export default function RepassePage() {
               Erro ao Carregar Sugestão
             </h2>
             <p className="text-red-700 mb-4">
-              {error instanceof Error ? error.message : 'Não foi possível carregar a sugestão de repasse.'}
+              {mensagemDeErro(error, 'Não foi possível carregar a sugestão de repasse.')}
             </p>
             <button
               onClick={() => navigate('/dashboard')}
-              className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition"
+              className="btn btn-danger"
             >
               Voltar para Dashboard
             </button>
@@ -130,7 +126,7 @@ export default function RepassePage() {
         <div className="max-w-2xl mx-auto">
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2"
+            className="btn btn-outline mb-6"
           >
             ← Voltar para Dashboard
           </button>
@@ -144,7 +140,7 @@ export default function RepassePage() {
             </p>
             <button
               onClick={() => navigate('/dashboard')}
-              className="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-2 px-4 rounded transition"
+              className="btn btn-primary"
             >
               Voltar para Dashboard
             </button>
@@ -159,7 +155,7 @@ export default function RepassePage() {
       <div className="max-w-2xl mx-auto">
         <button
           onClick={() => navigate('/dashboard')}
-          className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2"
+          className="btn btn-outline mb-6"
         >
           ← Voltar para Dashboard
         </button>
@@ -178,9 +174,9 @@ export default function RepassePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID do Paciente
+                Paciente sugerido
               </label>
-              <p className="text-gray-900 font-mono text-lg">{sugestao.pacienteId}</p>
+              <p className="text-gray-900 text-lg">Paciente #{sugestao.pacienteId}</p>
             </div>
 
             <div>
@@ -213,7 +209,7 @@ export default function RepassePage() {
           <button
             onClick={handleConfirmarRepasse}
             disabled={isConfirmingRepasse || isRecusandoSugestao}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="btn btn-lg btn-success flex-1"
           >
             {isConfirmingRepasse && (
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
@@ -224,7 +220,7 @@ export default function RepassePage() {
           <button
             onClick={() => setIsModalOpen(true)}
             disabled={isConfirmingRepasse || isRecusandoSugestao}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-lg btn-danger flex-1"
           >
             ✕ Recusar Sugestão
           </button>

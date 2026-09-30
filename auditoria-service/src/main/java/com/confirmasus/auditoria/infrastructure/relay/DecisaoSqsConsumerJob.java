@@ -6,6 +6,7 @@ import com.confirmasus.auditoria.domain.TipoDecisao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -97,6 +98,7 @@ class DecisaoSqsConsumerJob {
         this(null, null, null, null, "https://sqs.us-east-1.amazonaws.com/123456789012/auditoria-decisoes.fifo", 10, 1);
     }
 
+    @Autowired
     DecisaoSqsConsumerJob(SqsClient sqsClient,
                           DecisaoAuditoriaRepositorio repositorio,
                           ObjectMapper objectMapper,

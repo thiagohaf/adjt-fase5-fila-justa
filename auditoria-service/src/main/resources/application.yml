@@ -49,6 +49,7 @@ confirmasus:
     relay:
       enabled: ${AUDITORIA_RELAY_ENABLED:true}
       queue-url: ${AUDITORIA_QUEUE_URL:}
+      endpoint-override: ${AUDITORIA_ENDPOINT_OVERRIDE:}
       batch-size: ${AUDITORIA_BATCH_SIZE:10}
       wait-time-seconds: ${AUDITORIA_WAIT_TIME_SECONDS:1}
       poll-interval-ms: ${AUDITORIA_POLL_INTERVAL_MS:5000}

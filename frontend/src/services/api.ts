@@ -54,4 +54,13 @@ class ApiClient {
   }
 }
 
+/** Extrai a mensagem legivel de um erro axios (RFC 7807 `detail`/`title`) ou generico. */
+export function mensagemDeErro(err: unknown, padrao: string): string {
+  if (axios.isAxiosError(err)) {
+    const corpo = err.response?.data as { detail?: string; title?: string } | undefined
+    return corpo?.detail || corpo?.title || padrao
+  }
+  return err instanceof Error && err.message ? err.message : padrao
+}
+
 export default new ApiClient()

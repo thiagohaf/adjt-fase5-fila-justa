@@ -63,7 +63,7 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={logout}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition"
+                className="btn btn-danger"
               >
                 Sair
               </button>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
                       {agendamentosFiltrados.map(agendamento => (
                         <tr key={agendamento.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-900 font-mono">{agendamento.id}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{agendamento.pacienteId}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">Paciente #{agendamento.pacienteId}</td>
                           <td className="px-4 py-3 text-sm text-gray-700 max-w-[16rem]">
                             <RecursoNome recursoId={agendamento.recursoId} />
                           </td>
@@ -139,27 +139,29 @@ export default function DashboardPage() {
                               {STATUS_LABELS[agendamento.status]}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm space-x-3 whitespace-nowrap">
-                            <Link
-                              to={`/confirmacao/${agendamento.id}`}
-                              className="text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              Detalhes
-                            </Link>
-                            <Link
-                              to={`/auditoria/${agendamento.id}`}
-                              className="text-gray-600 hover:text-gray-900 font-medium"
-                            >
-                              Auditoria
-                            </Link>
-                            {agendamento.status === 'LIBERADO' && (
-                              <Link
-                                to={`/repasse/${agendamento.recursoId}`}
-                                className="text-purple-600 hover:text-purple-800 font-medium"
-                              >
-                                Repasse
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Link to={`/confirmacao/${agendamento.id}`} className="btn btn-sm btn-primary">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7S2.5 12 2.5 12z M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                                </svg>
+                                Detalhes
                               </Link>
-                            )}
+                              <Link to={`/auditoria/${agendamento.id}`} className="btn btn-sm btn-secondary">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v14l-3-2-2 2-2-2-2 2-2-2-3 2V6a2 2 0 012-2z" />
+                                </svg>
+                                Auditoria
+                              </Link>
+                              {agendamento.status === 'LIBERADO' && (
+                                <Link to={`/repasse/${agendamento.recursoId}`} className="btn btn-sm btn-accent">
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h11m0 0l-3-3m3 3l-3 3M17 17H6m0 0l3-3m-3 3l3 3" />
+                                  </svg>
+                                  Repasse
+                                </Link>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import api from '../services/api'
+import api, { mensagemDeErro } from '../services/api'
 import { Agendamento } from '../types'
 import CountdownDisplay from '../components/CountdownDisplay'
 import ConfirmacaoButtons from '../components/ConfirmacaoButtons'
@@ -47,13 +47,11 @@ export default function ConfirmacaoPage() {
               Erro ao Carregar Agendamento
             </h2>
             <p className="text-red-700 mb-4">
-              {error instanceof Error
-                ? error.message
-                : 'Não foi possível carregar os dados do agendamento.'}
+              {mensagemDeErro(error, 'Não foi possível carregar os dados do agendamento.')}
             </p>
             <button
               onClick={() => navigate('/dashboard')}
-              className="inline-block bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition"
+              className="btn btn-danger"
             >
               Voltar para Dashboard
             </button>
@@ -68,7 +66,7 @@ export default function ConfirmacaoPage() {
       <div className="max-w-2xl mx-auto">
         <button
           onClick={() => navigate('/dashboard')}
-          className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2"
+          className="btn btn-outline mb-6"
         >
           ← Voltar para Dashboard
         </button>
@@ -82,9 +80,9 @@ export default function ConfirmacaoPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID do Agendamento
+                Paciente
               </label>
-              <p className="text-gray-900 font-mono">{agendamento.id}</p>
+              <p className="text-gray-900">Paciente #{agendamento.pacienteId}</p>
             </div>
 
             <div>
@@ -139,19 +137,21 @@ export default function ConfirmacaoPage() {
         {/* Info Message */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <p className="text-blue-800">
-            ℹ️ Por favor, confirme sua presença neste agendamento.
+            {agendamento.status === 'AGUARDANDO_CONFIRMACAO'
+              ? 'ℹ️ Por favor, confirme sua presença neste agendamento.'
+              : `ℹ️ Este agendamento está "${formatStatus(agendamento.status)}" — não há ação de confirmação disponível.`}
           </p>
         </div>
 
         {/* Countdown (Story FE-2) */}
-        {agendamento.janelaExpiraEm && !acaoCompleta && (
+        {agendamento.status === 'AGUARDANDO_CONFIRMACAO' && agendamento.janelaExpiraEm && !acaoCompleta && (
           <div className="bg-white rounded-lg shadow p-8 mb-6">
             <CountdownDisplay expiryTime={agendamento.janelaExpiraEm} />
           </div>
         )}
 
         {/* Botões de Confirmação/Recusa (Story FE-3) */}
-        {!acaoCompleta && (
+        {agendamento.status === 'AGUARDANDO_CONFIRMACAO' && !acaoCompleta && (
           <ConfirmacaoButtons
             agendamento={agendamento}
             janelaExpirada={

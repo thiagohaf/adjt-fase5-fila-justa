@@ -4,10 +4,11 @@ import { Recurso } from '../types'
 
 interface RecursoNomeProps {
   recursoId: string
+  mostrarUnidade?: boolean
 }
 
-export default function RecursoNome({ recursoId }: RecursoNomeProps) {
-  const { data, isPending } = useQuery({
+export function useRecurso(recursoId: string) {
+  return useQuery({
     queryKey: ['recurso', recursoId],
     queryFn: async () => {
       const response = await api.get<Recurso>(`/v1/recursos/${recursoId}`)
@@ -16,23 +17,25 @@ export default function RecursoNome({ recursoId }: RecursoNomeProps) {
     staleTime: 5 * 60 * 1000,
     retry: false,
   })
+}
+
+export default function RecursoNome({ recursoId, mostrarUnidade = true }: RecursoNomeProps) {
+  const { data, isPending } = useRecurso(recursoId)
 
   if (isPending) {
     return <span className="text-gray-400 text-xs">carregando...</span>
   }
 
   if (!data) {
-    return (
-      <span className="font-mono text-xs text-gray-400" title={recursoId}>
-        {recursoId}
-      </span>
-    )
+    return <span className="text-gray-400 italic">Recurso não identificado</span>
   }
 
   return (
-    <span title={recursoId}>
-      {data.especialidade ? `${data.especialidade} — ${data.codigoRecurso}` : data.codigoRecurso}
-      {data.unidade && <span className="text-gray-400"> ({data.unidade})</span>}
+    <span>
+      <span className="font-medium text-gray-900">{data.codigoRecurso}</span>
+      {mostrarUnidade && data.unidade && (
+        <span className="block text-xs text-gray-500">{data.unidade}</span>
+      )}
     </span>
   )
 }
