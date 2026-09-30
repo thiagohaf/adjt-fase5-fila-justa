@@ -44,6 +44,11 @@ import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.amazon.awscdk.services.secretsmanager.SecretStringGenerator;
 import software.amazon.awscdk.services.servicediscovery.INamespace;
 import software.amazon.awscdk.services.sns.Topic;
+import software.amazon.awscdk.services.sns.FilterOrPolicy;
+import software.amazon.awscdk.services.sns.StringConditions;
+import software.amazon.awscdk.services.sns.SubscriptionFilter;
+import software.amazon.awscdk.services.sns.subscriptions.SqsSubscription;
+import software.amazon.awscdk.services.sns.subscriptions.SqsSubscriptionProps;
 import software.amazon.awscdk.services.sqs.DeadLetterQueue;
 import software.amazon.awscdk.services.sqs.Queue;
 import software.constructs.Construct;
@@ -93,12 +98,12 @@ import java.util.Map;
  * ({@code matching-alocacao-eventos.fifo}, relay outbox daquele servico) --
  * publish concedido a mesma {@code LiberacaoRepasseServiceTaskRole} acima
  * (nao cria outra role); nenhuma fila assinante ainda (fora de escopo,
- * Epic 4/auditoria-service assina depois). Story 3-4a2 acrescenta a fila SQS
- * STANDARD (nao FIFO) {@code liberacao-agendada} + DLQ
- * ({@code maxReceiveCount=5}) que {@code LiberacaoAgendadaRelayJob}
- * (liberacao-repasse-service) publica -- {@code grantSendMessages} concedido a
- * mesma {@code LiberacaoRepasseServiceTaskRole}; nenhum consumidor real ainda
- * (Story 3-4b, deferida).
+ * Epic 4/auditoria-service assina depois). Story 6.2 acrescenta a fila SQS FIFO
+ * {@code vaga-liberada-liberacao-repasse.fifo} + DLQ ({@code maxReceiveCount=5}),
+ * assinada no topico do agendamento-confirmacao-service, consumida por
+ * {@code VagaLiberadaSqsConsumerJob} -- {@code grantConsumeMessages} concedido a
+ * mesma {@code LiberacaoRepasseServiceTaskRole}. Substitui a fila legada
+ * {@code liberacao-agendada}, removida.
  */
 public class ConfirmaSusStack extends Stack {
 
@@ -284,13 +289,19 @@ public class ConfirmaSusStack extends Stack {
         Topic matchingAlocacaoEventosTopic = buildMatchingAlocacaoEventosTopic();
         matchingAlocacaoEventosTopic.grantPublish(liberacaoRepasseServiceTaskRole);
 
-        // --- Relay de publicacao da liberacao agendada (Story 3-4a2) -------
-        // Fila SQS standard (nao FIFO -- ordem entre Recursos nao importa,
-        // Boundaries da spec 3-4a2) + DLQ que LiberacaoAgendadaRelayJob
-        // publica; reusa a MESMA LiberacaoRepasseServiceTaskRole (nao cria
-        // outra), so acrescenta grantSendMessages.
-        Queue liberacaoAgendadaQueue = buildLiberacaoAgendadaQueue();
-        liberacaoAgendadaQueue.grantSendMessages(liberacaoRepasseServiceTaskRole);
+        // --- Fila de VagaLiberada (Story 6.2, AD-3/AD-6) -------------------
+        // FIFO + DLQ, assinada no topico do agendamento-confirmacao-service;
+        // consumida por VagaLiberadaSqsConsumerJob com a MESMA task role.
+        Queue vagaLiberadaQueue = buildVagaLiberadaQueue();
+        agendamentoConfirmacaoEventosTopic.addSubscription(new SqsSubscription(vagaLiberadaQueue, SqsSubscriptionProps.builder()
+                // Envelope {eventType,...} vai no corpo (nao em message attributes):
+                // filtra so VagaLiberada, os demais eventos do topico nao entram na fila.
+                .filterPolicyWithMessageBody(Map.of("eventType",
+                        FilterOrPolicy.filter(SubscriptionFilter.stringFilter(StringConditions.builder()
+                                .allowlist(List.of("VagaLiberada"))
+                                .build()))))
+                .build()));
+        vagaLiberadaQueue.grantConsumeMessages(liberacaoRepasseServiceTaskRole);
 
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
@@ -303,8 +314,8 @@ public class ConfirmaSusStack extends Stack {
         CfnOutput.Builder.create(this, "MatchingAlocacaoEventosTopicArn")
                 .value(matchingAlocacaoEventosTopic.getTopicArn())
                 .build();
-        CfnOutput.Builder.create(this, "LiberacaoAgendadaQueueUrl")
-                .value(liberacaoAgendadaQueue.getQueueUrl())
+        CfnOutput.Builder.create(this, "VagaLiberadaQueueUrl")
+                .value(vagaLiberadaQueue.getQueueUrl())
                 .build();
         CfnOutput.Builder.create(this, "AgendamentoConfirmacaoEventosTopicArn")
                 .value(agendamentoConfirmacaoEventosTopic.getTopicArn())
@@ -349,31 +360,24 @@ public class ConfirmaSusStack extends Stack {
                 .build();
     }
 
-    private Queue buildLiberacaoAgendadaQueue() {
-        // DLQ com maxReceiveCount=5 (mesma convencao das demais filas do
-        // projeto -- ver buildScoreCalculadoConsumerQueue). Standard (nao
-        // FIFO -- ordem entre Recursos diferentes nao importa aqui,
-        // Boundaries da spec 3-4a2): diferente das filas FIFO de
-        // ScoreCalculado/MatchingAlocacaoEventos, esta fila so carrega
-        // {alocacaoId, recursoId, correlationId} com DelaySeconds =
-        // liberacao.delaySegundos -- nenhum consumidor real ainda (Story
-        // 3-4b, deferida).
-        Queue dlq = Queue.Builder.create(this, "LiberacaoAgendadaDlq")
-                .queueName("liberacao-agendada-dlq")
+    private Queue buildVagaLiberadaQueue() {
+        // FIFO: a assinatura em topico SNS FIFO exige fila FIFO; ordem por
+        // Agendamento (MessageGroupId=agendamentoId). Deduplicacao vem do
+        // MessageDeduplicationId explicito do topico (contentBased=false).
+        // DLQ com maxReceiveCount=5 e visibilityTimeout 60s (convencao do projeto).
+        Queue dlq = Queue.Builder.create(this, "VagaLiberadaDlq")
+                .queueName("vaga-liberada-liberacao-repasse-dlq.fifo")
+                .fifo(true)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        return Queue.Builder.create(this, "LiberacaoAgendadaQueue")
-                .queueName("liberacao-agendada")
+        return Queue.Builder.create(this, "VagaLiberadaQueue")
+                .queueName("vaga-liberada-liberacao-repasse.fifo")
+                .fifo(true)
                 .deadLetterQueue(DeadLetterQueue.builder()
                         .queue(dlq)
                         .maxReceiveCount(5)
                         .build())
-                // 60s (nao o default do SQS, que e 30s) -- mesmo valor efetivo
-                // de buildScoreCalculadoConsumerQueue, so como referencia de
-                // comparacao: nenhum consumidor real ainda existe aqui (Story
-                // 3-4b, deferida), mas o valor fica consistente com as demais
-                // filas do projeto desde ja.
                 .visibilityTimeout(Duration.seconds(60))
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
