@@ -302,47 +302,41 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void liberacaoAgendadaQueueIsStandardWithDeadLetterQueue() {
-        // Story 3-4a2 (Code Map): fila SQS STANDARD (nao FIFO -- ordem entre
-        // Recursos diferentes nao importa) + DLQ com maxReceiveCount=5
-        // (mesma convencao das demais filas do projeto).
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada")));
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada-dlq")));
-
-        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "liberacao-agendada")))));
-        assertThat(filas).hasSize(1);
-        // Standard, nao FIFO (Boundaries da spec 3-4a2): findResources com
-        // este Match.objectLike NAO acharia a fila se o synth tivesse
-        // gerado FifoQueue=true, pois o nome logico das duas filas FIFO do
-        // projeto sempre carrega o sufixo ".fifo" -- aqui a QueueName real e
-        // exatamente "liberacao-agendada", sem sufixo.
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada",
-                "FifoQueue", Match.absent())));
-
+    void vagaLiberadaQueueIsFifoWithDeadLetterQueue() {
+        // Story 6.2: fila FIFO (exigida pela assinatura no topico FIFO) + DLQ
+        // FIFO com maxReceiveCount=5 e visibilityTimeout=60s.
         Map<String, Map<String, Object>> dlqs = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "liberacao-agendada-dlq")))));
+                        "QueueName", "vaga-liberada-liberacao-repasse-dlq.fifo",
+                        "FifoQueue", true)))));
         assertThat(dlqs).hasSize(1);
         String dlqLogicalId = dlqs.keySet().iterator().next();
 
         template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada",
+                "QueueName", "vaga-liberada-liberacao-repasse.fifo",
+                "FifoQueue", true,
+                "VisibilityTimeout", 60,
                 "RedrivePolicy", Match.objectLike(Map.of(
                         "deadLetterTargetArn", Match.objectLike(Map.of(
                                 "Fn::GetAtt", Match.arrayWith(java.util.List.of(dlqLogicalId, "Arn")))),
                         "maxReceiveCount", 5)))));
+    }
 
-        // Achado do code review: 60s (nao o default do SQS de 30s) -- trava
-        // regressao futura desse valor, mesma convencao de
-        // scoreCalculadoConsumerQueueIsFifoWithDeadLetterQueue.
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada",
-                "VisibilityTimeout", 60)));
+    @Test
+    void vagaLiberadaQueueIsSubscribedToAgendamentoConfirmacaoEventosTopic() {
+        // Envelope SNS mantido (sem RawMessageDelivery): o consumidor desembrulha.
+        template.hasResourceProperties("AWS::SNS::Subscription", Match.objectLike(Map.of(
+                "Protocol", "sqs",
+                "RawMessageDelivery", Match.absent(),
+                "FilterPolicyScope", "MessageBody",
+                "FilterPolicy", Map.of("eventType", java.util.List.of("VagaLiberada")))));
+        template.resourceCountIs("AWS::SNS::Subscription", 1);
+    }
+
+    @Test
+    void liberacaoAgendadaLegacyQueueWasRemoved() {
+        template.resourceCountIs("AWS::SQS::Queue", 2);
+        template.hasOutput("VagaLiberadaQueueUrl", Match.anyValue());
     }
 
     @Test
@@ -398,15 +392,10 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void liberacaoRepasseServiceTaskRoleCanSendMessagesToLiberacaoAgendadaQueue() {
-        // Deploy ECS do liberacao-repasse-service continua deferido -- mas a
-        // policy de publish na fila de liberacao agendada ja precisa existir
-        // (Code Map da spec 3-4a2), presa a MESMA LiberacaoRepasseServiceTaskRole
-        // ja usada pelo consumo/outbox acima (mesmo raciocinio dos testes
-        // analogos ja existentes).
+    void liberacaoRepasseServiceTaskRoleCanConsumeVagaLiberadaQueue() {
         Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "liberacao-agendada")))));
+                        "QueueName", "vaga-liberada-liberacao-repasse.fifo")))));
         assertThat(filas).hasSize(1);
         String filaLogicalId = filas.keySet().iterator().next();
 
@@ -420,7 +409,7 @@ class ConfirmaSusStackTest {
                 "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
                 "PolicyDocument", Match.objectLike(Map.of(
                         "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
-                                "Action", Match.arrayWith(java.util.List.of("sqs:SendMessage")),
+                                "Action", Match.arrayWith(java.util.List.of("sqs:ReceiveMessage")),
                                 "Effect", "Allow",
                                 "Resource", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(
                                         java.util.List.of(filaLogicalId, "Arn")))))))))))));
