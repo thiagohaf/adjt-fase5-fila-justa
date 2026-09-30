@@ -237,6 +237,20 @@ class SugestaoRepasseIntegrationTest {
     }
 
     @Test
+    void recusaSemContentTypeRecebe415ESemCorpoRecebe400Generico() throws Exception {
+        String path = "/v1/sugestoes-repasse/" + UUID.randomUUID() + "/recusa";
+        HttpResponse<String> semContentType = client.send(
+                HttpRequest.newBuilder().uri(URI.create("http://localhost:" + port + path))
+                        .POST(HttpRequest.BodyPublishers.ofString("{\"motivo\":\"x\"}")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(semContentType.statusCode()).isEqualTo(415);
+
+        HttpResponse<String> semCorpo = http("POST", path, null);
+        assertThat(semCorpo.statusCode()).isEqualTo(400);
+        assertThat(semCorpo.body()).doesNotContain("codigoRecurso");
+    }
+
+    @Test
     void recursoInexistenteEIdInvalidoNoGet() throws Exception {
         assertThat(http("GET", "/v1/recursos/" + UUID.randomUUID() + "/sugestao", null).statusCode()).isEqualTo(404);
         assertThat(http("GET", "/v1/recursos/abc/sugestao", null).statusCode()).isEqualTo(400);
