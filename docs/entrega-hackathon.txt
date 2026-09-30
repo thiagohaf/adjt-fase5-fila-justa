@@ -1,0 +1,22 @@
+HACKATHON FIAP POS-TECH - ARQUITETURA E DESENVOLVIMENTO JAVA - FASE 5
+Tema: Inovacao para otimizacao de atendimento no SUS
+Projeto: ConfirmaSUS
+Aluno: Thiago Henrique Alves Ferreira - RM369442 - Turma 11ADJT (entrega individual)
+
+LINK DO DRIVE (acesso publico) COM OS MATERIAIS:
+  [COLAR AQUI O LINK PUBLICO DO DRIVE]
+
+Conteudo esperado no drive:
+  1. Video do pitch (ate 8 min)
+  2. Video do MVP funcionando (ate 8 min)
+  3. Relatorio do projeto (relatorio-projeto.docx)
+
+REPOSITORIO DO CODIGO (publico):
+  https://github.com/thiagohaf/adjt-fase5-fila-justa
+
+DOCUMENTACAO NO REPOSITORIO:
+  README.md ........................ visao geral e como rodar
+  docs/relatorio-projeto.md ........ relatorio (mesmo conteudo do .docx)
+  docs/api/openapi.yaml ............ especificacao OpenAPI (Swagger UI em http://localhost:8088)
+  docs/api/confirmasus.postman_collection.json ... colecao Postman
+  _bmad-output/planning-artifacts .. brief, PRD, arquitetura e epicos (metodo BMAD)

@@ -145,6 +145,7 @@ docker-compose ps
 | Agendamento | 8082 | http://localhost:8082 | Agendamento/Confirmação (health: :8091/actuator/health) |
 | Liberação/Repasse | 8083 | http://localhost:8083 | Recursos/Lista de Espera/Repasse (health: :8092/actuator/health) |
 | Auditoria | 8085 | http://localhost:8085 | Auditoria (health: :8094/actuator/health) |
+| Swagger UI | 8088 | http://localhost:8088 | Documentação interativa da API (`docs/api/openapi.yaml`); requer login em `/v1/auth/login` + Authorize |
 | LocalStack | 4566 | http://localhost:4566 | SQS/SNS (AWS mock) |
 | PostgreSQL | 5432 | localhost:5432 | Database |
 
