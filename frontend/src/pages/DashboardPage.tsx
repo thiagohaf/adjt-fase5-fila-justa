@@ -1,25 +1,30 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import api from '../services/api'
 import { Agendamento } from '../types'
 import RecursoNome from '../components/RecursoNome'
+import SituacaoRepasse, { buscarSugestaoRecurso, sugestaoQueryKey } from '../components/SituacaoRepasse'
+import RepasseLink from '../components/RepasseLink'
 
-type StatusFiltro = 'TODOS' | Agendamento['status']
+type StatusExibido = Agendamento['status'] | 'REPASSADO'
+type StatusFiltro = 'TODOS' | StatusExibido
 
-const STATUS_LABELS: Record<Agendamento['status'], string> = {
+const STATUS_LABELS: Record<StatusExibido, string> = {
   AGUARDANDO_JANELA: 'Aguardando Janela',
   AGUARDANDO_CONFIRMACAO: 'Aguardando Confirmação',
   CONFIRMADO: 'Confirmado',
   LIBERADO: 'Liberado',
+  REPASSADO: 'Vaga repassada',
 }
 
-const STATUS_BADGE_CLASSES: Record<Agendamento['status'], string> = {
+const STATUS_BADGE_CLASSES: Record<StatusExibido, string> = {
   AGUARDANDO_JANELA: 'bg-gray-100 text-gray-800',
   AGUARDANDO_CONFIRMACAO: 'bg-yellow-100 text-yellow-800',
   CONFIRMADO: 'bg-green-100 text-green-800',
   LIBERADO: 'bg-red-100 text-red-800',
+  REPASSADO: 'bg-emerald-100 text-emerald-800',
 }
 
 export default function DashboardPage() {
@@ -35,18 +40,37 @@ export default function DashboardPage() {
     refetchInterval: 15000,
   })
 
-  const agendamentosAguardando = agendamentos.filter(a => a.status === 'AGUARDANDO_CONFIRMACAO').length
-  const agendamentosConfirmados = agendamentos.filter(a => a.status === 'CONFIRMADO').length
-  const agendamentosLiberados = agendamentos.filter(a => a.status === 'LIBERADO').length
+  // Vaga liberada cuja sugestão de repasse foi confirmada passa a "Vaga repassada"
+  const recursosLiberados = [
+    ...new Set(agendamentos.filter(a => a.status === 'LIBERADO').map(a => a.recursoId)),
+  ]
+  const sugestoes = useQueries({
+    queries: recursosLiberados.map(recursoId => ({
+      queryKey: sugestaoQueryKey(recursoId),
+      queryFn: () => buscarSugestaoRecurso(recursoId),
+      refetchInterval: 15000,
+    })),
+  })
+  const repassados = new Set(
+    recursosLiberados.filter((_, i) => sugestoes[i]?.data?.situacao === 'CONFIRMADA')
+  )
+  const statusExibido = (a: Agendamento): StatusExibido =>
+    a.status === 'LIBERADO' && repassados.has(a.recursoId) ? 'REPASSADO' : a.status
+
+  const agendamentosAguardando = agendamentos.filter(a => statusExibido(a) === 'AGUARDANDO_CONFIRMACAO').length
+  const agendamentosConfirmados = agendamentos.filter(a => statusExibido(a) === 'CONFIRMADO').length
+  const agendamentosLiberados = agendamentos.filter(a => statusExibido(a) === 'LIBERADO').length
+  const agendamentosRepassados = agendamentos.filter(a => statusExibido(a) === 'REPASSADO').length
 
   const agendamentosFiltrados = agendamentos
-    .filter(a => filtro === 'TODOS' || a.status === filtro)
+    .filter(a => filtro === 'TODOS' || statusExibido(a) === filtro)
     .sort((a, b) => b.id - a.id)
 
   const cards: { label: string; valor: number; status: StatusFiltro }[] = [
     { label: 'Aguardando Confirmação', valor: agendamentosAguardando, status: 'AGUARDANDO_CONFIRMACAO' },
     { label: 'Confirmados', valor: agendamentosConfirmados, status: 'CONFIRMADO' },
     { label: 'Liberados', valor: agendamentosLiberados, status: 'LIBERADO' },
+    { label: 'Vagas repassadas', valor: agendamentosRepassados, status: 'REPASSADO' },
     { label: 'Total', valor: agendamentos.length, status: 'TODOS' },
   ]
 
@@ -63,7 +87,7 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={logout}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition"
+                className="btn btn-danger"
               >
                 Sair
               </button>
@@ -91,7 +115,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 {cards.map(card => (
                   <button
                     key={card.label}
@@ -127,7 +151,7 @@ export default function DashboardPage() {
                       {agendamentosFiltrados.map(agendamento => (
                         <tr key={agendamento.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm text-gray-900 font-mono">{agendamento.id}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{agendamento.pacienteId}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">Paciente #{agendamento.pacienteId}</td>
                           <td className="px-4 py-3 text-sm text-gray-700 max-w-[16rem]">
                             <RecursoNome recursoId={agendamento.recursoId} />
                           </td>
@@ -135,31 +159,33 @@ export default function DashboardPage() {
                             {new Date(agendamento.dataHoraAgendamento).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE_CLASSES[agendamento.status]}`}>
-                              {STATUS_LABELS[agendamento.status]}
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE_CLASSES[statusExibido(agendamento)]}`}>
+                              {STATUS_LABELS[statusExibido(agendamento)]}
                             </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm space-x-3 whitespace-nowrap">
-                            <Link
-                              to={`/confirmacao/${agendamento.id}`}
-                              className="text-blue-600 hover:text-blue-800 font-medium"
-                            >
-                              Detalhes
-                            </Link>
-                            <Link
-                              to={`/auditoria/${agendamento.id}`}
-                              className="text-gray-600 hover:text-gray-900 font-medium"
-                            >
-                              Auditoria
-                            </Link>
-                            {agendamento.status === 'LIBERADO' && (
-                              <Link
-                                to={`/repasse/${agendamento.recursoId}`}
-                                className="text-purple-600 hover:text-purple-800 font-medium"
-                              >
-                                Repasse
-                              </Link>
+                            {statusExibido(agendamento) === 'LIBERADO' && (
+                              <div className="mt-1">
+                                <SituacaoRepasse recursoId={agendamento.recursoId} />
+                              </div>
                             )}
+                          </td>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Link to={`/confirmacao/${agendamento.id}`} className="btn btn-sm btn-primary">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7S2.5 12 2.5 12z M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                                </svg>
+                                Detalhes
+                              </Link>
+                              <Link to={`/auditoria/${agendamento.id}`} className="btn btn-sm btn-secondary">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v14l-3-2-2 2-2-2-2 2-2-2-3 2V6a2 2 0 012-2z" />
+                                </svg>
+                                Auditoria
+                              </Link>
+                              {statusExibido(agendamento) === 'LIBERADO' && (
+                                <RepasseLink recursoId={agendamento.recursoId} />
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

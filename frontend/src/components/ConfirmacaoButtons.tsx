@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Agendamento } from '../types'
-import api from '../services/api'
+import api, { mensagemDeErro } from '../services/api'
 
 interface ConfirmacaoBotoesProps {
   agendamento: Agendamento
@@ -27,11 +27,7 @@ export default function ConfirmacaoButtons({
       await api.post(`/v1/agendamentos/${agendamento.id}/confirmacao`)
       onConfirmacao()
     } catch (err) {
-      setErro(
-        err instanceof Error
-          ? err.message
-          : 'Erro ao confirmar presença. Tente novamente.'
-      )
+      setErro(mensagemDeErro(err, 'Erro ao confirmar presença. Tente novamente.'))
     } finally {
       setIsConfirmando(false)
     }
@@ -47,11 +43,7 @@ export default function ConfirmacaoButtons({
       await api.post(`/v1/agendamentos/${agendamento.id}/recusa`)
       onConfirmacao()
     } catch (err) {
-      setErro(
-        err instanceof Error
-          ? err.message
-          : 'Erro ao recusar agendamento. Tente novamente.'
-      )
+      setErro(mensagemDeErro(err, 'Erro ao recusar agendamento. Tente novamente.'))
     } finally {
       setIsRecusando(false)
     }
@@ -79,11 +71,7 @@ export default function ConfirmacaoButtons({
         <button
           onClick={handleConfirmar}
           disabled={isDisabled}
-          className={`px-8 py-3 rounded font-semibold transition-all flex items-center justify-center gap-2 ${
-            isDisabled
-              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-              : 'bg-green-600 hover:bg-green-700 text-white'
-          }`}
+          className="btn btn-lg btn-success"
         >
           {isConfirmando && (
             <svg
@@ -113,11 +101,7 @@ export default function ConfirmacaoButtons({
         <button
           onClick={handleRecusar}
           disabled={isDisabled}
-          className={`px-8 py-3 rounded font-semibold transition-all flex items-center justify-center gap-2 ${
-            isDisabled
-              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-              : 'bg-red-600 hover:bg-red-700 text-white'
-          }`}
+          className="btn btn-lg btn-danger"
         >
           {isRecusando && (
             <svg

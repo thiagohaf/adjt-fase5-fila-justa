@@ -9,9 +9,10 @@ import java.util.UUID;
  * sugestaoId}/{@code pacienteId} vêm {@code null} quando não há Sugestão de
  * Repasse pendente para o Recurso.
  */
-record SugestaoRecursoResponse(UUID recursoId, UUID sugestaoId, Long pacienteId) {
+record SugestaoRecursoResponse(UUID recursoId, UUID sugestaoId, Long pacienteId, String situacao) {
 
     static SugestaoRecursoResponse de(ConsultarSugestaoRecurso.Resultado resultado) {
-        return new SugestaoRecursoResponse(resultado.recursoId(), resultado.sugestaoId(), resultado.pacienteId());
+        return new SugestaoRecursoResponse(resultado.recursoId(), resultado.sugestaoId(), resultado.pacienteId(),
+                resultado.situacao());
     }
 }

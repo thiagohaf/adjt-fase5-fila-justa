@@ -46,4 +46,9 @@ interface SugestaoRepasseJpaRepository extends JpaRepository<SugestaoRepasseJpaE
             + "WHERE recurso_id = :recursoId AND status = 'PENDENTE' "
             + "ORDER BY criado_em DESC LIMIT 1", nativeQuery = true)
     List<SugestaoRepasseJpaEntity> pendentesPorRecurso(@Param("recursoId") UUID recursoId);
+
+    @Query(value = "SELECT * FROM matching_alocacao.sugestao_repasse "
+            + "WHERE recurso_id = :recursoId "
+            + "ORDER BY criado_em DESC LIMIT 1", nativeQuery = true)
+    List<SugestaoRepasseJpaEntity> maisRecentePorRecurso(@Param("recursoId") UUID recursoId);
 }

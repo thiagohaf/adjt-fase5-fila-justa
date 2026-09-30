@@ -136,7 +136,9 @@ services:
       AWS_SQS_ENDPOINT: http://localstack:4566
       AWS_SNS_ENDPOINT: http://localstack:4566
       CONFIRMASUS_MATCHING_RELAY_ENABLED: "false"
-      CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENABLED: "false"
+      CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENABLED: "true"
+      CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN: arn:aws:sns:us-east-1:000000000000:matching-alocacao-eventos.fifo
+      CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENDPOINT_OVERRIDE: http://localstack:4566
       CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENABLED: "true"
       CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_QUEUE_URL: http://localstack:4566/000000000000/vaga-liberada-liberacao-repasse.fifo
       CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENDPOINT_OVERRIDE: http://localstack:4566
@@ -211,7 +213,9 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       AWS_SQS_ENDPOINT: http://localstack:4566
       AWS_SNS_ENDPOINT: http://localstack:4566
-      AUDITORIA_RELAY_ENABLED: "false"
+      AUDITORIA_RELAY_ENABLED: "true"
+      AUDITORIA_QUEUE_URL: http://localstack:4566/000000000000/auditoria-decisoes.fifo
+      AUDITORIA_ENDPOINT_OVERRIDE: http://localstack:4566
     ports:
       - "8085:8085"
       - "8094:8094"

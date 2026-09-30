@@ -51,4 +51,11 @@ class SugestaoRepasseRepositorioAdapter implements SugestaoRepasseRepositorio, S
         return jpaRepository.pendentesPorRecurso(recursoId).stream().findFirst()
                 .map(SugestaoRepasseJpaEntity::paraDominio);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SugestaoRepasse> buscarMaisRecentePorRecurso(UUID recursoId) {
+        return jpaRepository.maisRecentePorRecurso(recursoId).stream().findFirst()
+                .map(SugestaoRepasseJpaEntity::paraDominio);
+    }
 }
