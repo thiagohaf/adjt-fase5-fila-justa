@@ -1,27 +1,30 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import api from '../services/api'
 import { Agendamento } from '../types'
 import RecursoNome from '../components/RecursoNome'
-import SituacaoRepasse from '../components/SituacaoRepasse'
+import SituacaoRepasse, { buscarSugestaoRecurso, sugestaoQueryKey } from '../components/SituacaoRepasse'
 import RepasseLink from '../components/RepasseLink'
 
-type StatusFiltro = 'TODOS' | Agendamento['status']
+type StatusExibido = Agendamento['status'] | 'REPASSADO'
+type StatusFiltro = 'TODOS' | StatusExibido
 
-const STATUS_LABELS: Record<Agendamento['status'], string> = {
+const STATUS_LABELS: Record<StatusExibido, string> = {
   AGUARDANDO_JANELA: 'Aguardando Janela',
   AGUARDANDO_CONFIRMACAO: 'Aguardando Confirmação',
   CONFIRMADO: 'Confirmado',
   LIBERADO: 'Liberado',
+  REPASSADO: 'Vaga repassada',
 }
 
-const STATUS_BADGE_CLASSES: Record<Agendamento['status'], string> = {
+const STATUS_BADGE_CLASSES: Record<StatusExibido, string> = {
   AGUARDANDO_JANELA: 'bg-gray-100 text-gray-800',
   AGUARDANDO_CONFIRMACAO: 'bg-yellow-100 text-yellow-800',
   CONFIRMADO: 'bg-green-100 text-green-800',
   LIBERADO: 'bg-red-100 text-red-800',
+  REPASSADO: 'bg-emerald-100 text-emerald-800',
 }
 
 export default function DashboardPage() {
@@ -37,18 +40,37 @@ export default function DashboardPage() {
     refetchInterval: 15000,
   })
 
-  const agendamentosAguardando = agendamentos.filter(a => a.status === 'AGUARDANDO_CONFIRMACAO').length
-  const agendamentosConfirmados = agendamentos.filter(a => a.status === 'CONFIRMADO').length
-  const agendamentosLiberados = agendamentos.filter(a => a.status === 'LIBERADO').length
+  // Vaga liberada cuja sugestão de repasse foi confirmada passa a "Vaga repassada"
+  const recursosLiberados = [
+    ...new Set(agendamentos.filter(a => a.status === 'LIBERADO').map(a => a.recursoId)),
+  ]
+  const sugestoes = useQueries({
+    queries: recursosLiberados.map(recursoId => ({
+      queryKey: sugestaoQueryKey(recursoId),
+      queryFn: () => buscarSugestaoRecurso(recursoId),
+      refetchInterval: 15000,
+    })),
+  })
+  const repassados = new Set(
+    recursosLiberados.filter((_, i) => sugestoes[i]?.data?.situacao === 'CONFIRMADA')
+  )
+  const statusExibido = (a: Agendamento): StatusExibido =>
+    a.status === 'LIBERADO' && repassados.has(a.recursoId) ? 'REPASSADO' : a.status
+
+  const agendamentosAguardando = agendamentos.filter(a => statusExibido(a) === 'AGUARDANDO_CONFIRMACAO').length
+  const agendamentosConfirmados = agendamentos.filter(a => statusExibido(a) === 'CONFIRMADO').length
+  const agendamentosLiberados = agendamentos.filter(a => statusExibido(a) === 'LIBERADO').length
+  const agendamentosRepassados = agendamentos.filter(a => statusExibido(a) === 'REPASSADO').length
 
   const agendamentosFiltrados = agendamentos
-    .filter(a => filtro === 'TODOS' || a.status === filtro)
+    .filter(a => filtro === 'TODOS' || statusExibido(a) === filtro)
     .sort((a, b) => b.id - a.id)
 
   const cards: { label: string; valor: number; status: StatusFiltro }[] = [
     { label: 'Aguardando Confirmação', valor: agendamentosAguardando, status: 'AGUARDANDO_CONFIRMACAO' },
     { label: 'Confirmados', valor: agendamentosConfirmados, status: 'CONFIRMADO' },
     { label: 'Liberados', valor: agendamentosLiberados, status: 'LIBERADO' },
+    { label: 'Vagas repassadas', valor: agendamentosRepassados, status: 'REPASSADO' },
     { label: 'Total', valor: agendamentos.length, status: 'TODOS' },
   ]
 
@@ -93,7 +115,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 {cards.map(card => (
                   <button
                     key={card.label}
@@ -137,10 +159,10 @@ export default function DashboardPage() {
                             {new Date(agendamento.dataHoraAgendamento).toLocaleString('pt-BR')}
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE_CLASSES[agendamento.status]}`}>
-                              {STATUS_LABELS[agendamento.status]}
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE_CLASSES[statusExibido(agendamento)]}`}>
+                              {STATUS_LABELS[statusExibido(agendamento)]}
                             </span>
-                            {agendamento.status === 'LIBERADO' && (
+                            {statusExibido(agendamento) === 'LIBERADO' && (
                               <div className="mt-1">
                                 <SituacaoRepasse recursoId={agendamento.recursoId} />
                               </div>
@@ -160,7 +182,7 @@ export default function DashboardPage() {
                                 </svg>
                                 Auditoria
                               </Link>
-                              {agendamento.status === 'LIBERADO' && (
+                              {statusExibido(agendamento) === 'LIBERADO' && (
                                 <RepasseLink recursoId={agendamento.recursoId} />
                               )}
                             </div>

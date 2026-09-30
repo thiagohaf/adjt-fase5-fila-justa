@@ -31,6 +31,8 @@ RECURSOS = [  # (codigoRecurso, rank, especialidade, unidade)
     ("Consulta Neurologia", 3, "Neurologia", "Policlínica Norte"),
     ("Eletrocardiograma", 1, "Cardiologia", "UBS Jardim das Flores"),
     ("Consulta Urologia", 2, "Urologia", "Policlínica Norte"),
+    ("Consulta Endocrinologia", 1, "Endocrinologia", "UBS Vila Nova"),
+    ("Raio-X de Tórax", 1, "Radiologia", "UBS Jardim das Flores"),
 ]
 
 PACIENTES = [
@@ -44,15 +46,20 @@ PACIENTES = [
 # (paciente, recurso, destino) -- destino: JANELA | ABERTO | CONFIRMADO | RECUSA | EXPIRA
 AGENDAMENTOS = [
     (0, 0, "CONFIRMADO"), (1, 1, "CONFIRMADO"), (2, 2, "CONFIRMADO"),
-    (3, 3, "CONFIRMADO"),
-    (4, 4, "RECUSA"), (5, 5, "RECUSA"), (6, 6, "RECUSA"),
-    (7, 7, "EXPIRA"), (8, 8, "EXPIRA"),
+    (3, 3, "RECUSA"), (4, 4, "RECUSA"), (5, 5, "RECUSA"), (6, 6, "RECUSA"),
+    (7, 7, "EXPIRA"), (8, 8, "EXPIRA"), (12, 10, "RECUSA"),
     (9, 9, "ABERTO"), (10, 0, "ABERTO"), (11, 1, "ABERTO"),
-    (12, 2, "JANELA"), (13, 3, "JANELA"),
+    (13, 2, "JANELA"), (13, 11, "JANELA"),
 ]
 
 # recurso liberado -> pacientes na fila de espera (ordem de chegada)
-FILA = {4: [0, 1], 5: [2, 3], 6: [7, 9], 7: [4, 10], 8: [5, 11]}
+FILA = {3: [10, 11], 4: [0, 1], 5: [2, 3], 6: [7, 9], 7: [4, 10], 10: [8]}
+# o recurso 8 fica sem fila -> sugestao ESGOTADA ("sem candidatos")
+
+# Desfechos de repasse depois que as sugestoes existem:
+REPASSAR = [4, 5]        # confirma a sugestao -> "Vaga repassada"
+RECUSAR_UMA = [6]        # recusa 1x -> proximo da fila vira sugestao pendente
+RECUSAR_TODOS = [3]      # recusa ate acabar a fila -> "Sem candidatos"
 
 
 def cpf_valido(n: int) -> str:
@@ -96,7 +103,7 @@ def aguardar(descricao, condicao, tentativas=40, intervalo=3):
 
 
 def main():
-    print("1/6 zerando dados de negocio")
+    print("1/7 zerando dados de negocio")
     for fila in ("auditoria-decisoes.fifo", "vaga-liberada-liberacao-repasse.fifo"):
         subprocess.run(
             ["docker", "compose", "exec", "-T", "localstack", "awslocal", "sqs", "purge-queue",
@@ -112,7 +119,7 @@ def main():
     token = http("POST", "/v1/auth/login",
                  {"username": "admin-tecnico", "password": "senha-tecnica-segura"})["token"]
 
-    print("2/6 recursos")
+    print("2/7 recursos")
     recurso_ids = []
     for codigo, rank, esp, unidade in RECURSOS:
         r = http("POST", "/v1/recursos", {"codigoRecurso": codigo, "especificidadeRank": rank,
@@ -123,7 +130,7 @@ def main():
     cpfs = [cpf_valido(i + 3) for i in range(len(PACIENTES))]
     agora = datetime.now(timezone.utc)
 
-    print("3/6 agendamentos e fila de espera")
+    print("3/7 agendamentos e fila de espera")
     ag_ids = []
     for i, (p, r, _) in enumerate(AGENDAMENTOS):
         quando = (agora + timedelta(days=3 + i, hours=8 + i % 6)).replace(minute=0, second=0, microsecond=0)
@@ -138,7 +145,7 @@ def main():
         sql(f"UPDATE agendamento_confirmacao.pacientes SET nome='{nome}' WHERE cpf='{cpfs[p]}'")
     ag_ids = [int(x) for x in sql("SELECT id FROM agendamento_confirmacao.agendamentos ORDER BY id").split()]
 
-    print("4/6 abrindo janelas de confirmacao")
+    print("4/7 abrindo janelas de confirmacao")
     abrir = [ag_ids[i] for i, (_, _, d) in enumerate(AGENDAMENTOS) if d != "JANELA"]
     lista = ",".join(map(str, abrir))
     sql(f"UPDATE agendamento_confirmacao.agendamentos SET janela_abre_em = now() - interval '2 hours'"
@@ -147,7 +154,7 @@ def main():
         f"SELECT count(*) FROM agendamento_confirmacao.agendamentos WHERE id IN ({lista})"
         f" AND status='AGUARDANDO_CONFIRMACAO'") == str(len(abrir)))
 
-    print("5/6 confirmando, recusando e expirando")
+    print("5/7 confirmando, recusando e expirando")
     expirar = []
     for i, (_, _, destino) in enumerate(AGENDAMENTOS):
         ag = ag_ids[i]
@@ -160,13 +167,28 @@ def main():
     if expirar:
         sql(f"UPDATE agendamento_confirmacao.agendamentos SET janela_expira_em = now() - interval '1 minute'"
             f" WHERE id IN ({','.join(map(str, expirar))})")
-    liberados = len(FILA)
+    liberados = sum(1 for _, _, d in AGENDAMENTOS if d in ("RECUSA", "EXPIRA"))
     aguardar("vagas liberadas", lambda: sql(
         "SELECT count(*) FROM agendamento_confirmacao.agendamentos WHERE status='LIBERADO'") == str(liberados))
 
-    print("6/6 aguardando sugestoes e auditoria")
+    print("6/7 aguardando sugestoes e auditoria")
     aguardar("sugestoes pendentes", lambda: sql(
         "SELECT count(*) FROM matching_alocacao.sugestao_repasse") == str(liberados), tentativas=40)
+    print("7/7 desfechos de repasse")
+    for r in REPASSAR:
+        sug = http("GET", f"/v1/recursos/{recurso_ids[r]}/sugestao", token=token)
+        http("POST", f"/v1/sugestoes-repasse/{sug['sugestaoId']}/confirmacao", token=token)
+    for r in RECUSAR_UMA:
+        sug = http("GET", f"/v1/recursos/{recurso_ids[r]}/sugestao", token=token)
+        http("POST", f"/v1/sugestoes-repasse/{sug['sugestaoId']}/recusa",
+             {"motivo": "Paciente informou indisponibilidade na data"}, token)
+    for r in RECUSAR_TODOS:
+        for _ in range(len(FILA[r])):
+            sug = http("GET", f"/v1/recursos/{recurso_ids[r]}/sugestao", token=token)
+            if not sug["sugestaoId"]:
+                break
+            http("POST", f"/v1/sugestoes-repasse/{sug['sugestaoId']}/recusa",
+                 {"motivo": "Paciente já foi atendido em outra unidade"}, token)
     aguardar("eventos na auditoria", lambda: int(sql("SELECT count(*) FROM auditoria.decisao_auditoria")) >= 20,
              tentativas=40)
     print("OK -- http://localhost:3000 (admin-tecnico / senha-tecnica-segura)")
