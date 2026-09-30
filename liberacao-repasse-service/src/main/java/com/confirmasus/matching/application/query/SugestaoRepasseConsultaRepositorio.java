@@ -10,4 +10,7 @@ public interface SugestaoRepasseConsultaRepositorio {
 
     /** Sugestão {@code PENDENTE} mais recente do Recurso; vazio quando não há. */
     Optional<SugestaoRepasse> buscarPendentePorRecurso(UUID recursoId);
+
+    /** Sugestão mais recente do Recurso em qualquer status; vazio quando nunca houve. */
+    Optional<SugestaoRepasse> buscarMaisRecentePorRecurso(UUID recursoId);
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { mensagemDeErro } from '../services/api'
 import RecusarSugestaoModal from '../components/RecusarSugestaoModal'
 import Toast from '../components/Toast'
@@ -15,6 +15,7 @@ interface SugestaoRecursoResponse {
 export default function RepassePage() {
   const { recursoId } = useParams<{ recursoId: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isConfirmingRepasse, setIsConfirmingRepasse] = useState(false)
@@ -46,6 +47,8 @@ export default function RepassePage() {
 
     try {
       await api.post(`/v1/sugestoes-repasse/${sugestao.sugestaoId}/confirmacao`)
+      await queryClient.invalidateQueries({ queryKey: ['sugestao'] })
+      await queryClient.invalidateQueries({ queryKey: ['agendamentos'] })
       setSuccessMessage('Repasse confirmado com sucesso!')
       setShowSuccessToast(true)
       setTimeout(() => {
@@ -67,6 +70,8 @@ export default function RepassePage() {
       await api.post(`/v1/sugestoes-repasse/${sugestao.sugestaoId}/recusa`, {
         motivo,
       })
+      await queryClient.invalidateQueries({ queryKey: ['sugestao'] })
+      await queryClient.invalidateQueries({ queryKey: ['agendamentos'] })
       setIsModalOpen(false)
       setSuccessMessage('Sugestão recusada com sucesso!')
       setShowSuccessToast(true)

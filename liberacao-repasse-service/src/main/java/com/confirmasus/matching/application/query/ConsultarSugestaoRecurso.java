@@ -26,11 +26,17 @@ public class ConsultarSugestaoRecurso {
         recursoConsultaRepositorio.buscarPorId(recursoId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException(recursoId));
         return sugestaoConsultaRepositorio.buscarPendentePorRecurso(recursoId)
-                .map(s -> new Resultado(recursoId, s.getSugestaoId(), s.getPacienteId()))
-                .orElseGet(() -> new Resultado(recursoId, null, null));
+                .map(s -> new Resultado(recursoId, s.getSugestaoId(), s.getPacienteId(), s.getStatus()))
+                .orElseGet(() -> new Resultado(recursoId, null, null,
+                        sugestaoConsultaRepositorio.buscarMaisRecentePorRecurso(recursoId)
+                                .map(SugestaoRepasse::getStatus).orElse(null)));
     }
 
-    /** {@code sugestaoId}/{@code pacienteId} {@code null} = sem sugestão pendente, nunca um erro. */
-    public record Resultado(UUID recursoId, UUID sugestaoId, Long pacienteId) {
+    /**
+     * {@code sugestaoId}/{@code pacienteId} {@code null} = sem sugestão pendente, nunca um erro.
+     * {@code situacao} é o status da sugestão mais recente do Recurso ({@code PENDENTE},
+     * {@code CONFIRMADA}, {@code ESGOTADA}) ou {@code null} se nunca houve.
+     */
+    public record Resultado(UUID recursoId, UUID sugestaoId, Long pacienteId, String situacao) {
     }
 }

@@ -5,6 +5,8 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { Agendamento } from '../types'
 import RecursoNome from '../components/RecursoNome'
+import SituacaoRepasse from '../components/SituacaoRepasse'
+import RepasseLink from '../components/RepasseLink'
 
 type StatusFiltro = 'TODOS' | Agendamento['status']
 
@@ -138,6 +140,11 @@ export default function DashboardPage() {
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE_CLASSES[agendamento.status]}`}>
                               {STATUS_LABELS[agendamento.status]}
                             </span>
+                            {agendamento.status === 'LIBERADO' && (
+                              <div className="mt-1">
+                                <SituacaoRepasse recursoId={agendamento.recursoId} />
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-sm whitespace-nowrap">
                             <div className="flex items-center gap-2">
@@ -154,12 +161,7 @@ export default function DashboardPage() {
                                 Auditoria
                               </Link>
                               {agendamento.status === 'LIBERADO' && (
-                                <Link to={`/repasse/${agendamento.recursoId}`} className="btn btn-sm btn-accent">
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h11m0 0l-3-3m3 3l-3 3M17 17H6m0 0l3-3m-3 3l3 3" />
-                                  </svg>
-                                  Repasse
-                                </Link>
+                                <RepasseLink recursoId={agendamento.recursoId} />
                               )}
                             </div>
                           </td>
