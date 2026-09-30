@@ -85,7 +85,7 @@ confirmasus:
     secret: ${CONFIRMASUS_JWT_SECRET}
   # Origens permitidas pelo CorsWebFilter (Swagger UI local, docker-compose).
   cors:
-    allowed-origins: ${CONFIRMASUS_CORS_ORIGINS:http://localhost:8088}
+    allowed-origins: ${CONFIRMASUS_CORS_ORIGINS:http://localhost:8088,http://localhost:3000}
 
 management:
   endpoints:

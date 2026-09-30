@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * CORS para o Swagger UI local (docker-compose, porta 8088). Um {@link CorsWebFilter}
+ * CORS para o Swagger UI (porta 8088) e o frontend (porta 3000), ambos locais. Um {@link CorsWebFilter}
  * responde o preflight ({@code OPTIONS}) antes do roteamento -- necessario porque as
  * rotas usam o predicate {@code Method=POST}/{@code GET}, que nao casa com {@code OPTIONS}.
  * Origens configuraveis por {@code confirmasus.cors.allowed-origins} (lista separada por virgula).
@@ -23,7 +23,7 @@ public class CorsConfig {
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public CorsWebFilter corsWebFilter(@Value("${confirmasus.cors.allowed-origins:http://localhost:8088}")
+    public CorsWebFilter corsWebFilter(@Value("${confirmasus.cors.allowed-origins:http://localhost:8088,http://localhost:3000}")
                                        String allowedOrigins) {
         List<String> origens = Arrays.stream(allowedOrigins.split(",")).map(String::trim)
                 .filter(o -> !o.isEmpty()).toList();

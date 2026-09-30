@@ -36,6 +36,16 @@ class CorsConfigTest {
     }
 
     @Test
+    void origemDoFrontendLocalTambemEPermitida() {
+        client().options().uri("/v1/auth/login")
+                .header("Origin", "http://localhost:3000")
+                .header("Access-Control-Request-Method", "POST")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().valueEquals("Access-Control-Allow-Origin", "http://localhost:3000");
+    }
+
+    @Test
     void preflightDeOrigemNaoPermitidaNaoRecebeCabecalhosCors() {
         client().options().uri("/v1/agendamentos")
                 .header("Origin", "http://evil.example")
