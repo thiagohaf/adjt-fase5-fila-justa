@@ -11,6 +11,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -87,9 +88,20 @@ class RecursosExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ProblemDetail handleCorpoIlegivel(HttpMessageNotReadableException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST, "Corpo da requisicao ausente ou ilegivel: "
-                        + "esperado JSON com codigoRecurso, especificidadeRank e disponivel");
+                HttpStatus.BAD_REQUEST, "Corpo da requisicao ausente ou ilegivel: esperado JSON valido");
         problem.setTitle("Requisicao invalida");
+        return problem;
+    }
+
+    /**
+     * Requisição com corpo sem {@code Content-Type} JSON -- {@code 415} em vez
+     * do fallback genérico {@code 500} (Story 6.5).
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    ProblemDetail handleContentTypeNaoSuportado(HttpMediaTypeNotSupportedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Content-Type nao suportado: esperado application/json");
+        problem.setTitle("Tipo de midia nao suportado");
         return problem;
     }
 
