@@ -58,3 +58,6 @@ package-lock.json
 cypress/videos/
 cypress/screenshots/
 .cypress/
+
+# Videos da entrega ficam no drive (GitHub recusa arquivos > 100 MB)
+docs/*.mp4

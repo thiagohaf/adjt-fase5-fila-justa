@@ -173,7 +173,7 @@ graph TB
 - **Especificações das stories, retrospectivas e itens adiados:** `_bmad-output/implementation-artifacts/`
 - **Pesquisa e fontes sobre absenteísmo:** `_bmad-output/planning-artifacts/briefs/brief-Fase5-2026-09-16/addendum.md`
 - **Enunciado do hackathon:** `docs/Hackaton-9ADJT.pdf`
-- **Links do drive com os vídeos:** [PREENCHER após o upload — vídeo do pitch e vídeo do MVP]
+- **Vídeos (pitch e MVP funcionando) e relatório:** https://drive.google.com/drive/folders/1Qwuls_wKPDD7x-JDzFxxjAIEbfas1GZY?usp=drive_link
 
 ## 7. Aprendizados e próximos passos
 
