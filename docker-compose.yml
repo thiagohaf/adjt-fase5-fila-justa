@@ -223,6 +223,21 @@ services:
       - confirmasus-network
     restart: unless-stopped
 
+  # Swagger UI -- documentacao interativa da API (docs/api/openapi.yaml)
+  # http://localhost:8088 -- fazer login em POST /v1/auth/login e usar "Authorize"
+  swagger-ui:
+    image: swaggerapi/swagger-ui:v5.17.14
+    container_name: confirmasus-swagger-ui
+    environment:
+      SWAGGER_JSON: /spec/openapi.yaml
+    volumes:
+      - ./docs/api/openapi.yaml:/spec/openapi.yaml:ro
+    ports:
+      - "8088:8080"
+    networks:
+      - confirmasus-network
+    restart: unless-stopped
+
   # Seed Adapter (runs once to load seed data)
   # TODO: seed-adapter é um CLI Java standalone (Apache HttpClient5 + fat JAR via shade-plugin;
   # não é Quarkus nem Spring Boot, e não está no pom.xml reactor)

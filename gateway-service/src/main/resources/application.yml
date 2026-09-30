@@ -83,6 +83,9 @@ spring:
 confirmasus:
   jwt:
     secret: ${CONFIRMASUS_JWT_SECRET}
+  # Origens permitidas pelo CorsWebFilter (Swagger UI local, docker-compose).
+  cors:
+    allowed-origins: ${CONFIRMASUS_CORS_ORIGINS:http://localhost:8088}
 
 management:
   endpoints:

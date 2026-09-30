@@ -1,0 +1,675 @@
+openapi: 3.0.3
+info:
+  title: ConfirmaSUS API
+  version: 1.0.0
+  description: |
+    API do ConfirmaSUS, acessada **sempre pelo gateway** (`gateway-service`, porta 8080), que valida o JWT.
+
+    Ciclo: agendamento → janela de confirmação → confirmação/recusa (ou expiração) → vaga liberada →
+    sugestão de repasse (Lista de Espera FIFO) → decisão do gestor → log auditável.
+
+    **Como usar no Swagger UI:** execute `POST /v1/auth/login`, copie o `token` e clique em **Authorize**.
+    Usuário de demonstração (local): `admin-tecnico` / `senha-tecnica-segura`.
+
+    Erros seguem RFC 7807 (Problem Details). Nenhuma decisão clínica é automatizada: a Lista de Espera é
+    ordenada apenas por ordem de chegada.
+servers:
+  - url: http://localhost:8080
+    description: Gateway local (docker-compose)
+tags:
+  - name: Autenticação
+  - name: Agendamentos
+    description: Ciclo de confirmação de presença (agendamento-confirmacao-service)
+  - name: Recursos e Repasse
+    description: Catálogo de recursos, Lista de Espera e Sugestão de Repasse (liberacao-repasse-service)
+  - name: Auditoria
+    description: Log auditável append-only (auditoria-service)
+  - name: Saúde
+security:
+  - bearerAuth: []
+paths:
+  /actuator/health:
+    get:
+      tags: [Saúde]
+      summary: Health-check público do gateway
+      security: []
+      responses:
+        '200':
+          description: Gateway saudável
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+  /v1/auth/login:
+    post:
+      tags: [Autenticação]
+      summary: Autentica e devolve um JWT (HS256)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Token emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /v1/agendamentos:
+    post:
+      tags: [Agendamentos]
+      summary: Registra um agendamento (resolve/cria o paciente por CPF)
+      description: Cria o agendamento em `AGUARDANDO_JANELA`. O CPF é validado (formato e dígitos verificadores).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarAgendamentoRequest'
+      responses:
+        '201':
+          description: Agendamento criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agendamento'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    get:
+      tags: [Agendamentos]
+      summary: Lista os agendamentos
+      responses:
+        '200':
+          description: Lista de agendamentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agendamento'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /v1/agendamentos/{id}:
+    get:
+      tags: [Agendamentos]
+      summary: Consulta um agendamento
+      parameters:
+        - $ref: '#/components/parameters/AgendamentoId'
+      responses:
+        '200':
+          description: Agendamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agendamento'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/agendamentos/{id}/confirmacao:
+    post:
+      tags: [Agendamentos]
+      summary: Confirma a presença
+      description: |
+        Só vale com o agendamento em `AGUARDANDO_CONFIRMACAO`. É **idempotente**: confirmar de novo um agendamento
+        já `CONFIRMADO` responde 200 sem novo registro.
+      parameters:
+        - $ref: '#/components/parameters/AgendamentoId'
+      responses:
+        '200':
+          description: Presença confirmada
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/agendamentos/{id}/recusa:
+    post:
+      tags: [Agendamentos]
+      summary: Recusa a presença e libera a vaga
+      description: Transiciona `AGUARDANDO_CONFIRMACAO` → `LIBERADO` com `motivoLiberacao = RECUSA`.
+      parameters:
+        - $ref: '#/components/parameters/AgendamentoId'
+      responses:
+        '200':
+          description: Vaga liberada
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/recursos:
+    post:
+      tags: [Recursos e Repasse]
+      summary: Cria ou atualiza (upsert) um recurso do catálogo
+      description: Idempotente por `codigoRecurso`. Responde 201 na criação e 200 na atualização.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertRecursoRequest'
+      responses:
+        '200':
+          description: Recurso atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recurso'
+        '201':
+          description: Recurso criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recurso'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /v1/recursos/{id}:
+    get:
+      tags: [Recursos e Repasse]
+      summary: Consulta um recurso
+      parameters:
+        - $ref: '#/components/parameters/RecursoId'
+      responses:
+        '200':
+          description: Recurso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recurso'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/recursos/{id}/sugestao:
+    get:
+      tags: [Recursos e Repasse]
+      summary: Consulta a Sugestão de Repasse vigente do recurso
+      description: |
+        Devolve o próximo paciente da Lista de Espera (ordem de chegada) para a vaga liberada.
+        Sem sugestão, `sugestaoId` e `pacienteId` vêm nulos.
+      parameters:
+        - $ref: '#/components/parameters/RecursoId'
+      responses:
+        '200':
+          description: Sugestão vigente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SugestaoRecurso'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /v1/lista-espera:
+    post:
+      tags: [Recursos e Repasse]
+      summary: Registra uma entrada na Lista de Espera de um recurso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListaEsperaRequest'
+      responses:
+        '201':
+          description: Entrada criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaEsperaResponse'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /v1/sugestoes-repasse/{id}/confirmacao:
+    post:
+      tags: [Recursos e Repasse]
+      summary: Gestor confirma a sugestão (repasse definitivo)
+      description: Sugestão já decidida responde 409.
+      parameters:
+        - $ref: '#/components/parameters/SugestaoId'
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '201':
+          description: Repasse confirmado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepasseConfirmado'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/sugestoes-repasse/{id}/recusa:
+    post:
+      tags: [Recursos e Repasse]
+      summary: Gestor recusa a sugestão; o sistema gera a próxima
+      description: O paciente recusado é pulado e a próxima sugestão aponta para o seguinte da fila.
+      parameters:
+        - $ref: '#/components/parameters/SugestaoId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecusarSugestaoRequest'
+      responses:
+        '200':
+          description: Sugestão recusada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecusarSugestaoResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /v1/auditoria/agendamento/{agendamentoId}:
+    get:
+      tags: [Auditoria]
+      summary: Histórico auditável de um agendamento
+      description: Sem filtros devolve um array; com qualquer filtro/paginação devolve o objeto paginado.
+      parameters:
+        - name: agendamentoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Valor do campo `id` do agendamento
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - $ref: '#/components/parameters/TipoDecisao'
+        - $ref: '#/components/parameters/StatusAgendamento'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          $ref: '#/components/responses/Auditoria'
+        '401':
+          $ref: '#/components/responses/Problem'
+  /v1/auditoria/paciente/{pacienteId}:
+    get:
+      tags: [Auditoria]
+      summary: Histórico auditável de um paciente
+      description: Sem filtros devolve um array; com qualquer filtro/paginação devolve o objeto paginado.
+      parameters:
+        - name: pacienteId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - $ref: '#/components/parameters/TipoDecisao'
+        - $ref: '#/components/parameters/StatusAgendamento'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          $ref: '#/components/responses/Auditoria'
+        '401':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    AgendamentoId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Campo `id` (numérico) do agendamento
+    RecursoId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SugestaoId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Campo `sugestaoId` devolvido por `GET /v1/recursos/{id}/sugestao`
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: Opcional; o gateway gera um quando ausente
+    StartDate:
+      name: startDate
+      in: query
+      schema:
+        type: string
+        format: date-time
+    EndDate:
+      name: endDate
+      in: query
+      schema:
+        type: string
+        format: date-time
+    TipoDecisao:
+      name: tipoDecisao
+      in: query
+      schema:
+        $ref: '#/components/schemas/TipoDecisao'
+    StatusAgendamento:
+      name: statusAgendamento
+      in: query
+      schema:
+        type: string
+        enum: [AGUARDANDO_JANELA, AGUARDANDO_CONFIRMACAO, CONFIRMADO, LIBERADO]
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+  responses:
+    Problem:
+      description: Erro no formato RFC 7807 (Problem Details)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Auditoria:
+      description: Decisões auditadas, em ordem cronológica
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - type: array
+                items:
+                  $ref: '#/components/schemas/DecisaoAuditoria'
+              - $ref: '#/components/schemas/AuditoriaPaginada'
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: admin-tecnico
+        password:
+          type: string
+          example: senha-tecnica-segura
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT HS256
+    RegistrarAgendamentoRequest:
+      type: object
+      required: [cpf, recursoId, dataHoraAgendamento]
+      properties:
+        cpf:
+          type: string
+          example: '52998224725'
+          description: CPF válido (formato e dígitos verificadores). Existe só no agendamento-confirmacao-service.
+        recursoId:
+          type: string
+          format: uuid
+          description: Campo `recursoId` de um recurso já cadastrado
+        dataHoraAgendamento:
+          type: string
+          format: date-time
+          example: '2026-10-05T13:00:00Z'
+    Agendamento:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        agendamentoId:
+          type: string
+          format: uuid
+        pacienteId:
+          type: integer
+          format: int64
+        recursoId:
+          type: string
+          format: uuid
+        dataHoraAgendamento:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [AGUARDANDO_JANELA, AGUARDANDO_CONFIRMACAO, CONFIRMADO, LIBERADO]
+        criadoEm:
+          type: string
+          format: date-time
+        janelaAbreEm:
+          type: string
+          format: date-time
+        janelaExpiraEm:
+          type: string
+          format: date-time
+        motivoLiberacao:
+          type: string
+          nullable: true
+          enum: [RECUSA, NAO_CONFIRMADO]
+    UpsertRecursoRequest:
+      type: object
+      required: [codigoRecurso, especificidadeRank, disponivel]
+      properties:
+        codigoRecurso:
+          type: string
+          example: CARDIO-UBS-01
+        especificidadeRank:
+          type: integer
+          minimum: 1
+          example: 1
+        disponivel:
+          type: boolean
+          example: true
+        especialidade:
+          type: string
+          example: Cardiologia
+        unidade:
+          type: string
+          example: UBS Centro
+    Recurso:
+      type: object
+      properties:
+        recursoId:
+          type: string
+          format: uuid
+        codigoRecurso:
+          type: string
+        especificidadeRank:
+          type: integer
+        disponivel:
+          type: boolean
+        especialidade:
+          type: string
+          nullable: true
+        unidade:
+          type: string
+          nullable: true
+    SugestaoRecurso:
+      type: object
+      properties:
+        recursoId:
+          type: string
+          format: uuid
+        sugestaoId:
+          type: string
+          format: uuid
+          nullable: true
+        pacienteId:
+          type: integer
+          format: int64
+          nullable: true
+        situacao:
+          type: string
+          nullable: true
+          enum: [PENDENTE, CONFIRMADA, ESGOTADA]
+          description: Nulo quando não há sugestão para o recurso
+    ListaEsperaRequest:
+      type: object
+      required: [cpf, recursoId, dataSolicitacao]
+      properties:
+        cpf:
+          type: string
+          example: '52998224725'
+        recursoId:
+          type: string
+          format: uuid
+        dataSolicitacao:
+          type: string
+          format: date-time
+          description: Define a posição na fila (ordem de chegada)
+          example: '2026-09-20T12:00:00Z'
+    ListaEsperaResponse:
+      type: object
+      properties:
+        pacienteId:
+          type: integer
+          format: int64
+        recursoId:
+          type: string
+          format: uuid
+        dataSolicitacao:
+          type: string
+          format: date-time
+        criadoEm:
+          type: string
+          format: date-time
+    RepasseConfirmado:
+      type: object
+      properties:
+        alocacaoId:
+          type: string
+          format: uuid
+        recursoId:
+          type: string
+          format: uuid
+        pacienteId:
+          type: integer
+          format: int64
+        status:
+          type: string
+        confirmadoEm:
+          type: string
+          format: date-time
+    RecusarSugestaoRequest:
+      type: object
+      required: [motivo]
+      properties:
+        motivo:
+          type: string
+          example: Paciente informou indisponibilidade na data
+    RecusarSugestaoResponse:
+      type: object
+      properties:
+        sugestaoId:
+          type: string
+          format: uuid
+        proximoPacienteId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Nulo quando a fila se esgotou
+        recusadoEm:
+          type: string
+          format: date-time
+    TipoDecisao:
+      type: string
+      enum: [NOTIFICACAO, CONFIRMACAO, RECUSA, NAO_CONFIRMADO, LIBERACAO, SUGESTAO_GERADA, REPASSE_CONFIRMADO, SUGESTAO_RECUSADA, GENERICO]
+    DecisaoAuditoria:
+      type: object
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        agendamentoId:
+          type: integer
+          format: int64
+        pacienteId:
+          type: integer
+          format: int64
+        tipoDecisao:
+          $ref: '#/components/schemas/TipoDecisao'
+        motivo:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+        criadoEm:
+          type: string
+          format: date-time
+    AuditoriaPaginada:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisaoAuditoria'
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
