@@ -63,7 +63,7 @@ class RecusarPresencaConcurrencyIntegrationTest {
     void execucoesConcorrentesSobreOMesmoAgendamentoApenasUmaGravaRecusaRegistradaEVagaLiberada() throws Exception {
         Instant agora = Instant.now();
         Agendamento aguardandoConfirmacao = new Agendamento(
-                null, criarPacienteERetornarId(), UUID.randomUUID(), agora.plus(Duration.ofDays(1)),
+                null, UUID.randomUUID(), criarPacienteERetornarId(), UUID.randomUUID(), agora.plus(Duration.ofDays(1)),
                 StatusAgendamento.AGUARDANDO_CONFIRMACAO, agora.minus(Duration.ofHours(1)),
                 agora.minus(Duration.ofMinutes(10)), null);
         Agendamento salvo = agendamentoRepositorio.salvar(aguardandoConfirmacao);
@@ -121,7 +121,7 @@ class RecusarPresencaConcurrencyIntegrationTest {
     void execucoesConcorrentesRecusaVsConfirmacaoSobreOMesmoAgendamento() throws Exception {
         Instant agora = Instant.now();
         Agendamento aguardandoConfirmacao = new Agendamento(
-                null, criarPacienteERetornarId(), UUID.randomUUID(), agora.plus(Duration.ofDays(1)),
+                null, UUID.randomUUID(), criarPacienteERetornarId(), UUID.randomUUID(), agora.plus(Duration.ofDays(1)),
                 StatusAgendamento.AGUARDANDO_CONFIRMACAO, agora.minus(Duration.ofHours(1)),
                 agora.minus(Duration.ofMinutes(10)), null);
         Agendamento salvo = agendamentoRepositorio.salvar(aguardandoConfirmacao);

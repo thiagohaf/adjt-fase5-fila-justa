@@ -30,7 +30,7 @@ spring:
   # pelo infra-cdk via ECS Secret (nunca no repositorio, NFR-6).
   #
   # Host "postgres" (SEM sufixo ".confirmasus.local"): o dnsName do Service
-  # Connect (FilaJustaStack.buildPostgresService) e resolvido pelo proxy
+  # Connect (ConfirmaSusStack.buildPostgresService) e resolvido pelo proxy
   # Envoy pela string exata configurada -- nao precisa (nem deve) ser
   # qualificado com o namespace. Bug real encontrado na verificacao ao vivo
   # da Story 1.2: "postgres.confirmasus.local" dava UnknownHostException (o
@@ -53,6 +53,4 @@ confirmasus:
     secret: ${CONFIRMASUS_JWT_SECRET}
     expiration-seconds: 3600
 
-logging:
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"auth-service","logger":"%c","message":"%m"}%n'
+# Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)

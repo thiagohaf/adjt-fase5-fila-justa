@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ConfirmaSUS — Pitch</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="progress" id="progress"></div>
+
+<main class="deck">
+  <div class="stage" id="stage">
+
+    <!-- 1. Capa -->
+    <section class="slide cover" data-time="0:00">
+      <span class="badge">FIAP · Pós Tech ADJT · Fase 5</span>
+      <h1>Confirma<span>SUS</span></h1>
+      <p class="lead">Cada vaga cancelada vira uma nova chance de atendimento.</p>
+      <p class="who"><b>Thiago Henrique Alves Ferreira</b><br>RM369442 · Turma 11ADJT</p>
+    </section>
+
+    <!-- 2. Problema -->
+    <section class="slide" data-time="0:30">
+      <div class="tag">Introdução <span>0:00 – 1:00</span></div>
+      <h2>Um problema <span class="warn">silencioso e caro</span></h2>
+      <div class="stats">
+        <div class="stat"><div class="n">23%</div><div class="l">média mundial de faltas em consultas</div></div>
+        <div class="stat"><div class="n">27,8%</div><div class="l">média na América do Sul</div></div>
+        <div class="stat hl"><div class="n">38,6%</div><div class="l">absenteísmo em consultas especializadas — RM do Espírito Santo</div></div>
+        <div class="stat hl"><div class="n"><span class="u">R$</span> 18,5 <span class="u">mi</span></div><div class="l">desperdiçados em 3 anos, só nessa região</div></div>
+      </div>
+      <p class="lead">A vaga fica vazia, o profissional fica parado e quem está na lista de espera nem sabe que ela existiu.</p>
+    </section>
+
+    <!-- 3. Ciclo -->
+    <section class="slide" data-time="1:00">
+      <div class="tag">A solução <span>1:00 – 4:00</span></div>
+      <h2>O ConfirmaSUS <span class="accent">fecha o ciclo</span></h2>
+      <div class="flow">
+        <div class="step"><span class="ic">📅</span><b>Consulta agendada</b><small>janela de confirmação abre</small></div>
+        <div class="arrow">→</div>
+        <div class="step"><span class="ic">🔔</span><b>Notificação</b><small>pede confirmação ativa</small></div>
+        <div class="arrow">→</div>
+        <div class="step"><span class="ic">✅ / ❌</span><b>Paciente responde</b><small>ou não responde no prazo</small></div>
+        <div class="arrow">→</div>
+        <div class="step"><span class="ic">🔓</span><b>Vaga liberada</b><small>automaticamente</small></div>
+        <div class="arrow">→</div>
+        <div class="step"><span class="ic">📋</span><b>Sugestão</b><small>próximo da lista, por ordem de chegada</small></div>
+        <div class="arrow">→</div>
+        <div class="step human"><span class="ic">🧑‍💼</span><b>Gestor decide</b><small>confirma ou recusa</small></div>
+      </div>
+      <div class="branch">
+        <div class="pill ok"><strong>Confirmou</strong> → a vaga está garantida.</div>
+        <div class="pill no"><strong style="color:var(--danger)">Recusou ou silêncio</strong> → vaga liberada.</div>
+      </div>
+      <div class="audit">🧾 Cada passo vira <strong>log auditável</strong>, com motivo e horário: por que a vaga X foi para o paciente Y, e quando.</div>
+    </section>
+
+    <!-- 4. Decisão humana -->
+    <section class="slide" data-time="2:10">
+      <div class="tag">A solução <span>Decisão humana, por lei</span></div>
+      <div class="quote">O sistema <em>nunca</em> decide sobre a saúde de ninguém.</div>
+      <p class="lead">A ideia inicial era um motor de priorização clínica por score. A legislação proíbe que um sistema automatizado decida triagem ou prioridade clínica. <strong>Pivotei.</strong></p>
+      <div class="rules">
+        <div class="rule"><b>Fila</b>estritamente por ordem de chegada</div>
+        <div class="rule"><b>Repasse</b>todo repasse exige um humano</div>
+        <div class="rule"><b>Rastro</b>toda decisão fica registrada</div>
+      </div>
+    </section>
+
+    <!-- 5. Diferencial -->
+    <section class="slide" data-time="2:50">
+      <div class="tag">A solução <span>Diferencial</span></div>
+      <h2>Lembrete existe. <span class="accent">O ciclo aberto</span> é o problema.</h2>
+      <div class="compare">
+        <div class="col">
+          <h3>Só lembrete (WhatsApp)</h3>
+          <div class="big">−18,75%</div>
+          <ul>
+            <li>Queda relativa nas faltas na rede da Sesa-CE, em 2025</li>
+            <li>Funciona, mas a vaga liberada não vira oferta</li>
+          </ul>
+        </div>
+        <div class="col win">
+          <h3>ConfirmaSUS</h3>
+          <div class="big accent">O que vem depois</div>
+          <ul>
+            <li>Vaga liberada vira oferta ativa</li>
+            <li>Decisão humana</li>
+            <li>Rastro auditável</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Arquitetura -->
+    <section class="slide" data-time="3:30">
+      <div class="tag">A solução <span>Arquitetura em uma frase</span></div>
+      <h2>Microsserviços com <span class="accent">eventos assíncronos</span></h2>
+      <div class="arch">
+        <div class="row-l">Stack</div>
+        <div class="chips"><span class="chip k">Java 25</span><span class="chip k">Spring Boot</span><span class="chip">JWT no gateway</span></div>
+        <div class="row-l">Mensageria</div>
+        <div class="chips"><span class="chip k">SNS</span><span class="chip k">SQS</span></div>
+        <div class="row-l">Dados</div>
+        <div class="chips"><span class="chip">Schema de banco por serviço</span></div>
+      </div>
+      <div class="audit">Auditoria assíncrona: se ela cair, a confirmação do paciente <strong>continua funcionando</strong>.</div>
+    </section>
+
+    <!-- 7. Impacto -->
+    <section class="slide" data-time="4:00">
+      <div class="tag">Impacto <span>4:00 – 6:00</span></div>
+      <h2>Quem <span class="accent">ganha</span></h2>
+      <div class="cards4">
+        <div class="card"><div class="ic">🙋</div><h3>Paciente</h3><p>Aviso claro e forma simples de liberar a vaga se não puder ir.</p></div>
+        <div class="card"><div class="ic">⏳</div><h3>Lista de espera</h3><p>Chance real de ser chamado a tempo, em vez de a vaga ficar ociosa.</p></div>
+        <div class="card"><div class="ic">🧑‍💼</div><h3>Gestor de agenda</h3><p>Recebe a vaga já com candidato sugerido. A decisão continua dele.</p></div>
+        <div class="card"><div class="ic">🔍</div><h3>Auditor e SUS</h3><p>Transparência: cada repasse tem justificativa registrada.</p></div>
+      </div>
+    </section>
+
+    <!-- 8. Caso de uso -->
+    <section class="slide" data-time="5:00">
+      <div class="tag">Impacto <span>Caso de uso</span></div>
+      <h2>Cardiologia, <span class="accent">daqui a dois dias</span></h2>
+      <div class="timeline">
+        <div class="tl"><div class="dot">1</div><b>Paciente avisa</b><span>“Não poderei ir.”</span></div>
+        <div class="tl"><div class="dot">2</div><b>Vaga liberada</b><span>na hora</span></div>
+        <div class="tl"><div class="dot">3</div><b>Sugestão</b><span>próximo da fila</span></div>
+        <div class="tl h"><div class="dot">4</div><b>Gestor confirma</b><span>com um clique</span></div>
+        <div class="tl"><div class="dot">5</div><b>Atendimento</b><span>consulta que seria perdida</span></div>
+      </div>
+      <p class="lead">Uma consulta perdida vira um atendimento realizado.</p>
+    </section>
+
+    <!-- 9. Roadmap -->
+    <section class="slide" data-time="6:00">
+      <div class="tag">Próximos passos <span>6:00 – 8:00</span></div>
+      <h2>O MVP prova o ciclo. <span class="accent">E agora?</span></h2>
+      <div class="road">
+        <div class="rm"><div class="num">01</div><h3>Canal real</h3><p>Trocar a notificação simulada por WhatsApp, seguindo o precedente do Ceará.</p></div>
+        <div class="rm"><div class="num">02</div><h3>Integrações</h3><p>SISREG e DATASUS no lugar do seed sintético; reintroduzir o fluxo de agendamento.</p></div>
+        <div class="rm"><div class="num">03</div><h3>AWS + LGPD</h3><p>Implantação completa, perfis de acesso por papel e adequação plena à LGPD.</p></div>
+        <div class="rm"><div class="num">04</div><h3>Generalizar</h3><p>Sugestão, confirmação humana e log auditável para leitos e equipamentos.</p></div>
+      </div>
+      <p class="lead">A decisão sobre a saúde das pessoas continua nas mãos de pessoas.</p>
+    </section>
+
+    <!-- 10. Final -->
+    <section class="slide end" data-time="7:30">
+      <h1>Obrigado<span class="accent">.</span></h1>
+      <p class="lead">ConfirmaSUS — tecnologia para reduzir desperdício no SUS, com decisão humana.</p>
+      <div class="links">
+        <div>Thiago Henrique Alves Ferreira · RM369442 · 11ADJT</div>
+        <div>📦 <a href="https://github.com/thiagohaf/adjt-fase5-fila-justa">github.com/thiagohaf/adjt-fase5-fila-justa</a></div>
+        <div>✉️ thiagohaf@gmail.com</div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div class="hud">
+  <span class="timer" id="timer" title="T: iniciar/pausar cronômetro (8:00)">0:00</span>
+  <span id="counter">1 / 1</span>
+  <button id="prev" aria-label="Anterior">‹</button>
+  <button id="next" aria-label="Próximo">›</button>
+  <button id="fs" aria-label="Tela cheia" title="F">⛶</button>
+</div>
+
+<script>
+(() => {
+  const slides = [...document.querySelectorAll('.slide')];
+  const stage = document.getElementById('stage');
+  const counter = document.getElementById('counter');
+  const bar = document.getElementById('progress');
+  const timerEl = document.getElementById('timer');
+  let cur = 0;
+
+  function show(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, n) => {
+      s.classList.toggle('active', n === cur);
+      s.classList.toggle('past', n < cur);
+    });
+    counter.textContent = `${cur + 1} / ${slides.length}`;
+    bar.style.width = `${((cur + 1) / slides.length) * 100}%`;
+    history.replaceState(null, '', `#${cur + 1}`);
+  }
+  const next = () => show(cur + 1);
+  const prev = () => show(cur - 1);
+
+  function fit() {
+    const k = Math.min(innerWidth / 1280, innerHeight / 720);
+    stage.style.transform = `scale(${k})`;
+  }
+
+  function toggleFs() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.();
+  }
+
+  // Cronômetro (T alterna; R zera)
+  let t0 = 0, acc = 0, running = false;
+  const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  setInterval(() => {
+    const s = Math.floor((acc + (running ? Date.now() - t0 : 0)) / 1000);
+    timerEl.textContent = fmt(s);
+    timerEl.classList.toggle('over', s > 480);
+  }, 250);
+  function toggleTimer() {
+    if (running) { acc += Date.now() - t0; running = false; }
+    else { t0 = Date.now(); running = true; }
+  }
+
+  addEventListener('keydown', e => {
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': case 'Enter':
+        e.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': case 'Backspace':
+        e.preventDefault(); prev(); break;
+      case 'Home': show(0); break;
+      case 'End': show(slides.length - 1); break;
+      case 'f': case 'F': toggleFs(); break;
+      case 't': case 'T': toggleTimer(); break;
+      case 'r': case 'R': acc = 0; t0 = Date.now(); break;
+    }
+  });
+
+  // Clique: metade direita avança, esquerda volta
+  document.querySelector('.deck').addEventListener('click', e => {
+    if (e.target.closest('a')) return;
+    (e.clientX > innerWidth / 3 ? next : prev)();
+  });
+  document.querySelector('.hud').addEventListener('click', e => e.stopPropagation());
+  document.getElementById('next').onclick = next;
+  document.getElementById('prev').onclick = prev;
+  document.getElementById('fs').onclick = toggleFs;
+
+  // Swipe
+  let sx = null;
+  addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', e => {
+    if (sx === null) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    if (Math.abs(dx) > 50) (dx < 0 ? next : prev)();
+    sx = null;
+  });
+
+  addEventListener('resize', fit);
+  fit();
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+})();
+</script>
+</body>
+</html>

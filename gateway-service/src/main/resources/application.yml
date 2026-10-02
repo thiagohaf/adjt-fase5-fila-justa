@@ -16,7 +16,7 @@ spring:
             #
             # Host "auth-service" (SEM sufixo ".confirmasus.local"): o dnsName
             # do Service Connect e resolvido pelo Envoy pela string exata
-            # configurada (FilaJustaStack.buildAuthService), nao pelo nome
+            # configurada (ConfirmaSusStack.buildAuthService), nao pelo nome
             # qualificado com o namespace -- mesmo bug de DNS encontrado e
             # corrigido no datasource do auth-service (ver application.yml).
             - id: auth-login
@@ -31,12 +31,50 @@ spring:
             # Host "agendamento-confirmacao-service" (SEM sufixo de
             # namespace -- mesmo padrao de "auth-service" acima, resolvido
             # pelo Envoy do Service Connect pela string exata do dnsName
-            # configurado em FilaJustaStack.buildAgendamentoConfirmacaoService).
+            # configurado em ConfirmaSusStack.buildAgendamentoConfirmacaoService).
             - id: agendamento-confirmacao-registrar
               uri: http://agendamento-confirmacao-service:8082
               predicates:
                 - Path=/v1/agendamentos
                 - Method=POST
+
+            # Confirmacao/recusa de presenca (Story 1.3/1.4, Epic 1) --
+            # POST /v1/agendamentos/{id}/confirmacao e /recusa. Faltava esta
+            # rota: so existiam GET (consultar/listar) e POST exato em
+            # /v1/agendamentos (registrar), entao o gateway devolvia 404
+            # para qualquer POST em subpath, mesmo com o servico respondendo
+            # 200 quando chamado direto (achado ao investigar confirmar/
+            # recusar quebrados end-to-end via gateway).
+            - id: agendamento-confirmacao-acoes
+              uri: http://agendamento-confirmacao-service:8082
+              predicates:
+                - Path=/v1/agendamentos/**
+                - Method=POST
+
+            - id: agendamento-confirmacao-consultar
+              uri: http://agendamento-confirmacao-service:8082
+              predicates:
+                - Path=/v1/agendamentos/**
+                - Method=GET
+
+            # Recursos e Alocacoes (Story 3, Epic 3) -- rota publica protegida
+            # pelo JwtAuthenticationFilter
+            - id: matching-recursos
+              uri: http://liberacao-repasse-service:8083
+              predicates:
+                - Path=/v1/recursos/**,/v1/alocacoes/**,/v1/sugestoes-repasse/**
+
+            # Lista de Espera (Story 5.3, Epic 5) -- rota publica protegida
+            - id: lista-espera
+              uri: http://liberacao-repasse-service:8083
+              predicates:
+                - Path=/v1/lista-espera/**
+
+            # Auditoria (Story 4, Epic 4) -- rota publica protegida
+            - id: auditoria
+              uri: http://auditoria-service:8085
+              predicates:
+                - Path=/v1/auditoria/**
 
 # Segredo compartilhado com o auth-service (mesmo par HS256, AD-14) -- so
 # variavel de ambiente/Secrets Manager, nunca no repositorio (NFR-6).
@@ -45,6 +83,9 @@ spring:
 confirmasus:
   jwt:
     secret: ${CONFIRMASUS_JWT_SECRET}
+  # Origens permitidas pelo CorsWebFilter (Swagger UI local, docker-compose).
+  cors:
+    allowed-origins: ${CONFIRMASUS_CORS_ORIGINS:http://localhost:8088,http://localhost:3000}
 
 management:
   endpoints:
@@ -60,6 +101,4 @@ management:
     livenessstate:
       enabled: true
 
-logging:
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"gateway-service","logger":"%c","message":"%m"}%n'
+# Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)

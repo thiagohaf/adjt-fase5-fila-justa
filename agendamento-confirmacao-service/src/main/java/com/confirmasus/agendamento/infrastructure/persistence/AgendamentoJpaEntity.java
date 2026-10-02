@@ -3,6 +3,7 @@ package com.confirmasus.agendamento.infrastructure.persistence;
 import com.confirmasus.agendamento.domain.StatusAgendamento;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import org.hibernate.annotations.DynamicInsert;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -20,12 +21,15 @@ import java.util.UUID;
  * {@link StatusAgendamento} no futuro nao corrompa dados ja persistidos.
  */
 @Entity
+@DynamicInsert
 @Table(name = "agendamentos", schema = "agendamento_confirmacao")
 public class AgendamentoJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "agendamento_id", nullable = false, unique = true)
+    private UUID agendamentoId;
 
     @Column(name = "paciente_id", nullable = false)
     private Long pacienteId;
@@ -56,9 +60,10 @@ public class AgendamentoJpaEntity {
         // Exigido pelo JPA.
     }
 
-    public AgendamentoJpaEntity(Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
+    public AgendamentoJpaEntity(UUID agendamentoId, Long pacienteId, UUID recursoId, Instant dataHoraAgendamento,
                                  StatusAgendamento status, Instant criadoEm, Instant janelaAbreEm,
                                  Instant janelaExpiraEm) {
+        this.agendamentoId = agendamentoId;
         this.pacienteId = pacienteId;
         this.recursoId = recursoId;
         this.dataHoraAgendamento = dataHoraAgendamento;
@@ -70,6 +75,10 @@ public class AgendamentoJpaEntity {
 
     public Long getId() {
         return id;
+    }
+
+    public UUID getAgendamentoId() {
+        return agendamentoId;
     }
 
     public Long getPacienteId() {

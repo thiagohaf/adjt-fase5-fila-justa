@@ -1,0 +1,202 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+import { useQuery, useQueries } from '@tanstack/react-query'
+import api from '../services/api'
+import { Agendamento } from '../types'
+import RecursoNome from '../components/RecursoNome'
+import SituacaoRepasse, { buscarSugestaoRecurso, sugestaoQueryKey } from '../components/SituacaoRepasse'
+import RepasseLink from '../components/RepasseLink'
+
+type StatusExibido = Agendamento['status'] | 'REPASSADO'
+type StatusFiltro = 'TODOS' | StatusExibido
+
+const STATUS_LABELS: Record<StatusExibido, string> = {
+  AGUARDANDO_JANELA: 'Aguardando Janela',
+  AGUARDANDO_CONFIRMACAO: 'Aguardando Confirmação',
+  CONFIRMADO: 'Confirmado',
+  LIBERADO: 'Liberado',
+  REPASSADO: 'Vaga repassada',
+}
+
+const STATUS_BADGE_CLASSES: Record<StatusExibido, string> = {
+  AGUARDANDO_JANELA: 'bg-gray-100 text-gray-800',
+  AGUARDANDO_CONFIRMACAO: 'bg-yellow-100 text-yellow-800',
+  CONFIRMADO: 'bg-green-100 text-green-800',
+  LIBERADO: 'bg-red-100 text-red-800',
+  REPASSADO: 'bg-emerald-100 text-emerald-800',
+}
+
+export default function DashboardPage() {
+  const { user, logout } = useAuth()
+  const [filtro, setFiltro] = useState<StatusFiltro>('TODOS')
+
+  const { data: agendamentos = [], isPending, error } = useQuery({
+    queryKey: ['agendamentos'],
+    queryFn: async () => {
+      const response = await api.get<Agendamento[]>('/v1/agendamentos')
+      return response.data
+    },
+    refetchInterval: 15000,
+  })
+
+  // Vaga liberada cuja sugestão de repasse foi confirmada passa a "Vaga repassada"
+  const recursosLiberados = [
+    ...new Set(agendamentos.filter(a => a.status === 'LIBERADO').map(a => a.recursoId)),
+  ]
+  const sugestoes = useQueries({
+    queries: recursosLiberados.map(recursoId => ({
+      queryKey: sugestaoQueryKey(recursoId),
+      queryFn: () => buscarSugestaoRecurso(recursoId),
+      refetchInterval: 15000,
+    })),
+  })
+  const repassados = new Set(
+    recursosLiberados.filter((_, i) => sugestoes[i]?.data?.situacao === 'CONFIRMADA')
+  )
+  const statusExibido = (a: Agendamento): StatusExibido =>
+    a.status === 'LIBERADO' && repassados.has(a.recursoId) ? 'REPASSADO' : a.status
+
+  const agendamentosAguardando = agendamentos.filter(a => statusExibido(a) === 'AGUARDANDO_CONFIRMACAO').length
+  const agendamentosConfirmados = agendamentos.filter(a => statusExibido(a) === 'CONFIRMADO').length
+  const agendamentosLiberados = agendamentos.filter(a => statusExibido(a) === 'LIBERADO').length
+  const agendamentosRepassados = agendamentos.filter(a => statusExibido(a) === 'REPASSADO').length
+
+  const agendamentosFiltrados = agendamentos
+    .filter(a => filtro === 'TODOS' || statusExibido(a) === filtro)
+    .sort((a, b) => b.id - a.id)
+
+  const cards: { label: string; valor: number; status: StatusFiltro }[] = [
+    { label: 'Aguardando Confirmação', valor: agendamentosAguardando, status: 'AGUARDANDO_CONFIRMACAO' },
+    { label: 'Confirmados', valor: agendamentosConfirmados, status: 'CONFIRMADO' },
+    { label: 'Liberados', valor: agendamentosLiberados, status: 'LIBERADO' },
+    { label: 'Vagas repassadas', valor: agendamentosRepassados, status: 'REPASSADO' },
+    { label: 'Total', valor: agendamentos.length, status: 'TODOS' },
+  ]
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <h1 className="text-xl font-bold text-brand-900">ConfirmaSUS</h1>
+            <div className="flex items-center gap-4">
+              <div className="text-right leading-tight hidden sm:block">
+                <p className="text-sm font-medium text-gray-900">{user?.username}</p>
+                {user?.role && <p className="text-xs text-gray-500">{user.role}</p>}
+              </div>
+              <button
+                onClick={logout}
+                className="btn btn-danger"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-red-700 text-sm">
+                Não foi possível carregar os agendamentos. Tente recarregar a página.
+              </p>
+            </div>
+          )}
+
+          {isPending ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">Carregando dados...</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                {cards.map(card => (
+                  <button
+                    key={card.label}
+                    onClick={() => setFiltro(card.status)}
+                    className={`text-left bg-white p-6 rounded-lg shadow transition ring-2 ${
+                      filtro === card.status ? 'ring-blue-500' : 'ring-transparent hover:ring-gray-200'
+                    }`}
+                  >
+                    <h3 className="text-gray-500 text-sm font-medium">{card.label}</h3>
+                    <p className="mt-2 text-3xl font-bold text-gray-900">{card.valor}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                {agendamentosFiltrados.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    Nenhum agendamento {filtro !== 'TODOS' ? `com status "${STATUS_LABELS[filtro]}"` : ''} encontrado.
+                  </div>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paciente</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recurso</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data/Hora</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {agendamentosFiltrados.map(agendamento => (
+                        <tr key={agendamento.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900 font-mono">{agendamento.id}</td>
+                          <td className="px-4 py-3 text-sm text-gray-900">Paciente #{agendamento.pacienteId}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700 max-w-[16rem]">
+                            <RecursoNome recursoId={agendamento.recursoId} />
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-500">
+                            {new Date(agendamento.dataHoraAgendamento).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE_CLASSES[statusExibido(agendamento)]}`}>
+                              {STATUS_LABELS[statusExibido(agendamento)]}
+                            </span>
+                            {statusExibido(agendamento) === 'LIBERADO' && (
+                              <div className="mt-1">
+                                <SituacaoRepasse recursoId={agendamento.recursoId} />
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Link to={`/confirmacao/${agendamento.id}`} className="btn btn-sm btn-primary">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.5 12S6 5 12 5s9.5 7 9.5 7-3.5 7-9.5 7S2.5 12 2.5 12z M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                                </svg>
+                                Detalhes
+                              </Link>
+                              <Link to={`/auditoria/${agendamento.id}`} className="btn btn-sm btn-secondary">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v14l-3-2-2 2-2-2-2 2-2-2-3 2V6a2 2 0 012-2z" />
+                                </svg>
+                                Auditoria
+                              </Link>
+                              {statusExibido(agendamento) === 'LIBERADO' && (
+                                <RepasseLink recursoId={agendamento.recursoId} />
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}

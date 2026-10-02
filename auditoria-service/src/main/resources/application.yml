@@ -29,8 +29,6 @@ spring:
 
 server:
   port: 8084
-  servlet:
-    context-path: /auditoria
 
 management:
   endpoints:
@@ -51,6 +49,7 @@ confirmasus:
     relay:
       enabled: ${AUDITORIA_RELAY_ENABLED:true}
       queue-url: ${AUDITORIA_QUEUE_URL:}
+      endpoint-override: ${AUDITORIA_ENDPOINT_OVERRIDE:}
       batch-size: ${AUDITORIA_BATCH_SIZE:10}
       wait-time-seconds: ${AUDITORIA_WAIT_TIME_SECONDS:1}
       poll-interval-ms: ${AUDITORIA_POLL_INTERVAL_MS:5000}
@@ -58,3 +57,5 @@ confirmasus:
 # AWS configuration (via SDK default providers)
 aws:
   region: ${AWS_REGION:us-east-1}
+
+# Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)

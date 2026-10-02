@@ -58,7 +58,7 @@ class RegistrarAgendamentoTest {
     void devolveOAgendamentoPersistidoComIdGerado() {
         when(agendamentoRepositorio.salvar(any())).thenAnswer(invocation -> {
             Agendamento agendamento = invocation.getArgument(0);
-            return new Agendamento(99L, agendamento.getPacienteId(), agendamento.getRecursoId(),
+            return new Agendamento(99L, agendamento.getAgendamentoId(), agendamento.getPacienteId(), agendamento.getRecursoId(),
                     agendamento.getDataHoraAgendamento(), agendamento.getStatus(), agendamento.getCriadoEm(),
                     agendamento.getJanelaAbreEm(), agendamento.getJanelaExpiraEm());
         });

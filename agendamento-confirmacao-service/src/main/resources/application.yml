@@ -63,7 +63,7 @@ confirmasus:
       batch-size: 50
     # Infraestrutura outbox propria deste servico (AD-3) --
     # RelaySnsPublisherJob (infrastructure/relay), mesmo molde de
-    # matching-alocacao-service/.../application.yml. Namespace
+    # liberacao-repasse-service/.../application.yml. Namespace
     # "outbox-relay" isolado de "abertura-janela" acima -- pollers
     # independentes (transicao de estado + escrita no outbox vs. publicacao
     # no SNS). topic-arn fica vazio por padrao (injetado so no deploy real
@@ -78,6 +78,4 @@ confirmasus:
       poll-interval-ms: 5000
       batch-size: 50
 
-logging:
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd''T''HH:mm:ss.SSSXXX}","level":"%p","service":"agendamento-confirmacao-service","logger":"%c","message":"%m"}%n'
+# Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)

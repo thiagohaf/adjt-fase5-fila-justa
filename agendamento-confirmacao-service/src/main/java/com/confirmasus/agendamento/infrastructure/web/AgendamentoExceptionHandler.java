@@ -20,7 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * (Boundaries da spec 1.1: "Toda rejeicao de entrada invalida (CPF,
  * recursoId, dataHoraAgendamento) retorna 422 via ProblemDetail, sem
  * persistir Paciente nem Agendamento" -- mesmo formato de
- * {@code RecursosExceptionHandler}, matching-alocacao-service, mas com
+ * {@code RecursosExceptionHandler}, liberacao-repasse-service, mas com
  * {@code 422} em vez de {@code 400}: primeiro precedente de {@code 422} no
  * projeto).
  *
@@ -36,7 +36,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * escapa como corpo default do Spring -- logado em ERROR antes de traduzir
  * (achado do code review adversarial: sem isso um erro inesperado ficava
  * sem nenhum rastro em producao; mesmo padrao ja usado em
- * {@code FilaExceptionHandler}, matching-alocacao-service).
+ * {@code FilaExceptionHandler}, liberacao-repasse-service).
  */
 @RestControllerAdvice
 class AgendamentoExceptionHandler {
@@ -92,7 +92,7 @@ class AgendamentoExceptionHandler {
      * {@code agendamentoId} nao esta em {@code AGUARDANDO_CONFIRMACAO}
      * (janela ainda nao aberta ou vaga ja liberada) -- {@code 409} (spec 1.3,
      * Boundaries; molde {@code RecursosExceptionHandler
-     * #handleRecursoJaAlocado}, matching-alocacao-service).
+     * #handleRecursoJaAlocado}, liberacao-repasse-service).
      */
     @ExceptionHandler(AgendamentoForaDaJanelaException.class)
     ProblemDetail handleAgendamentoForaDaJanela(AgendamentoForaDaJanelaException ex) {

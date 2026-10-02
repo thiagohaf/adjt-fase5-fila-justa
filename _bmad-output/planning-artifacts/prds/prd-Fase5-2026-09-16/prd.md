@@ -322,6 +322,6 @@ Nenhuma pendência bloqueante para esta fase. Decisões técnicas conscientement
 - §3/§4.2 FR-3 — Duração exata da Janela de Confirmação (assumida 48h antes do Agendamento, inspirada no padrão do Ceará) não fechada numericamente.
 - §4.1 FR-1 — Composição-alvo numérica do seed de demonstração (quantos Agendamentos, quantos com Vaga Liberada + Lista de Espera não vazia) não definida.
 - §4.3 FR-9 — Quantidade de candidatos sugeridos por vez (um por vez vs. lista curta de candidatos) não definida — assumido um por vez, análogo ao padrão de Sugestão de Matching do domínio anterior.
-- §8 — Decisão concreta sobre reaproveitar literalmente o código de `ConfirmarAlocacao`/`RecusarSugestao` (renomeando o domínio) vs. escrever um novo serviço equivalente do zero não fechada — é uma decisão de arquitetura, não de produto.
-- §8 — Destino do `triagem-score-service` (descomissionado, arquivado, ou reaproveitada só a infraestrutura) não fechado.
+- §8 — **[Resolvido na execução]** `ConfirmarAlocacao`/`RecusarSugestao` foram reaproveitados literalmente, sem renomear (continuam em `liberacao-repasse-service`, que também não foi renomeado para `liberacao-repasse-service` como a arquitetura previa) — a lógica de score/prioridade que eles dependiam foi removida, ficando FIFO puro.
+- §8 — **[Resolvido na execução]** `triagem-score-service` foi decomissionado por completo (removido do repositório) — não arquivado nem reaproveitado.
 - §4.5 FR-14 — Se a banca exigir isolamento por papel (RBAC) entre Gestor de Agenda e canal de resposta do Paciente, essa postura é revisitável — mesma ressalva do PRD anterior.

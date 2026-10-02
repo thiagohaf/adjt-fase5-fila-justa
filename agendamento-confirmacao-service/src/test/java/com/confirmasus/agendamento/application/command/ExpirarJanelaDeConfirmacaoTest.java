@@ -64,13 +64,14 @@ class ExpirarJanelaDeConfirmacaoTest {
     private final Clock clock = Clock.fixed(AGORA, ZoneOffset.UTC);
 
     private ExpirarJanelaDeConfirmacao poller(int loteTamanho) {
-        return new ExpirarJanelaDeConfirmacao(agendamentoRepositorio, eventoOutboxRepositorio, clock, loteTamanho);
+        return new ExpirarJanelaDeConfirmacao(agendamentoRepositorio, eventoOutboxRepositorio, clock, loteTamanho,
+                org.springframework.transaction.support.TransactionOperations.withoutTransaction());
     }
 
     private static Agendamento agendamento(long id, long pacienteId, UUID recursoId) {
         Instant janelaExpiraEm = AGORA.minus(java.time.Duration.ofMinutes(1));
         Instant dataHoraAgendamento = AGORA.plus(java.time.Duration.ofDays(1));
-        return new Agendamento(id, pacienteId, recursoId, dataHoraAgendamento,
+        return new Agendamento(id, UUID.randomUUID(), pacienteId, recursoId, dataHoraAgendamento,
                 StatusAgendamento.AGUARDANDO_CONFIRMACAO, AGORA.minus(java.time.Duration.ofHours(1)),
                 AGORA.minus(java.time.Duration.ofHours(2)), janelaExpiraEm);
     }

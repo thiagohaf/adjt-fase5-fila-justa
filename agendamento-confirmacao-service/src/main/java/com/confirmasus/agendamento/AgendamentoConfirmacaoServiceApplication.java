@@ -8,7 +8,12 @@ import com.confirmasus.agendamento.application.command.PacienteRepositorio;
 import com.confirmasus.agendamento.application.command.RegistrarAgendamento;
 import com.confirmasus.agendamento.application.command.RecusarPresenca;
 import com.confirmasus.agendamento.application.command.ExpirarJanelaDeConfirmacao;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.confirmasus.agendamento.application.command.ResolverOuCriarPaciente;
+import com.confirmasus.agendamento.application.query.ConsultarAgendamento;
+import com.confirmasus.agendamento.application.query.ListarAgendamentos;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -51,6 +56,16 @@ public class AgendamentoConfirmacaoServiceApplication {
     }
 
     @Bean
+    ConsultarAgendamento consultarAgendamento(AgendamentoRepositorio agendamentoRepositorio) {
+        return new ConsultarAgendamento(agendamentoRepositorio);
+    }
+
+    @Bean
+    ListarAgendamentos listarAgendamentos(AgendamentoRepositorio agendamentoRepositorio) {
+        return new ListarAgendamentos(agendamentoRepositorio);
+    }
+
+    @Bean
     RegistrarAgendamento registrarAgendamento(ResolverOuCriarPaciente resolverOuCriarPaciente,
                                                AgendamentoRepositorio agendamentoRepositorio,
                                                Clock clock,
@@ -88,7 +103,10 @@ public class AgendamentoConfirmacaoServiceApplication {
                                                            EventoOutboxRepositorio eventoOutboxRepositorio,
                                                            Clock clock,
                                                            @Value("${confirmasus.agendamento.expiracao-janela.batch-size:50}")
-                                                           int loteTamanho) {
-        return new ExpirarJanelaDeConfirmacao(agendamentoRepositorio, eventoOutboxRepositorio, clock, loteTamanho);
+                                                           int loteTamanho,
+                                                           PlatformTransactionManager transactionManager) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return new ExpirarJanelaDeConfirmacao(agendamentoRepositorio, eventoOutboxRepositorio, clock, loteTamanho, template);
     }
 }

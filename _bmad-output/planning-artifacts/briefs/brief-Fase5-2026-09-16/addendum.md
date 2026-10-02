@@ -6,7 +6,7 @@ Conteúdo de apoio ao `brief.md`: não é necessário para entender a proposta, 
 
 A direção ConfirmaSUS foi escolhida entre 5 clusters de ideias gerados na sessão `_bmad-output/brainstorming/brainstorm-pivot-filajusta-decisao-humana-2026-09-16/`:
 
-- **Matching com Aprovação Humana Obrigatória** — reaproveitaria quase 100% do código já existente (a Story 3.3 do `matching-alocacao-service` já exige confirmação humana antes de qualquer alocação valer). Descartada porque o risco legal residual depende de uma leitura exata da legislação — se ela proibir até um score "sugerido"/rascunho revisável por humano, essa direção continuaria inviável.
+- **Matching com Aprovação Humana Obrigatória** — reaproveitaria quase 100% do código já existente (a Story 3.3 do `liberacao-repasse-service` já exige confirmação humana antes de qualquer alocação valer). Descartada porque o risco legal residual depende de uma leitura exata da legislação — se ela proibir até um score "sugerido"/rascunho revisável por humano, essa direção continuaria inviável.
 - **Central de Encaminhamento Digital** — substituiria o fluxo de telefone/fax entre unidades (dor documentada no brief anterior) por solicitação/notificação/aceite humano registrado. Zero decisão clínica, mas não foi a escolhida.
 - **Gestão de Insumos e Recursos com Alerta** — reaproveitaria o domínio `Recurso` já implementado e é um tema citado explicitamente no edital, mas tem overlap pequeno com o diferencial de auditabilidade que já era forte no projeto anterior.
 - **Lembrete e Confirmação de Medicação (adesão terapêutica)** — reaproveitaria 100% da infraestrutura, mas é o domínio mais distante do que já foi construído.

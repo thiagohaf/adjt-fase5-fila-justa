@@ -5,6 +5,7 @@ import com.confirmasus.agendamento.domain.Cpf;
 import com.confirmasus.agendamento.domain.DataHoraAgendamentoInvalidaException;
 import com.confirmasus.agendamento.domain.Paciente;
 import com.confirmasus.agendamento.domain.RecursoIdInvalidoException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -67,10 +68,27 @@ public class RegistrarAgendamento {
 
         Paciente paciente = resolverOuCriarPaciente.resolver(cpf);
 
+        // Idempotência (Story 5.2, Item 2 E2E): busca existente por pacienteId+recursoId
+        var agendamentoExistente = agendamentoRepositorio.buscarPorPacienteIdERecursoId(paciente.getId(), recursoId);
+        if (agendamentoExistente.isPresent()) {
+            return agendamentoExistente.get();
+        }
+
         Instant janelaAbreEm = agora.plus(janelaDuracao);
         Agendamento agendamentoParaSalvar =
                 Agendamento.novo(paciente.getId(), recursoId, dataHoraAgendamento, agora, janelaAbreEm);
-        return agendamentoRepositorio.salvar(agendamentoParaSalvar);
+        try {
+            return agendamentoRepositorio.salvar(agendamentoParaSalvar);
+        } catch (DataIntegrityViolationException e) {
+            // TOCTOU race condition: outra requisição simultânea inseriu primeiro.
+            // Constraint UNIQUE(paciente_id, recurso_id) garante unicidade.
+            // Buscar novamente e retornar (idempotência garantida).
+            var agendamentoExistenteAposRaceCondition = agendamentoRepositorio.buscarPorPacienteIdERecursoId(paciente.getId(), recursoId);
+            if (agendamentoExistenteAposRaceCondition.isPresent()) {
+                return agendamentoExistenteAposRaceCondition.get();
+            }
+            throw e;
+        }
     }
 
     private static UUID validarRecursoId(String recursoIdTexto) {

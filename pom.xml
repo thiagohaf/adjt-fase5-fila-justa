@@ -12,15 +12,16 @@
   <name>ConfirmaSUS — Parent</name>
   <description>
     Projeto Maven multi-modulo raiz do ConfirmaSUS (adjt-fase5-confirmasus).
-    Modulos ja adicionados: gateway-service, auth-service, infra-cdk,
-    agendamento-confirmacao-service (Epic 1 -- renomeado/podado do extinto
-    triagem-score-service, produto anterior descartado, AD-1),
-    matching-alocacao-service (Epic 3). Modulos deferidos (ver
-    _bmad-output/implementation-artifacts/deferred-work.md), a adicionar como
-    preparacao da primeira story de cada epic que os toca:
-    liberacao-repasse-service (Epic 2), auditoria-service (Epic 4).
-    seed-adapter (Quarkus/Lambda, AD-13) nao entra neste reactor Spring Boot
-    -- tem build/runtime proprio.
+    Modulos: gateway-service, auth-service, infra-cdk,
+    agendamento-confirmacao-service (Epic 1), liberacao-repasse-service
+    (Epic 2 -- Lista de Espera/Sugestao de Repasse FIFO, AD-6; a renomeacao
+    para liberacao-repasse-service prevista na Architecture Spine continua
+    pendente), auditoria-service (Epic 3). O antigo triagem-score-service
+    (produto anterior, calculo de Score de Prioridade Clinica) foi
+    decomissionado por restricao legal -- sem substituto, a fila de
+    Repasse e ordenada exclusivamente por ordem de chegada.
+    seed-adapter (CLI Java standalone, AD-13) nao entra neste reactor Spring
+    Boot -- tem build/runtime proprio.
   </description>
 
   <properties>
@@ -66,6 +67,9 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <configuration>
             <release>${maven.compiler.release}</release>
+            <compilerArgs>
+              <arg>-parameters</arg>
+            </compilerArgs>
           </configuration>
         </plugin>
       </plugins>
@@ -77,8 +81,7 @@
     <module>auth-service</module>
     <module>infra-cdk</module>
     <module>agendamento-confirmacao-service</module>
-    <module>triagem-score-service</module>
-    <module>matching-alocacao-service</module>
+    <module>liberacao-repasse-service</module>
     <module>auditoria-service</module>
   </modules>
 

@@ -14,7 +14,7 @@ import java.util.UUID;
 
 /**
  * Mapeamento JPA de {@code agendamento_confirmacao.eventos_outbox} (AD-3,
- * spec 1.2), mesmo padrao de {@code matching-alocacao-service/.../
+ * spec 1.2), mesmo padrao de {@code liberacao-repasse-service/.../
  * infrastructure/persistence/EventoOutboxJpaEntity.java}. Tabela ja nasce
  * nesta migration (V2) com todas as colunas do relay -- {@code publicadoEm}
  * comeca {@code null} e so e preenchido por

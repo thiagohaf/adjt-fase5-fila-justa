@@ -49,3 +49,15 @@ infra-cdk/cdk.context.json
 
 # Claude Code local-only settings
 .claude/settings.local.json
+
+# Node.js / npm
+node_modules/
+package-lock.json
+
+# Cypress E2E testing
+cypress/videos/
+cypress/screenshots/
+.cypress/
+
+# Videos da entrega ficam no drive (GitHub recusa arquivos > 100 MB)
+docs/*.mp4

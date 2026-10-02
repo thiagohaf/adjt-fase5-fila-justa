@@ -1,0 +1,113 @@
+server:
+  port: 8083
+
+# Porta de management separada da porta de aplicacao: mesmo raciocinio dos
+# demais servicos (AD-8/AD-12) -- o security group de health-check libera so
+# essa porta, sem reabrir a porta de aplicacao.
+management:
+  server:
+    port: 8092
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+spring:
+  application:
+    name: liberacao-repasse-service
+  # Credenciais (spring.datasource.username/password) vem so de variavel de
+  # ambiente (SPRING_DATASOURCE_USERNAME/PASSWORD, relaxed binding) -- reusa
+  # o secret admin do Postgres compartilhado (mesmo padrao dos demais
+  # servicos). Host "postgres" (Service Connect, sem sufixo de namespace).
+  datasource:
+    url: jdbc:postgresql://postgres:5432/confirmasus
+  flyway:
+    schemas: matching_alocacao
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway (nao Hibernate) e o dono do schema -- so valida o mapeamento.
+      ddl-auto: validate
+
+# Consumidor real do evento ScoreCalculado (Story 3.1b) -- primeiro
+# consumidor SQS real do projeto. ScoreCalculadoConsumerJob
+# (infrastructure/relay) le a fila SQS FIFO assinante de
+# score-calculado.fifo (declarada em infra-cdk) e mantem a replica local de
+# Score via upsert idempotente. queue-url/endpoint-override ficam vazios em
+# producao real fora do valor injetado pela task ECS (chore de deploy
+# deferido, ver deferred-work.md); credenciais nunca aqui, so via variavel
+# de ambiente/role da task (Boundaries da spec 3.1b).
+confirmasus:
+  matching:
+    # Consumidor de VagaLiberada (Story 6.1, AD-3/AD-6): fila SQS FIFO
+    # assinante do topico SNS do agendamento-confirmacao-service. Desligado
+    # por padrao ate a fila existir no CDK (chore/cdk-filas-liberacao-repasse).
+    vaga-liberada-consumer:
+      enabled: ${CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENABLED:false}
+      queue-url: ${CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_QUEUE_URL:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 10
+      wait-time-seconds: 1
+    relay:
+      # Kill switch operacional -- tambem usado pelos testes que nao
+      # exercitam o consumidor, para nao criar o SqsClient nem agendar o
+      # poller (evita qualquer tentativa de chamada de rede real fora do
+      # escopo deles), mesmo padrao de confirmasus.triagem.relay.enabled.
+      enabled: true
+      queue-url: ${CONFIRMASUS_MATCHING_RELAY_QUEUE_URL:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${CONFIRMASUS_MATCHING_RELAY_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 10
+      wait-time-seconds: 1
+    bootstrap:
+      # Base URL de triagem-score-service (GET /internal/scores, Story
+      # 3.1a) usada pelo bootstrap sincrono a frio da replica (Story 3.1c,
+      # TriagemScoreClient). Mesmo padrao de host Service Connect sem
+      # sufixo de namespace do gateway-service (rota auth-login,
+      # "http://auth-service:8081"). Sem override real fora do valor
+      # injetado pela task ECS fica deferido (mesmo chore de deploy de
+      # 2.1/3.0/3.1a/3.1b, deferred-work.md).
+      base-url: ${CONFIRMASUS_MATCHING_BOOTSTRAP_BASE_URL:http://triagem-score-service:8084}
+    # Infraestrutura outbox propria deste servico (Story 3-3a, AD-3) --
+    # RelaySnsPublisherJob (infrastructure/relay). Namespace
+    # "outbox-relay" (nao "relay" acima, ja usado pelo consumidor SQS de
+    # ScoreCalculado) para nao colidir os dois pollers independentes.
+    #
+    # enabled=true (mesmo padrao real de confirmasus.triagem.relay.enabled) --
+    # topico SNS FIFO proprio (matching-alocacao-eventos.fifo) ja
+    # provisionado em infra-cdk (ConfirmaSusStack). topic-arn fica vazio por
+    # padrao (injetado so no deploy real via
+    # CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN) -- deploy ECS deste servico
+    # ainda pendente (gap pre-existente, deferred-work.md, nao desta story).
+    # Testes @SpringBootTest pre-existentes que nao exercitam este relay
+    # setam outbox-relay.enabled=false explicitamente (mesmo padrao de
+    # RegistrarTriagemIntegrationTest/ConsultarTriagemIntegrationTest).
+    outbox-relay:
+      enabled: true
+      topic-arn: ${CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN:}
+      region: ${AWS_REGION:us-east-1}
+      endpoint-override: ${CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENDPOINT_OVERRIDE:}
+      poll-interval-ms: 5000
+      batch-size: 50
+
+  # Prioridade Efetiva = score + min(k * max(0, horas_espera), teto)
+  # (Story 3.1c, epic-3-context.md) -- teto = 20% da amplitude do Score
+  # (0..100), atingido as 18h de espera simulada (ponto medio da faixa
+  # 12-24h): k = teto / 18 ~= 1,111 pontos/hora. Calibravel aqui, fonte
+  # unica -- PrioridadeEfetiva (domain) nunca hardcoda esses valores.
+  aging:
+    k: 1.1111111111111112
+    teto: 20
+
+# Logging: padrão JSON estruturado via LogstashEncoder (logback-spring.xml, Deferred P2)

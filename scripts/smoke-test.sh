@@ -16,9 +16,11 @@ if [[ ! -f "${OUTPUTS_FILE}" ]]; then
   exit 1
 fi
 
-CLUSTER_NAME=$(jq -r '.FilaJustaStack.ClusterName' "${OUTPUTS_FILE}")
-GATEWAY_SERVICE_NAME=$(jq -r '.FilaJustaStack.GatewayServiceName' "${OUTPUTS_FILE}")
-AUTH_SERVICE_NAME=$(jq -r '.FilaJustaStack.AuthServiceName' "${OUTPUTS_FILE}")
+CLUSTER_NAME=$(jq -r '.ConfirmaSusStack.ClusterName' "${OUTPUTS_FILE}")
+GATEWAY_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.GatewayServiceName' "${OUTPUTS_FILE}")
+AUTH_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.AuthServiceName' "${OUTPUTS_FILE}")
+LIBERACAO_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.LiberacaoRepasseServiceName' "${OUTPUTS_FILE}")
+AUDITORIA_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.AuditoriaServiceName' "${OUTPUTS_FILE}")
 
 resolve_public_ip() {
   local cluster="$1" service="$2"
@@ -48,7 +50,7 @@ AUTH_IP=$(resolve_public_ip "${CLUSTER_NAME}" "${AUTH_SERVICE_NAME}")
 
 FAILED=0
 
-echo "==> [1/4] GET http://${GATEWAY_IP}:8080/actuator/health (esperado: 200)"
+echo "==> [1/5] GET http://${GATEWAY_IP}:8080/actuator/health (esperado: 200)"
 GATEWAY_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://${GATEWAY_IP}:8080/actuator/health" || echo "000")
 if [[ "${GATEWAY_STATUS}" == "200" ]]; then
   echo "    OK (${GATEWAY_STATUS})"
@@ -57,7 +59,7 @@ else
   FAILED=1
 fi
 
-echo "==> [2/4] Bypass direto ao auth-service em http://${AUTH_IP}:8081 (esperado: conexao recusada)"
+echo "==> [2/5] Bypass direto ao auth-service em http://${AUTH_IP}:8081 (esperado: conexao recusada)"
 set +e
 curl -sS -o /dev/null --max-time 5 "http://${AUTH_IP}:8081/actuator/health"
 CURL_EXIT=$?
@@ -71,7 +73,7 @@ else
   FAILED=1
 fi
 
-echo "==> [3/4] POST http://${GATEWAY_IP}:8080/v1/auth/login com credenciais corretas (esperado: 200 + JWT)"
+echo "==> [3/5] POST http://${GATEWAY_IP}:8080/v1/auth/login com credenciais corretas (esperado: 200 + JWT)"
 # Uma unica chamada (corpo + status juntos, separados por '\n') -- duas
 # chamadas separadas para o mesmo request e desperdicio e arrisca uma
 # divergencia entre as duas se o timeout for justo.
@@ -88,7 +90,7 @@ else
   FAILED=1
 fi
 
-echo "==> [4/4] POST http://${GATEWAY_IP}:8080/v1/auth/login com senha errada (esperado: 401)"
+echo "==> [4/5] POST http://${GATEWAY_IP}:8080/v1/auth/login com senha errada (esperado: 401)"
 LOGIN_BAD_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 -X POST "http://${GATEWAY_IP}:8080/v1/auth/login" \
   -H 'Content-Type: application/json' \
   -d '{"username":"regulador","password":"senha-errada"}' || echo "000")
@@ -99,9 +101,22 @@ else
   FAILED=1
 fi
 
+echo "==> [5/5] Health-check de liberacao-repasse-service (:8092) e auditoria-service (:8094) (esperado: 200)"
+for ENTRY in "${LIBERACAO_SERVICE_NAME}:8092" "${AUDITORIA_SERVICE_NAME}:8094"; do
+  SVC="${ENTRY%%:*}"; PORT="${ENTRY##*:}"
+  SVC_IP=$(resolve_public_ip "${CLUSTER_NAME}" "${SVC}")
+  SVC_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "http://${SVC_IP}:${PORT}/actuator/health" || echo "000")
+  if [[ "${SVC_STATUS}" == "200" ]]; then
+    echo "    OK ${SVC} (${SVC_STATUS})"
+  else
+    echo "    FALHOU ${SVC}: recebido ${SVC_STATUS}, esperado 200"
+    FAILED=1
+  fi
+done
+
 if [[ "${FAILED}" -eq 0 ]]; then
   echo ""
-  echo "Smoke test OK: health-check publico + bypass negado (spec 1.1) + login (spec 1.2)."
+  echo "Smoke test OK: health-check publico + bypass negado (spec 1.1) + login (spec 1.2) + servicos de dominio."
 else
   echo ""
   echo "Smoke test FALHOU -- ver mensagens acima."

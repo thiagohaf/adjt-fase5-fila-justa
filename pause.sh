@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Escala todas as tasks ECS do cluster FilaJusta a 0, sem destruir dados
+# Escala todas as tasks ECS do cluster ConfirmaSusStack a 0, sem destruir dados
 # (volume EFS do Postgres persiste) -- NFR-7, spec 1.1. Nao usa CDK: chama a
 # AWS CLI direto, para nao recriar/destruir a stack.
 #
@@ -15,7 +15,7 @@ if [[ ! -f "${OUTPUTS_FILE}" ]]; then
   exit 1
 fi
 
-CLUSTER_NAME=$(jq -r '.FilaJustaStack.ClusterName' "${OUTPUTS_FILE}")
+CLUSTER_NAME=$(jq -r '.ConfirmaSusStack.ClusterName' "${OUTPUTS_FILE}")
 
 echo "==> Listando services do cluster ${CLUSTER_NAME}..."
 SERVICE_ARNS=$(aws ecs list-services --cluster "${CLUSTER_NAME}" --query 'serviceArns[]' --output text)

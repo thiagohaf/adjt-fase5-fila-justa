@@ -1,5 +1,5 @@
 # Contexto de build docker dos assets CDK (ContainerImage.fromAsset("..") em
-# infra-cdk/src/main/java/com/filajusta/infra/FilaJustaStack.java) e a raiz
+# infra-cdk/src/main/java/com/confirmasus/infra/ConfirmaSusStack.java) e a raiz
 # do repo. Excluir tudo que nao e preciso para o multi-stage build dos
 # Dockerfiles de gateway-service/auth-service (CDK le este .dockerignore
 # automaticamente ao empacotar o asset -- evita copiar infra-cdk/cdk.out
@@ -18,3 +18,13 @@ infra-cdk/cdk.out/
 infra-cdk/.cdk.staging/
 *.md
 README.md
+# Nao fazem parte do reactor Maven buildado pelos Dockerfiles. frontend/node_modules
+# (~11k arquivos) fazia o fingerprint do asset CDK parecer um deadlock JSII;
+# .env nunca deve ir para o contexto de build.
+frontend/
+.env
+.env.*
+.vscode/
+.DS_Store
+**/.DS_Store
+scripts/

@@ -3,12 +3,14 @@ package com.confirmasus.agendamento.infrastructure.persistence;
 import com.confirmasus.agendamento.application.command.AgendamentoRepositorio;
 import com.confirmasus.agendamento.domain.Agendamento;
 import com.confirmasus.agendamento.domain.StatusAgendamento;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Adapter que implementa a porta {@link AgendamentoRepositorio}
@@ -34,6 +36,7 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
     @Override
     public Agendamento salvar(Agendamento agendamento) {
         AgendamentoJpaEntity entity = new AgendamentoJpaEntity(
+                agendamento.getAgendamentoId(),
                 agendamento.getPacienteId(),
                 agendamento.getRecursoId(),
                 agendamento.getDataHoraAgendamento(),
@@ -42,7 +45,8 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
                 agendamento.getJanelaAbreEm(),
                 agendamento.getJanelaExpiraEm());
         AgendamentoJpaEntity salvo = jpaRepository.save(entity);
-        return paraDominio(salvo);
+        jpaRepository.flush();
+        return paraDominio(jpaRepository.findById(salvo.getId()).orElseThrow());
     }
 
     @Override
@@ -83,9 +87,23 @@ class AgendamentoRepositorioAdapter implements AgendamentoRepositorio {
         return jpaRepository.findById(id).map(this::paraDominio);
     }
 
+    @Override
+    public Optional<Agendamento> buscarPorPacienteIdERecursoId(Long pacienteId, UUID recursoId) {
+        return jpaRepository.findByPacienteIdAndRecursoId(pacienteId, recursoId).map(this::paraDominio);
+    }
+
+    @Override
+    public List<Agendamento> listarTodos() {
+        return jpaRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+                .stream()
+                .map(this::paraDominio)
+                .toList();
+    }
+
     private Agendamento paraDominio(AgendamentoJpaEntity entity) {
         return new Agendamento(
                 entity.getId(),
+                entity.getAgendamentoId(),
                 entity.getPacienteId(),
                 entity.getRecursoId(),
                 entity.getDataHoraAgendamento(),

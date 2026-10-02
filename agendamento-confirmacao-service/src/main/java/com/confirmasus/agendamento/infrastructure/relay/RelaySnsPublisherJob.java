@@ -21,7 +21,7 @@ import java.util.Set;
 
 /**
  * Relay/publisher outbox proprio do agendamento-confirmacao-service (spec
- * 1.2, AD-3) -- copia adaptada de {@code matching-alocacao-service/.../
+ * 1.2, AD-3) -- copia adaptada de {@code liberacao-repasse-service/.../
  * infrastructure/relay/RelaySnsPublisherJob.java}: poller {@code @Scheduled}
  * que le linhas pendentes de {@code eventos_outbox}
  * ({@link EventoOutboxRepositorio#buscarNaoPublicados}), publica cada uma no
@@ -32,7 +32,7 @@ import java.util.Set;
  * <p>Envelope publicado e exatamente {@code {eventId, eventType,
  * occurredAt, version, correlationId, payload}} (contrato do Epic 2);
  * {@code MessageGroupId = agendamentoId} (extraido do payload -- diferente
- * de {@code matching-alocacao-service}, que usa {@code recursoId}, Code Map
+ * de {@code liberacao-repasse-service}, que usa {@code recursoId}, Code Map
  * da spec 1.2) e {@code MessageDeduplicationId = eventId} do outbox --
  * garante ordem por Agendamento e deduplicacao do lado do SNS numa
  * republicacao apos falha parcial.

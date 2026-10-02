@@ -44,6 +44,9 @@ import software.amazon.awscdk.services.secretsmanager.Secret;
 import software.amazon.awscdk.services.secretsmanager.SecretStringGenerator;
 import software.amazon.awscdk.services.servicediscovery.INamespace;
 import software.amazon.awscdk.services.sns.Topic;
+import software.amazon.awscdk.services.sns.FilterOrPolicy;
+import software.amazon.awscdk.services.sns.StringConditions;
+import software.amazon.awscdk.services.sns.SubscriptionFilter;
 import software.amazon.awscdk.services.sns.subscriptions.SqsSubscription;
 import software.amazon.awscdk.services.sns.subscriptions.SqsSubscriptionProps;
 import software.amazon.awscdk.services.sqs.DeadLetterQueue;
@@ -54,58 +57,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Stack unica do ConfirmaSus -- Story 1.1 (Subida do Ambiente com Health-Check
- * Publico) + Story 1.2 (Autenticacao de Usuario via auth-service) + Story
- * 1.1 do Epic 1 (registro de Agendamento via agendamento-confirmacao-service).
+ * Stack unica do ConfirmaSus: VPC de subnet publica unica sem NAT Gateway (AD-11),
+ * cluster ECS Fargate, Postgres 18 como container Fargate com volume EFS
+ * persistente, e os servicos {@code gateway-service}, {@code auth-service},
+ * {@code agendamento-confirmacao-service}, {@code liberacao-repasse-service} e
+ * {@code auditoria-service}, todos com {@code assignPublicIp = ENABLED}.
  *
- * <p>Provisiona: VPC de subnet publica unica, sem NAT Gateway (AD-12);
- * cluster ECS Fargate; Postgres 18 como container Fargate com volume EFS
- * persistente (nao RDS, decisao de custo desta story); tasks/services de
- * {@code gateway-service}, {@code auth-service} e
- * {@code agendamento-confirmacao-service}, com {@code assignPublicIp =
- * ENABLED} (AD-12); security groups que garantem que so o gateway alcanca a
- * porta de aplicacao de cada servico de dominio, com excecao estreita e
- * nomeada para health-check (AD-8/AD-12). Story 1.2 (auth) acrescenta:
- * Service Connect do auth-service (DNS interno {@code auth-service:8081} --
- * dnsName resolvido pelo Envoy como string exata, sem sufixo de namespace),
- * secret {@code JwtSecret} (HS256, AD-14) e as credenciais do Postgres
- * (reusando {@code PostgresSecret}) injetadas como env vars no auth-service.
- * A spec de validacao de JWT no gateway acrescenta o mesmo
- * {@code JwtSecret} tambem como env var {@code CONFIRMASUS_JWT_SECRET} do
- * {@code gateway-service} -- consumido pelo {@code JwtAuthenticationFilter}
- * (unico ponto de validacao de assinatura/expiracao, AD-8).
- * {@code agendamento-confirmacao-service} (Epic 1, Story 1.1) segue o mesmo
- * molde de {@code buildAuthService} -- Service Connect (DNS interno
- * {@code agendamento-confirmacao-service:8082}), credenciais do Postgres
- * reusando {@code PostgresSecret}; sem SG/porta gRPC nesta story (AD-11 --
- * adiado para Story 2.1, quando {@code liberacao-repasse-service} existir).
+ * <p>Seguranca: so o security group do gateway alcanca a porta de aplicacao de cada
+ * servico; cada servico tem uma excecao estreita e nomeada para health-check
+ * (AD-8/AD-12). Service Connect fornece o DNS interno (ex.:
+ * {@code auth-service:8081}, resolvido pelo Envoy como string exata, sem sufixo de
+ * namespace). Segredos ({@code PostgresSecret}, {@code JwtSecret}) vivem no Secrets
+ * Manager (NFR-6).
  *
- * <p>Os demais servicos de dominio deferidos (ver deferred-work.md) nao
- * entram aqui -- seguirao o mesmo padrao (task/service + par de security
- * groups app/health) quando suas stories comecarem. Story 3.0 (relay real do
- * evento {@code ScoreCalculado}) e a primeira excecao parcial: declara o
- * topico SNS FIFO {@code score-calculado.fifo} (AD-3) para que
- * {@code matching-alocacao-service} (Story 3.1b, abaixo) ja tenha uma fila
- * assinante -- o publisher real deste topico (a IAM role de publish que
- * existia como {@code TriagemScoreServiceTaskRole}, do extinto
- * triagem-score-service) foi removido na Story 1.1 do Epic 1 (AD-1, sem
- * substituto: nenhum outbox/publisher existe ainda em
- * agendamento-confirmacao-service, entra na Story 1.2). Story 3.1b acrescenta o mesmo
- * padrao do lado consumidor: fila SQS FIFO assinante do topico (+ DLQ,
- * {@code maxReceiveCount=5}) e a IAM role de consumo de
- * {@code matching-alocacao-service} -- deploy ECS daquele servico tambem
- * continua deferido; a futura {@code FargateTaskDefinition} deve reusar
- * {@code MatchingAlocacaoServiceTaskRole}. Story 3-3a acrescenta o topico
- * SNS FIFO proprio de {@code matching-alocacao-service}
- * ({@code matching-alocacao-eventos.fifo}, relay outbox daquele servico) --
- * publish concedido a mesma {@code MatchingAlocacaoServiceTaskRole} acima
- * (nao cria outra role); nenhuma fila assinante ainda (fora de escopo,
- * Epic 4/auditoria-service assina depois). Story 3-4a2 acrescenta a fila SQS
- * STANDARD (nao FIFO) {@code liberacao-agendada} + DLQ
- * ({@code maxReceiveCount=5}) que {@code LiberacaoAgendadaRelayJob}
- * (matching-alocacao-service) publica -- {@code grantSendMessages} concedido a
- * mesma {@code MatchingAlocacaoServiceTaskRole}; nenhum consumidor real ainda
- * (Story 3-4b, deferida).
+ * <p>Mensageria (AD-3): topicos SNS FIFO {@code agendamento-confirmacao-eventos.fifo} e
+ * {@code matching-alocacao-eventos.fifo} (nome legado mantido: contrato entre
+ * servicos); fila {@code vaga-liberada-liberacao-repasse.fifo} (filtro
+ * {@code VagaLiberada}) consumida pelo liberacao-repasse-service; fila
+ * {@code auditoria-decisoes.fifo} (raw delivery) assinando os dois topicos e
+ * consumida pelo auditoria-service; todas com DLQ ({@code maxReceiveCount=5}).
+ * A priorizacao por score (triagem-score-service) foi decomissionada por
+ * restricao legal: a Sugestao de Repasse e FIFO pura por Lista de Espera (AD-6).
  */
 public class ConfirmaSusStack extends Stack {
 
@@ -181,6 +153,17 @@ public class ConfirmaSusStack extends Stack {
         sgAgendamentoConfirmacaoHealth.addIngressRule(Peer.anyIpv4(), Port.tcp(8091),
                 "Excecao estreita de health-check por servico, nao reabre a porta de aplicacao (AD-12)");
 
+        // liberacao-repasse-service e auditoria-service -- mesmo molde: SG de app
+        // so alcancavel pelo gateway-service + SG de health-check estreito.
+        SecurityGroup sgLiberacaoRepasseApp = appSecurityGroup("LiberacaoRepasseAppSg", vpc, sgGatewayApp,
+                8083, "liberacao-repasse-service");
+        SecurityGroup sgLiberacaoRepasseHealth = healthSecurityGroup("LiberacaoRepasseHealthSg", vpc, 8092,
+                "liberacao-repasse-service");
+        SecurityGroup sgAuditoriaApp = appSecurityGroup("AuditoriaAppSg", vpc, sgGatewayApp,
+                8085, "auditoria-service");
+        SecurityGroup sgAuditoriaHealth = healthSecurityGroup("AuditoriaHealthSg", vpc, 8094,
+                "auditoria-service");
+
         SecurityGroup sgPostgres = SecurityGroup.Builder.create(this, "PostgresSg")
                 .vpc(vpc)
                 .description("Postgres 18 (container ECS Fargate) -- so alcancavel pelos servicos donos de schema (AD-9)")
@@ -191,6 +174,11 @@ public class ConfirmaSusStack extends Stack {
         sgPostgres.addIngressRule(sgAgendamentoConfirmacaoApp, Port.tcp(5432),
                 "agendamento-confirmacao-service acessa seu proprio schema "
                         + "(agendamento_confirmacao) no cluster Postgres (AD-9)");
+
+        sgPostgres.addIngressRule(sgLiberacaoRepasseApp, Port.tcp(5432),
+                "liberacao-repasse-service acessa seu proprio schema (matching_alocacao) no cluster Postgres (AD-9)");
+        sgPostgres.addIngressRule(sgAuditoriaApp, Port.tcp(5432),
+                "auditoria-service acessa seu proprio schema (auditoria) no cluster Postgres (AD-9)");
 
         SecurityGroup sgPostgresEfs = SecurityGroup.Builder.create(this, "PostgresEfsSg")
                 .vpc(vpc)
@@ -257,7 +245,7 @@ public class ConfirmaSusStack extends Stack {
         // --- Topico de outbox proprio do agendamento-confirmacao-service (spec 1.2, AD-3) ---
         // Criado antes do FargateService para poder ser passado ao metodo de
         // build abaixo, que concede grantPublish diretamente na TaskRole
-        // real do servico (ja deployado, diferente de matching-alocacao-service
+        // real do servico (ja deployado, diferente de liberacao-repasse-service
         // -- nao ha necessidade de uma Role standalone pre-criada aqui).
         Topic agendamentoConfirmacaoEventosTopic = buildAgendamentoConfirmacaoEventosTopic();
 
@@ -273,41 +261,57 @@ public class ConfirmaSusStack extends Stack {
             agendamentoConfirmacaoService.getNode().addDependency(cloudMapNamespace);
         }
 
-        // --- Topico do evento ScoreCalculado (Epic 3, AD-3) ----------------
-        // So o topico -- a role de publish do extinto triagem-score-service
-        // (TriagemScoreServiceTaskRole) foi removida nesta story (Story 1.1,
-        // AD-1): nenhum publisher outbox existe ainda em
-        // agendamento-confirmacao-service (entra na Story 1.2), e recriar a
-        // role sem uso seria uma role fantasma. O topico continua existindo
-        // so porque buildScoreCalculadoConsumerQueue (Story 3.1b, abaixo)
-        // ja assina nele -- quando o outbox real deste servico existir, a
-        // role/publish sera adicionada de volta na story correspondente.
-        Topic scoreCalculadoTopic = buildScoreCalculadoTopic();
-
-        // --- Consumidor do evento ScoreCalculado (Story 3.1b) --------------
-        // Fila SQS FIFO assinante do topico acima + DLQ + a role de consumo
-        // -- deploy do matching-alocacao-service no ECS tambem continua
-        // deferido (deferred-work.md, ver javadoc da classe).
-        Queue scoreCalculadoConsumerQueue = buildScoreCalculadoConsumerQueue(scoreCalculadoTopic);
-        Role matchingAlocacaoServiceTaskRole = buildMatchingAlocacaoServiceTaskRole(scoreCalculadoConsumerQueue);
-
-        // --- Relay outbox proprio do matching-alocacao-service (Story 3-3a, AD-3) ---
-        // So o topico + a permissao de publish -- deploy ECS deste servico
-        // continua deferido (deferred-work.md, ver javadoc da classe); reusa
-        // a MatchingAlocacaoServiceTaskRole ja existente (Story 3.1b), nao
-        // cria outra role (mesmo principio do topico ScoreCalculado acima).
-        // Nenhuma fila/subscription assinante nesta story -- Epic 4
-        // (auditoria-service) assina depois, fora de escopo.
+        // --- Topico de outbox do liberacao-repasse-service (Story 3-3a, AD-3) e filas ---
+        Role liberacaoRepasseServiceTaskRole = buildLiberacaoRepasseServiceTaskRole();
         Topic matchingAlocacaoEventosTopic = buildMatchingAlocacaoEventosTopic();
-        matchingAlocacaoEventosTopic.grantPublish(matchingAlocacaoServiceTaskRole);
+        matchingAlocacaoEventosTopic.grantPublish(liberacaoRepasseServiceTaskRole);
 
-        // --- Relay de publicacao da liberacao agendada (Story 3-4a2) -------
-        // Fila SQS standard (nao FIFO -- ordem entre Recursos nao importa,
-        // Boundaries da spec 3-4a2) + DLQ que LiberacaoAgendadaRelayJob
-        // publica; reusa a MESMA MatchingAlocacaoServiceTaskRole (nao cria
-        // outra), so acrescenta grantSendMessages.
-        Queue liberacaoAgendadaQueue = buildLiberacaoAgendadaQueue();
-        liberacaoAgendadaQueue.grantSendMessages(matchingAlocacaoServiceTaskRole);
+        // Fila de VagaLiberada (Story 6.2, AD-3/AD-6): FIFO + DLQ, assinada no
+        // topico do agendamento-confirmacao-service; consumida por
+        // VagaLiberadaSqsConsumerJob com a MESMA task role.
+        Queue vagaLiberadaQueue = buildVagaLiberadaQueue();
+        agendamentoConfirmacaoEventosTopic.addSubscription(new SqsSubscription(vagaLiberadaQueue, SqsSubscriptionProps.builder()
+                // Envelope {eventType,...} vai no corpo (nao em message attributes):
+                // filtra so VagaLiberada, os demais eventos do topico nao entram na fila.
+                .filterPolicyWithMessageBody(Map.of("eventType",
+                        FilterOrPolicy.filter(SubscriptionFilter.stringFilter(StringConditions.builder()
+                                .allowlist(List.of("VagaLiberada"))
+                                .build()))))
+                .build()));
+        vagaLiberadaQueue.grantConsumeMessages(liberacaoRepasseServiceTaskRole);
+
+        // Fila de auditoria (AD-3/AD-7): FIFO + DLQ, assinando os topicos dos DOIS
+        // servicos de dominio com raw delivery (o consumidor le o envelope do corpo).
+        Queue auditoriaQueue = buildAuditoriaQueue();
+        SqsSubscriptionProps rawDelivery = SqsSubscriptionProps.builder().rawMessageDelivery(true).build();
+        agendamentoConfirmacaoEventosTopic.addSubscription(new SqsSubscription(auditoriaQueue, rawDelivery));
+        matchingAlocacaoEventosTopic.addSubscription(new SqsSubscription(auditoriaQueue, rawDelivery));
+
+        // --- liberacao-repasse-service (task/service) -----------------------
+        FargateService liberacaoRepasseService = buildDomainService(cluster, "LiberacaoRepasse",
+                "liberacao-repasse-service", 8083, 8092, sgLiberacaoRepasseApp, sgLiberacaoRepasseHealth,
+                dbSecret, liberacaoRepasseServiceTaskRole,
+                Map.of("CONFIRMASUS_MATCHING_OUTBOX_RELAY_ENABLED", "true",
+                        "CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN", matchingAlocacaoEventosTopic.getTopicArn(),
+                        "CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENABLED", "true",
+                        "CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_QUEUE_URL", vagaLiberadaQueue.getQueueUrl()));
+        liberacaoRepasseService.getNode().addDependency(postgresService);
+
+        // --- auditoria-service (task/service) --------------------------------
+        FargateService auditoriaService = buildDomainService(cluster, "Auditoria", "auditoria-service",
+                8085, 8094, sgAuditoriaApp, sgAuditoriaHealth, dbSecret, null,
+                Map.of("SERVER_PORT", "8085",
+                        "MANAGEMENT_SERVER_PORT", "8094",
+                        "SPRING_DATASOURCE_URL", "jdbc:postgresql://postgres:5432/confirmasus",
+                        "AUDITORIA_RELAY_ENABLED", "true",
+                        "AUDITORIA_QUEUE_URL", auditoriaQueue.getQueueUrl()));
+        auditoriaService.getNode().addDependency(postgresService);
+        auditoriaQueue.grantConsumeMessages(auditoriaService.getTaskDefinition().getTaskRole());
+
+        if (cloudMapNamespace != null) {
+            liberacaoRepasseService.getNode().addDependency(cloudMapNamespace);
+            auditoriaService.getNode().addDependency(cloudMapNamespace);
+        }
 
         // --- Outputs (usados por pause.sh/destroy.sh/deploy.sh, e para o curl de verificacao) ---
         CfnOutput.Builder.create(this, "ClusterName").value(cluster.getClusterName()).build();
@@ -316,16 +320,17 @@ public class ConfirmaSusStack extends Stack {
         CfnOutput.Builder.create(this, "AgendamentoConfirmacaoServiceName")
                 .value(agendamentoConfirmacaoService.getServiceName())
                 .build();
-        CfnOutput.Builder.create(this, "PostgresServiceName").value(postgresService.getServiceName()).build();
-        CfnOutput.Builder.create(this, "ScoreCalculadoTopicArn").value(scoreCalculadoTopic.getTopicArn()).build();
-        CfnOutput.Builder.create(this, "ScoreCalculadoConsumerQueueUrl")
-                .value(scoreCalculadoConsumerQueue.getQueueUrl())
+        CfnOutput.Builder.create(this, "LiberacaoRepasseServiceName")
+                .value(liberacaoRepasseService.getServiceName())
                 .build();
+        CfnOutput.Builder.create(this, "AuditoriaServiceName").value(auditoriaService.getServiceName()).build();
+        CfnOutput.Builder.create(this, "AuditoriaQueueUrl").value(auditoriaQueue.getQueueUrl()).build();
+        CfnOutput.Builder.create(this, "PostgresServiceName").value(postgresService.getServiceName()).build();
         CfnOutput.Builder.create(this, "MatchingAlocacaoEventosTopicArn")
                 .value(matchingAlocacaoEventosTopic.getTopicArn())
                 .build();
-        CfnOutput.Builder.create(this, "LiberacaoAgendadaQueueUrl")
-                .value(liberacaoAgendadaQueue.getQueueUrl())
+        CfnOutput.Builder.create(this, "VagaLiberadaQueueUrl")
+                .value(vagaLiberadaQueue.getQueueUrl())
                 .build();
         CfnOutput.Builder.create(this, "AgendamentoConfirmacaoEventosTopicArn")
                 .value(agendamentoConfirmacaoEventosTopic.getTopicArn())
@@ -346,70 +351,13 @@ public class ConfirmaSusStack extends Stack {
                 .build();
     }
 
-    private Topic buildScoreCalculadoTopic() {
-        // FIFO (nao standard) -- ordem determinística por paciente via
-        // MessageGroupId = pacienteId (AD-3, ARCHITECTURE-SPINE.md).
-        // contentBasedDeduplication=false: RelaySnsPublisherJob sempre manda
-        // um MessageDeduplicationId explicito (o eventId do outbox), nunca
-        // depende de deduplicacao por conteudo.
-        return Topic.Builder.create(this, "ScoreCalculadoTopic")
-                .topicName("score-calculado.fifo")
-                .fifo(true)
-                .contentBasedDeduplication(false)
-                .build();
-    }
-
-    private Queue buildScoreCalculadoConsumerQueue(final Topic scoreCalculadoTopic) {
-        // DLQ com maxReceiveCount=5 (mesma convencao ja usada na fila de
-        // teste da Story 3.0, RelaySnsPublisherJobIntegrationTest -- Design
-        // Notes da spec 3.1b: convencao do projeto, nao fixada no
-        // epic-3-context.md). FIFO (nao standard) -- consistente com o
-        // topico origem, preserva ordem por pacienteId dentro do grupo.
-        Queue dlq = Queue.Builder.create(this, "ScoreCalculadoConsumerDlq")
-                .queueName("score-calculado-matching-dlq.fifo")
-                .fifo(true)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-
-        Queue queue = Queue.Builder.create(this, "ScoreCalculadoConsumerQueue")
-                .queueName("score-calculado-matching.fifo")
-                .fifo(true)
-                .deadLetterQueue(DeadLetterQueue.builder()
-                        .queue(dlq)
-                        .maxReceiveCount(5)
-                        .build())
-                // Achado do code review: default do SQS e 30s. O poller
-                // (ScoreCalculadoConsumerJob) processa ate batch-size (10)
-                // mensagens sequencialmente numa unica execucao @Scheduled --
-                // sob lentidao do banco o tempo cumulativo pode se
-                // aproximar/exceder 30s, causando redelivery prematuro antes
-                // do deleteMessage rodar (idempotencia cobre a correcao, mas
-                // gera reprocessamento/log desnecessario). 60s da margem de
-                // seguranca confortavel para um lote inteiro.
-                .visibilityTimeout(Duration.seconds(60))
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-
-        // RawMessageDelivery=true (mesma escolha da fila de teste da Story
-        // 3.0): o corpo da mensagem SQS e o envelope publicado direto, sem
-        // o wrapper JSON padrao do SNS -- e o que ScoreCalculadoConsumerJob
-        // (matching-alocacao-service) espera ler.
-        scoreCalculadoTopic.addSubscription(new SqsSubscription(queue,
-                SqsSubscriptionProps.builder().rawMessageDelivery(true).build()));
-
-        return queue;
-    }
-
-    private Role buildMatchingAlocacaoServiceTaskRole(final Queue scoreCalculadoConsumerQueue) {
-        Role role = Role.Builder.create(this, "MatchingAlocacaoServiceTaskRole")
+    private Role buildLiberacaoRepasseServiceTaskRole() {
+        return Role.Builder.create(this, "LiberacaoRepasseServiceTaskRole")
                 .assumedBy(new ServicePrincipal("ecs-tasks.amazonaws.com"))
-                .description("Task role de matching-alocacao-service (Story 3.1b, ScoreCalculadoConsumerJob) -- "
-                        + "criada antes do deploy ECS daquele servico (deferred-work.md) so para a policy de "
-                        + "consumo da fila SQS FIFO ja existir; reusar esta role (nao criar outra) quando a "
-                        + "FargateTaskDefinition for adicionada.")
+                .description("Task role de liberacao-repasse-service -- publish no topico outbox "
+                        + "proprio e consume da fila de VagaLiberada; usada como taskRole da "
+                        + "FargateTaskDefinition do servico.")
                 .build();
-        scoreCalculadoConsumerQueue.grantConsumeMessages(role);
-        return role;
     }
 
     private Topic buildMatchingAlocacaoEventosTopic() {
@@ -426,31 +374,138 @@ public class ConfirmaSusStack extends Stack {
                 .build();
     }
 
-    private Queue buildLiberacaoAgendadaQueue() {
-        // DLQ com maxReceiveCount=5 (mesma convencao das demais filas do
-        // projeto -- ver buildScoreCalculadoConsumerQueue). Standard (nao
-        // FIFO -- ordem entre Recursos diferentes nao importa aqui,
-        // Boundaries da spec 3-4a2): diferente das filas FIFO de
-        // ScoreCalculado/MatchingAlocacaoEventos, esta fila so carrega
-        // {alocacaoId, recursoId, correlationId} com DelaySeconds =
-        // liberacao.delaySegundos -- nenhum consumidor real ainda (Story
-        // 3-4b, deferida).
-        Queue dlq = Queue.Builder.create(this, "LiberacaoAgendadaDlq")
-                .queueName("liberacao-agendada-dlq")
+    private SecurityGroup appSecurityGroup(final String id, final IVpc vpc, final SecurityGroup sgGatewayApp,
+                                           final int port, final String service) {
+        SecurityGroup sg = SecurityGroup.Builder.create(this, id)
+                .vpc(vpc)
+                .description(service + " -- porta de aplicacao, so alcancavel pelo gateway-service (AD-12)")
+                .allowAllOutbound(true)
+                .build();
+        sg.addIngressRule(sgGatewayApp, Port.tcp(port),
+                "Somente o security group do gateway-service alcanca a porta de aplicacao "
+                        + "do " + service + " -- bloqueia bypass direto (AD-12)");
+        return sg;
+    }
+
+    private SecurityGroup healthSecurityGroup(final String id, final IVpc vpc, final int port,
+                                              final String service) {
+        SecurityGroup sg = SecurityGroup.Builder.create(this, id)
+                .vpc(vpc)
+                .description(service + " -- excecao estreita e nomeada, so a porta de health-check (AD-8/AD-12)")
+                .allowAllOutbound(true)
+                .build();
+        sg.addIngressRule(Peer.anyIpv4(), Port.tcp(port),
+                "Excecao estreita de health-check por servico, nao reabre a porta de aplicacao (AD-12)");
+        return sg;
+    }
+
+    /**
+     * Task/service Fargate de um servico de dominio Spring Boot (mesmo molde de
+     * {@code buildAgendamentoConfirmacaoService}): imagem construida do Dockerfile do
+     * modulo, credenciais do Postgres via Secrets Manager (NFR-6), Service Connect com
+     * DNS interno igual ao nome do servico (sem sufixo de namespace).
+     */
+    private FargateService buildDomainService(final Cluster cluster, final String idPrefix,
+                                              final String serviceName, final int appPort, final int healthPort,
+                                              final SecurityGroup sgApp, final SecurityGroup sgHealth,
+                                              final Secret dbSecret, final Role taskRole,
+                                              final Map<String, String> environment) {
+        LogGroup logGroup = LogGroup.Builder.create(this, idPrefix + "LogGroup")
+                .logGroupName("/confirmasus/" + serviceName)
+                .retention(RetentionDays.THREE_DAYS)
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
 
-        return Queue.Builder.create(this, "LiberacaoAgendadaQueue")
-                .queueName("liberacao-agendada")
+        FargateTaskDefinition.Builder taskDefBuilder = FargateTaskDefinition.Builder.create(this, idPrefix + "TaskDef")
+                .cpu(256)
+                .memoryLimitMiB(512)
+                .runtimePlatform(arm64Platform());
+        if (taskRole != null) {
+            taskDefBuilder.taskRole(taskRole);
+        }
+        FargateTaskDefinition taskDef = taskDefBuilder.build();
+
+        taskDef.addContainer(serviceName, ContainerDefinitionOptions.builder()
+                .image(ContainerImage.fromAsset("..", AssetImageProps.builder()
+                        .file(serviceName + "/Dockerfile")
+                        .build()))
+                .containerName(serviceName)
+                .logging(LogDriver.awsLogs(software.amazon.awscdk.services.ecs.AwsLogDriverProps.builder()
+                        .streamPrefix(serviceName)
+                        .logGroup(logGroup)
+                        .build()))
+                .portMappings(List.of(
+                        PortMapping.builder().name(serviceName).containerPort(appPort).build(),
+                        PortMapping.builder().containerPort(healthPort).build()))
+                .secrets(Map.of(
+                        "SPRING_DATASOURCE_USERNAME",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "username"),
+                        "SPRING_DATASOURCE_PASSWORD",
+                        software.amazon.awscdk.services.ecs.Secret.fromSecretsManager(dbSecret, "password")))
+                .environment(environment)
+                .build());
+
+        return FargateService.Builder.create(this, idPrefix + "Service")
+                .cluster(cluster)
+                .taskDefinition(taskDef)
+                .desiredCount(1)
+                .assignPublicIp(true)
+                .vpcSubnets(SubnetSelection.builder().subnetType(SubnetType.PUBLIC).build())
+                .securityGroups(List.of(sgApp, sgHealth))
+                .circuitBreaker(DeploymentCircuitBreaker.builder().rollback(true).build())
+                .minHealthyPercent(50)
+                .maxHealthyPercent(200)
+                .serviceConnectConfiguration(ServiceConnectProps.builder()
+                        .namespace(NAMESPACE)
+                        .services(List.of(ServiceConnectService.builder()
+                                .portMappingName(serviceName)
+                                .dnsName(serviceName)
+                                .port(appPort)
+                                .build()))
+                        .build())
+                .build();
+    }
+
+    private Queue buildAuditoriaQueue() {
+        // FIFO exigida pela assinatura em topicos SNS FIFO; DLQ com maxReceiveCount=5
+        // e visibilityTimeout 60s (convencao do projeto, AD-3). Espelha
+        // localstack/init/02-auditoria.sh.
+        Queue dlq = Queue.Builder.create(this, "AuditoriaDlq")
+                .queueName("auditoria-decisoes-dlq.fifo")
+                .fifo(true)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        return Queue.Builder.create(this, "AuditoriaQueue")
+                .queueName("auditoria-decisoes.fifo")
+                .fifo(true)
                 .deadLetterQueue(DeadLetterQueue.builder()
                         .queue(dlq)
                         .maxReceiveCount(5)
                         .build())
-                // 60s (nao o default do SQS, que e 30s) -- mesmo valor efetivo
-                // de buildScoreCalculadoConsumerQueue, so como referencia de
-                // comparacao: nenhum consumidor real ainda existe aqui (Story
-                // 3-4b, deferida), mas o valor fica consistente com as demais
-                // filas do projeto desde ja.
+                .visibilityTimeout(Duration.seconds(60))
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+    }
+
+    private Queue buildVagaLiberadaQueue() {
+        // FIFO: a assinatura em topico SNS FIFO exige fila FIFO; ordem por
+        // Agendamento (MessageGroupId=agendamentoId). Deduplicacao vem do
+        // MessageDeduplicationId explicito do topico (contentBased=false).
+        // DLQ com maxReceiveCount=5 e visibilityTimeout 60s (convencao do projeto).
+        Queue dlq = Queue.Builder.create(this, "VagaLiberadaDlq")
+                .queueName("vaga-liberada-liberacao-repasse-dlq.fifo")
+                .fifo(true)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        return Queue.Builder.create(this, "VagaLiberadaQueue")
+                .queueName("vaga-liberada-liberacao-repasse.fifo")
+                .fifo(true)
+                .deadLetterQueue(DeadLetterQueue.builder()
+                        .queue(dlq)
+                        .maxReceiveCount(5)
+                        .build())
                 .visibilityTimeout(Duration.seconds(60))
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .build();
@@ -761,7 +816,7 @@ public class ConfirmaSusStack extends Stack {
         // Spec 1.2 (AD-3): RelaySnsPublisherJob deste servico publica no
         // topico proprio -- concede a permissao diretamente na TaskRole real
         // da task (nao uma Role standalone: diferente de
-        // matching-alocacao-service, este servico ja tem um FargateService
+        // liberacao-repasse-service, este servico ja tem um FargateService
         // deployado, entao a role de fato usada em runtime e
         // taskDef.getTaskRole()).
         agendamentoConfirmacaoEventosTopic.grantPublish(taskDef.getTaskRole());
@@ -791,7 +846,7 @@ public class ConfirmaSusStack extends Stack {
                 // ARN do topico outbox (spec 1.2) -- nao e segredo (Resource
                 // ARN publico dentro da conta), injetado como variavel de
                 // ambiente comum (mesmo padrao de CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN
-                // em matching-alocacao-service, que tambem nao usa Secret).
+                // em liberacao-repasse-service, que tambem nao usa Secret).
                 .environment(Map.of(
                         "CONFIRMASUS_AGENDAMENTO_OUTBOX_RELAY_TOPIC_ARN",
                         agendamentoConfirmacaoEventosTopic.getTopicArn()))

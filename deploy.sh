@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Sobe o ambiente completo do FilaJusta (VPC, cluster ECS Fargate, Postgres
-# 18 containerizado, gateway-service e auth-service) com um unico comando,
+# Sobe o ambiente completo do ConfirmaSUS (VPC, cluster ECS Fargate, Postgres
+# 18 containerizado, filas/topicos SNS-SQS e os 5 servicos: gateway, auth,
+# agendamento-confirmacao, liberacao-repasse e auditoria) com um unico comando,
 # sem passo manual adicional (NFR-3, spec 1.1).
 #
 # Acao real na conta AWS -- confirmar com o usuario antes de rodar
@@ -11,15 +12,15 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="${ROOT_DIR}/infra-cdk"
 
 echo "==> [1/3] Compilando o reactor Maven (falha rapido antes do deploy)..."
-mvn -q -f "${ROOT_DIR}/pom.xml" -pl gateway-service,auth-service,infra-cdk -am compile
+mvn -q -f "${ROOT_DIR}/pom.xml" -pl gateway-service,auth-service,agendamento-confirmacao-service,liberacao-repasse-service,auditoria-service,infra-cdk -am compile
 
-echo "==> [2/3] cdk deploy (provisiona VPC, ECS Fargate, Postgres, gateway-service, auth-service)..."
+echo "==> [2/3] cdk deploy (provisiona VPC, ECS Fargate, Postgres, filas/topicos e os 5 servicos)..."
 (cd "${INFRA_DIR}" && cdk deploy --require-approval never --outputs-file cdk-outputs.json "$@")
 
 echo "==> [3/3] Resolvendo o endpoint publico do gateway-service..."
 OUTPUTS_FILE="${INFRA_DIR}/cdk-outputs.json"
-CLUSTER_NAME=$(jq -r '.FilaJustaStack.ClusterName' "${OUTPUTS_FILE}")
-GATEWAY_SERVICE_NAME=$(jq -r '.FilaJustaStack.GatewayServiceName' "${OUTPUTS_FILE}")
+CLUSTER_NAME=$(jq -r '.ConfirmaSusStack.ClusterName' "${OUTPUTS_FILE}")
+GATEWAY_SERVICE_NAME=$(jq -r '.ConfirmaSusStack.GatewayServiceName' "${OUTPUTS_FILE}")
 
 TASK_ARN=$(aws ecs list-tasks --cluster "${CLUSTER_NAME}" --service-name "${GATEWAY_SERVICE_NAME}" \
   --desired-status RUNNING --query 'taskArns[0]' --output text)

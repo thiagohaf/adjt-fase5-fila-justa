@@ -51,12 +51,12 @@ NFR-6 (Segredos fora do código): credenciais e segredos de configuração não 
 | AD-3 | Outbox (mesma transação do comando) + relay poller + SNS FIFO + SQS FIFO dedicada por consumidor + DLQ (`maxReceiveCount=5`, investigada manualmente — sem story dedicada, fora do escopo do MVP); `MessageGroupId` por agregado (`agendamentoId`/`recursoId`), `MessageDeduplicationId=eventId` | Todo evento publicado pelos Epics 1–3 |
 | AD-4/AD-5 | Abertura/expiração da Janela de Confirmação via dois pollers `@Scheduled` com escrita condicional (`UPDATE ... WHERE status = <esperado>`) — não fila de delay; cadência exata do poller é `[Deferred]` para `bmad-build` | Stories 1.2, 1.5 |
 | AD-7 | `auditoria-service`: só leitura + consumidor de eventos via SQS FIFO, nunca chamado de forma síncrona | Epic 3 |
-| AD-8 | gRPC interno `ResolverOuCriarPaciente(cpf) -> pacienteId`, exclusivo `liberacao-repasse-service`→`agendamento-confirmacao-service`, chamado pelo `seed-adapter` em tempo de deploy (timeout curto, sem retry); CPF nunca persistido fora de `agendamento-confirmacao-service` | Stories 1.1, 2.1 |
+| AD-8 | **Como construído:** sem gRPC — cada serviço resolve o Paciente por CPF numa tabela local (`agendamento_confirmacao.pacientes`, `matching_alocacao.paciente`); CPF validado por checksum e persistido nos dois serviços de escrita; eventos e auditoria só carregam `pacienteId`. (Planejado: gRPC `ResolverOuCriarPaciente`, CPF só em `agendamento-confirmacao-service`) | Stories 1.1, 2.1 |
 | AD-9/AD-13 | Emissão de JWT (HS256) via `auth-service`, validação só no `gateway-service`; claim `role` puramente informativo, sem RBAC aplicado | FR-14, cross-cutting (explícito nas Stories 2.2 e 3.2) |
 | AD-10 | Isolamento por schema num único cluster PostgreSQL 18 (`agendamento_confirmacao`, `liberacao_repasse`, `auditoria`, `auth`), `REVOKE` cross-schema, enforcement via ArchUnit obrigatório no CI | CDK/schema de cada serviço (Stories 1.1, 2.1, 3.1) |
-| AD-11 | VPC subnet pública única (2 AZs, sem NAT Gateway), Fargate `assignPublicIp=ENABLED`, security group por serviço — só o SG do `gateway-service` alcança as portas HTTP de app; gRPC liberado só entre os SGs de `liberacao-repasse-service` e `agendamento-confirmacao-service` | CDK de cada serviço (Stories 1.1, 2.1, 3.1) |
-| AD-12 | Runtime misto deliberado: Spring Boot/Spring Cloud nos 5 serviços de aplicação; Quarkus só no `seed-adapter` (cold-start otimizado) | Todo o sistema |
-| — | Stack fixada: Java 25, Spring Boot 4.1.1, Spring Cloud 2025.1.3, Spring gRPC 1.1.1, PostgreSQL 18, JaCoCo ≥0.8.14, PIT ≥1.30.0, Cucumber-JVM, Testcontainers — ver Architecture Spine para versões completas | Todo o sistema |
+| AD-11 | VPC subnet pública única (2 AZs, sem NAT Gateway), Fargate `assignPublicIp=ENABLED`, security group por serviço — só o SG do `gateway-service` alcança as portas HTTP de app; sem tráfego lateral entre serviços de domínio (como construído, sem gRPC) | CDK de cada serviço (Stories 1.1, 2.1, 3.1) |
+| AD-12 | Runtime misto deliberado: Spring Boot/Spring Cloud nos 5 serviços de aplicação; `seed-adapter` é um CLI Java standalone (como construído; planejado como Quarkus/Lambda) | Todo o sistema |
+| — | Stack fixada: Java 25, Spring Boot 4.1.1, Spring Cloud 2025.1.3, PostgreSQL 18, JaCoCo ≥0.8.14, PIT ≥1.30.0, Cucumber-JVM, Testcontainers — ver Architecture Spine para versões completas | Todo o sistema |
 | — | Convenção de erro (cross-cutting, sustenta NFR-4): `409` + `{error, motivo}` para conflito de estado; `422` para entrada inválida (CPF, IDs inexistentes); `404` só para recurso/rota inexistente — nunca para "sem histórico"/"sem candidatos", que são respostas de sucesso vazias | Toda API REST dos 4 serviços |
 
 ### UX Design Requirements
@@ -91,8 +91,18 @@ NFR-6: ACs de provisionamento CDK (Secrets Manager, Stories 1.1, 2.1, 3.1).
 
 ## Epic List
 
+> **Nota de execução:** os renomeios `triagem-score-service`→`agendamento-confirmacao-service`
+> e `matching-alocacao-service`→`liberacao-repasse-service` descritos abaixo
+> (AD-1): `agendamento-confirmacao-service` foi criado como diretório novo e
+> `triagem-score-service` foi decomissionado por completo (removido do
+> repositório, não renomeado). `matching-alocacao-service` foi renomeado para
+> `liberacao-repasse-service` em 2026-09-29 (o schema Postgres
+> `matching_alocacao` e o pacote Java `com.confirmasus.matching` mantêm o nome
+> legado) e cumpre o papel do Epic 2 (Lista de Espera/Sugestão de Repasse, FIFO
+> pura), com toda a infraestrutura de Score removida.
+
 1. **Epic 1: Confirmação Ativa de Presença** — FR-2–FR-7 (+ base de FR-1) — `agendamento-confirmacao-service`
-2. **Epic 2: Liberação e Repasse de Vaga** — FR-8–FR-11 (+ base de FR-1) — `liberacao-repasse-service`
+2. **Epic 2: Liberação e Repasse de Vaga** — FR-8–FR-11 (+ base de FR-1) — `liberacao-repasse-service` (renomeado de `matching-alocacao-service`)
 3. **Epic 3: Log Auditável e Consulta de Auditoria** — FR-12, FR-13 — `auditoria-service`
 4. **Epic 4: Carga de Dados Sintéticos (Camada Adaptadora)** — FR-1 completa — `seed-adapter`
 
@@ -125,7 +135,7 @@ para que o Agendamento exista pronto para a Janela de Confirmação, sem o CPF c
 
 **Given** o construto CDK ainda inexistente para este serviço
 **When** o deploy é executado
-**Then** `agendamento-confirmacao-service` sobe em Fargate com schema próprio `agendamento_confirmacao` (AD-10), security group liberando só o SG do `gateway-service` na porta HTTP e o SG do `liberacao-repasse-service` na porta gRPC (AD-11), rota registrada no gateway, health-check público, e segredos via variável de ambiente/Secrets Manager (NFR-2/NFR-6)
+**Then** `agendamento-confirmacao-service` sobe em Fargate com schema próprio `agendamento_confirmacao` (AD-10), security group liberando só o SG do `gateway-service` na porta HTTP (sem gRPC, AD-11 como construído), rota registrada no gateway, health-check público, e segredos via variável de ambiente/Secrets Manager (NFR-2/NFR-6)
 
 ### Story 1.2: Abertura da Janela de Confirmação e Notificação
 
@@ -206,7 +216,7 @@ Consulta à Lista de Espera por ordem de chegada, geração automática de Suges
 ### Story 2.1: Registrar Catálogo de Recurso e Entrada na Lista de Espera
 
 Como sistema de ingestão (seed-adapter),
-quero registrar o catálogo de Recurso e as entradas de Lista de Espera (resolvendo o Paciente via gRPC),
+quero registrar o catálogo de Recurso e as entradas de Lista de Espera (resolvendo o Paciente por CPF no próprio serviço),
 para que a Lista de Espera exista, ordenada por chegada, pronta para consulta e geração de sugestões.
 
 **Preparação do serviço** (pré-requisito de implementação, fora do escopo de teste BDD): `matching-alocacao-service` é renomeado para `liberacao-repasse-service`, reaproveitando `Alocacao`/`ConfirmarAlocacao`/`RecusarSugestao` como molde estrutural renomeado para o domínio de Repasse (`RepasseConfirmado`/`ConfirmarRepasse`/`RecusarSugestaoRepasse`/`SugestaoRepasseRecusada`), e descartando por completo a infraestrutura de réplica de Score (`ScoreReplica`, `ScoreBootstrapService`, `TriagemScoreClient`, `ScoreCalculadoConsumerJob`) e o mecanismo antigo de delay (`LiberacaoAgendadaRelayJob`/fila SQS de delay) — AD-1. Definition of Done desta etapa: build verde, sem classe/job do domínio antigo remanescente.
@@ -217,21 +227,21 @@ para que a Lista de Espera exista, ordenada por chegada, pronta para consulta e 
 **When** o catálogo de Recurso é registrado
 **Then** o upsert é idempotente — reexecutar não duplica o Recurso
 
-**Given** um CPF de Paciente (recebido transientemente do `seed-adapter`, nunca persistido — AD-8) e um `recursoId` de destino
+**Given** um CPF de Paciente (recebido do `seed-adapter`; como construído, persistido na tabela local `matching_alocacao.paciente` — AD-8) e um `recursoId` de destino
 **When** uma entrada de Lista de Espera é registrada
-**Then** o Paciente é resolvido para `pacienteId` via gRPC `ResolverOuCriarPaciente` e a entrada é criada com `criadoEm` = timestamp de chegada
+**Then** o Paciente é resolvido para `pacienteId` por `ResolverOuCriarPaciente` (tabela local do serviço) e a entrada é criada com `criadoEm` = timestamp de chegada
 
 **Given** o mesmo par `pacienteId`+`recursoId` já registrado na Lista de Espera
 **When** o registro é tentado novamente
 **Then** nenhuma entrada duplicada é criada (dedup por par)
 
-**Given** o gRPC `ResolverOuCriarPaciente` expira (timeout curto, sem retry — AD-8) ou está indisponível
+**Given** o CPF é inválido (checksum) ou a resolução do Paciente falha
 **When** a entrada de Lista de Espera é registrada
 **Then** a entrada não é criada e a falha é reportada explicitamente ao chamador
 
 **Given** o construto CDK ainda inexistente para este serviço
 **When** o deploy é executado
-**Then** `liberacao-repasse-service` sobe em Fargate com schema próprio `liberacao_repasse` (AD-10), security group liberando só o SG do `gateway-service` na porta HTTP e permitindo gRPC de saída para o SG do `agendamento-confirmacao-service` (AD-11), rota registrada no gateway, health-check público, e segredos via variável de ambiente/Secrets Manager (NFR-2/NFR-6)
+**Then** `liberacao-repasse-service` sobe em Fargate com schema próprio `liberacao_repasse` (AD-10), security group liberando só o SG do `gateway-service` na porta HTTP (sem gRPC lateral, AD-11 como construído), rota registrada no gateway, health-check público, e segredos via variável de ambiente/Secrets Manager (NFR-2/NFR-6)
 
 ### Story 2.2: Consulta da Lista de Espera
 
@@ -371,7 +381,7 @@ para que eu possa justificar decisões passadas com dados, não com "confie em n
 
 ## Epic 4: Carga de Dados Sintéticos (Camada Adaptadora)
 
-O sistema inteiro é populado com um dataset de demonstração via um job idempotente (catálogo de Recurso → Agendamentos → Lista de Espera, nesta ordem), sem passos manuais — habilita a demonstração ponta a ponta das jornadas do PRD (UJ-1 Paciente confirma presença, UJ-2 Paciente não responde e a vaga é repassada, UJ-3 Gestor decide o repasse, UJ-4 Auditor investiga; detalhadas em `_bmad-output/specs/spec-confirmasus/user-journeys.md`). Serviço: `seed-adapter` (Lambda/Quarkus). Depende dos endpoints de escrita das Stories 1.1 e 2.1. FR: FR-1 completa.
+O sistema inteiro é populado com um dataset de demonstração via um job idempotente (catálogo de Recurso → Agendamentos → Lista de Espera, nesta ordem), sem passos manuais — habilita a demonstração ponta a ponta das jornadas do PRD (UJ-1 Paciente confirma presença, UJ-2 Paciente não responde e a vaga é repassada, UJ-3 Gestor decide o repasse, UJ-4 Auditor investiga; detalhadas em `_bmad-output/specs/spec-confirmasus/user-journeys.md`). Serviço: `seed-adapter` (CLI Java standalone, como construído). Depende dos endpoints de escrita das Stories 1.1 e 2.1. FR: FR-1 completa.
 
 ### Story 4.1: Autenticação do seed-adapter e Upsert do Catálogo de Recurso
 

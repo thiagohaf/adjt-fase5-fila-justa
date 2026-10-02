@@ -2,12 +2,13 @@ package com.confirmasus.auditoria.infrastructure.web;
 
 import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.domain.TipoPaciente;
 
 import java.time.Instant;
 import java.util.Optional;
 
 /**
- * DTO de entrada com filtros opcionais para consultas de auditoria (Story 4.3 + 4.4a).
+ * DTO de entrada com filtros opcionais para consultas de auditoria (Story 4.3 + 4.4a + 4.4b).
  *
  * <p>Todos os campos são opcionais. Quando nenhum filtro é fornecido,
  * retorna a lista completa com paginação padrão (limit=50, offset=0).
@@ -36,6 +37,9 @@ record AuditoriaFiltrosRequest(
         Instant endDate,
         TipoDecisao tipoDecisao,
         StatusAgendamento statusAgendamento,
+        TipoPaciente tipoPaciente,
+        String nomePaciente,
+        String cpfPaciente,
         Integer limit,
         Integer offset
 ) {
@@ -100,6 +104,33 @@ record AuditoriaFiltrosRequest(
     }
 
     /**
+     * Retorna tipoPaciente como Optional.
+     *
+     * @return Optional.of(tipoPaciente) ou Optional.empty()
+     */
+    public Optional<TipoPaciente> getTipoPacienteOptional() {
+        return Optional.ofNullable(tipoPaciente);
+    }
+
+    /**
+     * Retorna nomePaciente como Optional.
+     *
+     * @return Optional.of(nomePaciente) ou Optional.empty()
+     */
+    public Optional<String> getNomePacienteOptional() {
+        return Optional.ofNullable(nomePaciente);
+    }
+
+    /**
+     * Retorna cpfPaciente como Optional.
+     *
+     * @return Optional.of(cpfPaciente) ou Optional.empty()
+     */
+    public Optional<String> getCpfPacienteOptional() {
+        return Optional.ofNullable(cpfPaciente);
+    }
+
+    /**
      * Factory method para construir com validação básica.
      *
      * @param startDate data inicial (nullable)
@@ -116,6 +147,9 @@ record AuditoriaFiltrosRequest(
                                               Instant endDate,
                                               TipoDecisao tipoDecisao,
                                               StatusAgendamento statusAgendamento,
+                                              TipoPaciente tipoPaciente,
+                                              String nomePaciente,
+                                              String cpfPaciente,
                                               Integer limit,
                                               Integer offset) {
         // Validação de range de datas
@@ -128,6 +162,12 @@ record AuditoriaFiltrosRequest(
             throw new IllegalArgumentException("Limit máximo é " + MAX_LIMIT);
         }
 
-        return new AuditoriaFiltrosRequest(startDate, endDate, tipoDecisao, statusAgendamento, limit, offset);
+        // Validação de CPF (11 dígitos)
+        if (cpfPaciente != null && !cpfPaciente.matches("\\d{11}")) {
+            throw new IllegalArgumentException("CPF deve conter exatamente 11 dígitos");
+        }
+
+        return new AuditoriaFiltrosRequest(startDate, endDate, tipoDecisao, statusAgendamento,
+                                           tipoPaciente, nomePaciente, cpfPaciente, limit, offset);
     }
 }

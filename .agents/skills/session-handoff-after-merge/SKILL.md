@@ -54,6 +54,16 @@ After equalize succeeds, output **one** markdown block ready to copy-paste into 
 ```markdown
 # Handoff — próxima sessão
 
+## ⚠️ Obrigações CLAUDE.md para próxima sessão (ESTRITAMENTE PROIBIDO DESOBEDECER)
+
+- ⛔ NUNCA commitar direto em develop/master — sempre feature branch (feature/, bugfix/, chore/, docs/, refactor/)
+- ⛔ NUNCA abrir PR para master sem autorização explícita prévia do usuário (base padrão: develop)
+- ⛔ NUNCA fazer git commit/push/force-push/amend/--no-verify sem autorização explícita prévia
+- ✅ SEMPRE solicitar autorização explícita do usuário antes de commitar
+- ✅ SEMPRE adicionar rodapé `Co-authored-by: Claude <noreply@anthropic.com>` ao commitar a pedido
+- ✅ SEMPRE usar workflow: branch → código → code-review → commit (autorizado) → push (-u origin) → PR (develop) → merge (autorizado)
+- ✅ SEMPRE manter formato copiável em handoffs (sem quebras de formatação, blocos de código completos, sem truncamento)
+
 ## Resumo do PR
 - O que foi entregue: …
 - PR: <url ou número, se conhecido>
@@ -78,4 +88,4 @@ Contexto: …
 Comece por: …
 ```
 
-End the reply with that block so the user can copy it in one action.
+End the reply with that block so the user can copy it in one action. **The ⚠️ CLAUDE.md section MUST be included in every handoff** — it is non-negotiable compliance guidance for the next session.

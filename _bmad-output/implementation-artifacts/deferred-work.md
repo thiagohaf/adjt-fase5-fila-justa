@@ -675,3 +675,31 @@
 - source_spec: `spec-4-4-filtros-adicionais-agendamento.md` (split da intent original)
   summary: Story 4.4b — Filtro de `tipoPaciente` em consultas de auditoria (PRIORITARIO, REGULAR, etc.)
   evidence: A spec original de filtros adicionais (4.4) excedeu 1600 tokens porque deixa em aberto 3 questões críticas sobre contrato com agendamento-service e paciente-service. Split proposto: 4.4a (statusAgendamento) assume contrato já resolvido; 4.4b (tipoPaciente) fica deferred até paciente-service exposar campo de tipo e a interface ser clara. Depende de Story 4.4a estar pronta.
+
+## Deferred from Retrospective do Epic 4 (epic-4-retro-2026-09-21.md)
+
+- source_spec: `epic-4-retro-2026-09-21.md` (Action Item 1)
+  summary: Upgrade JaCoCo para 0.8.13+ para resolver incompatibilidade com Java 25
+  evidence: JaCoCo 0.8.12 falha ao gerar report em Java 25 (incompatibilidade conhecida, será resolvida em 0.8.13 upstream). Nenhum impacto funcional — testes rodam e cobertura está implementada (inspecionada como ≥90% domain/application), apenas report não é gerado. Deferred: próximo ciclo de dependências ou quando 0.8.13 disponível em Maven Central.
+
+- source_spec: `epic-4-retro-2026-09-21.md` (Action Item 2)
+  summary: Teste manual de smoke (curl/Postman) do filtro statusAgendamento (Story 4.4a)
+  evidence: Cobertura de testes (unit + integration) valida statusAgendamento filter e dicotomia de response, mas E2E não foi exercitado (requer environment completo com eventos de triagem/matching/alocacao sendo publicados + auditoria-service rodando). Recomendado antes de merge para `master` se o workflow o requer; pode ser feito na mesma sessão de merge ou em QA staging.
+
+- source_spec: `epic-4-retro-2026-09-21.md` (Open Question 3)
+  summary: Resilience de LEFT JOIN com agendamento-service durante queries de auditoria
+  evidence: Story 4.4a implementa LEFT JOIN síncrono com `agendamento_confirmacao.agendamentos` durante query. Se agendamento-service estiver fora, queries falham. Para auditoria (read-side), aceitável no MVP, mas considerar denormalização (snapshot de statusAgendamento populado ao consumir evento) se latência/disponibilidade for problema em scale.
+
+## Deferred from: conclusão da Story 4.4a (2026-09-27, PR #88 mergeada)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-filtros-adicionais-agendamento.md`
+  summary: Implementação de filtro `statusAgendamento` em auditoria-service — CAST explícito em SQL para NULL em prepared statements, flag Maven `-parameters` para type inference de enums em Spring, e handler de exceção para MethodArgumentTypeMismatchException.
+  evidence: Story 4.4a completa (PR #88 mergeada em 2026-09-27). Achados técnicos produzidos durante implementação: (1) PostgreSQL exige CAST explícito em cláusulas WHERE quando o parâmetro é NULL e não há outro tipo de comparação — `CAST(NULL AS TIMESTAMP)` / `CAST(NULL AS VARCHAR)` em `DecisaoAuditoriaJpaRepository.java` native queries resolve type inference error. (2) Spring Boot reflection em `@RequestParam` com enum necessita `-parameters` flag compilador Maven (parametro preserva nomes de variável em bytecode) — adicionado em `pom.xml`. (3) `MethodArgumentTypeMismatchException` quando cliente envia enum inválido retorna 500 por padrão — novo handler em `AuditoriaExceptionHandler.java` mapeia para HTTP 400 RFC 7807. (4) Smoke test manual valida 5 cenários: enum validation, valid filter, compound filters, backward compatibility, pagination — todos passam.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-filtros-adicionais-agendamento.md`
+  summary: CI/CD flakiness pré-existente em `ExpirarJanelaDeConfirmacaoConcurrencyIntegrationTest` 
+  evidence: Workflow CI falhou na primeira execução nesta story, mas rerun passou (não causado por mudanças de Story 4.4a). Teste de concorrência com dependência de timing — issue pré-existente do serviço agendamento-confirmacao, não desta story. Registrado para investigação separada de timing de integração testes.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-4-4-filtros-adicionais-agendamento.md`
+  summary: Próximos passos deferred — Story 4.4b (filtro tipoPaciente), P4 (E2E JWT Validation), e plano de Epic 2 vs. patching de deferred items de Epics anteriores
+  evidence: Handoff de sessão 2026-09-27 identifica 3 opções: (1) Opção 3 atual — atualizar deferred-work.md com conclusão de 4.4a (COMPLETO); (2) Opção 1 — testar P4 (E2E JWT) contra rota protegida real `POST /v1/triagens`; (3) Sequência natural — iniciar Epic 2 formal ou implementar P2/P5 restantes (E2E idempotência, resiliência pós-bootstrap). Todos 5 Epics 100% funcional; deferred items restantes agora em categorias de hardening/observabilidade/compliance, não bloqueantes.

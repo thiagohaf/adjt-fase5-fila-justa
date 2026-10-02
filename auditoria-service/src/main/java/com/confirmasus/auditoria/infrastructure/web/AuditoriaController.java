@@ -6,6 +6,7 @@ import com.confirmasus.auditoria.application.port.DecisaoAuditoriaRepositorio;
 import com.confirmasus.auditoria.domain.DecisaoAuditoria;
 import com.confirmasus.auditoria.domain.StatusAgendamento;
 import com.confirmasus.auditoria.domain.TipoDecisao;
+import com.confirmasus.auditoria.domain.TipoPaciente;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -82,20 +83,41 @@ public class AuditoriaController {
             @RequestParam(value = "endDate", required = false) Instant endDate,
             @RequestParam(value = "tipoDecisao", required = false) TipoDecisao tipoDecisao,
             @RequestParam(value = "statusAgendamento", required = false) StatusAgendamento statusAgendamento,
+            @RequestParam(value = "tipoPaciente", required = false) TipoPaciente tipoPaciente,
+            @RequestParam(value = "nomePaciente", required = false) String nomePaciente,
+            @RequestParam(value = "cpfPaciente", required = false) String cpfPaciente,
             @RequestParam(value = "limit", required = false) Integer limit,
             @RequestParam(value = "offset", required = false) Integer offset,
             @RequestHeader(value = "X-Correlation-Id", required = false) String correlationId
     ) {
-        // Se algum filtro foi fornecido, usa consulta com filtros (Story 4.3 ou 4.4a)
-        if (startDate != null || endDate != null || tipoDecisao != null || statusAgendamento != null || limit != null || offset != null) {
+        // Se algum filtro foi fornecido, usa consulta com filtros (Story 4.3 ou 4.4a ou 4.4b)
+        if (startDate != null || endDate != null || tipoDecisao != null || statusAgendamento != null ||
+            tipoPaciente != null || nomePaciente != null || cpfPaciente != null || limit != null || offset != null) {
             // Valida filtros no DTO (lançará IllegalArgumentException se inválido)
             AuditoriaFiltrosRequest filtros = AuditoriaFiltrosRequest.of(
-                    startDate, endDate, tipoDecisao, statusAgendamento, limit, offset
+                    startDate, endDate, tipoDecisao, statusAgendamento,
+                    tipoPaciente, nomePaciente, cpfPaciente, limit, offset
             );
 
-            // Executa consulta com filtros
+            // Executa consulta com filtros (Story 4.4b: inclui filtros de paciente se presentes)
             DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> resultado =
-                    consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
+                    filtros.getTipoPacienteOptional().isPresent() ||
+                    filtros.getNomePacienteOptional().isPresent() ||
+                    filtros.getCpfPacienteOptional().isPresent()
+                    ? consultarAuditoriaPaciente.consultarComFiltrosPaciente(
+                            pacienteId,
+                            filtros.startDate(),
+                            filtros.endDate(),
+                            filtros.tipoDecisao(),
+                            filtros.statusAgendamento(),
+                            filtros.tipoPaciente(),
+                            filtros.nomePaciente(),
+                            filtros.cpfPaciente(),
+                            filtros.getEffectiveLimit(),
+                            filtros.getEffectiveOffset(),
+                            Optional.ofNullable(correlationId)
+                    )
+                    : consultarAuditoriaPaciente.consultarComFiltrosEStatusAgendamento(
                             pacienteId,
                             filtros.startDate(),
                             filtros.endDate(),
@@ -155,20 +177,41 @@ public class AuditoriaController {
             @RequestParam(value = "endDate", required = false) Instant endDate,
             @RequestParam(value = "tipoDecisao", required = false) TipoDecisao tipoDecisao,
             @RequestParam(value = "statusAgendamento", required = false) StatusAgendamento statusAgendamento,
+            @RequestParam(value = "tipoPaciente", required = false) TipoPaciente tipoPaciente,
+            @RequestParam(value = "nomePaciente", required = false) String nomePaciente,
+            @RequestParam(value = "cpfPaciente", required = false) String cpfPaciente,
             @RequestParam(value = "limit", required = false) Integer limit,
             @RequestParam(value = "offset", required = false) Integer offset,
             @RequestHeader(value = "X-Correlation-Id", required = false) String correlationId
     ) {
-        // Se algum filtro foi fornecido, usa consulta com filtros (Story 4.3 ou 4.4a)
-        if (startDate != null || endDate != null || tipoDecisao != null || statusAgendamento != null || limit != null || offset != null) {
+        // Se algum filtro foi fornecido, usa consulta com filtros (Story 4.3 ou 4.4a ou 4.4b)
+        if (startDate != null || endDate != null || tipoDecisao != null || statusAgendamento != null ||
+            tipoPaciente != null || nomePaciente != null || cpfPaciente != null || limit != null || offset != null) {
             // Valida filtros no DTO (lançará IllegalArgumentException se inválido)
             AuditoriaFiltrosRequest filtros = AuditoriaFiltrosRequest.of(
-                    startDate, endDate, tipoDecisao, statusAgendamento, limit, offset
+                    startDate, endDate, tipoDecisao, statusAgendamento,
+                    tipoPaciente, nomePaciente, cpfPaciente, limit, offset
             );
 
-            // Executa consulta com filtros
+            // Executa consulta com filtros (Story 4.4b: inclui filtros de paciente se presentes)
             DecisaoAuditoriaRepositorio.PaginatedResult<DecisaoAuditoria> resultado =
-                    consultarAuditoriaAgendamento.consultarComFiltrosEStatusAgendamento(
+                    filtros.getTipoPacienteOptional().isPresent() ||
+                    filtros.getNomePacienteOptional().isPresent() ||
+                    filtros.getCpfPacienteOptional().isPresent()
+                    ? consultarAuditoriaAgendamento.consultarComFiltrosPaciente(
+                            agendamentoId,
+                            filtros.startDate(),
+                            filtros.endDate(),
+                            filtros.tipoDecisao(),
+                            filtros.statusAgendamento(),
+                            filtros.tipoPaciente(),
+                            filtros.nomePaciente(),
+                            filtros.cpfPaciente(),
+                            filtros.getEffectiveLimit(),
+                            filtros.getEffectiveOffset(),
+                            Optional.ofNullable(correlationId)
+                    )
+                    : consultarAuditoriaAgendamento.consultarComFiltrosEStatusAgendamento(
                             agendamentoId,
                             filtros.startDate(),
                             filtros.endDate(),

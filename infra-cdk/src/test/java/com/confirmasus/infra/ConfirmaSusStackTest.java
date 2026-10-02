@@ -39,10 +39,10 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void fourFargateServicesAreProvisioned() {
-        // postgres, gateway-service, auth-service, agendamento-confirmacao-service
-        // (Story 1.1 do Epic 1) -- os demais servicos de dominio ficam deferidos.
-        template.resourceCountIs("AWS::ECS::Service", 4);
+    void sixFargateServicesAreProvisioned() {
+        // postgres, gateway-service, auth-service, agendamento-confirmacao-service,
+        // liberacao-repasse-service e auditoria-service.
+        template.resourceCountIs("AWS::ECS::Service", 6);
     }
 
     @Test
@@ -219,25 +219,10 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void scoreCalculadoTopicIsFifo() {
-        // Story 3.0 (AD-3): topico SNS FIFO que RelaySnsPublisherJob
-        // (triagem-score-service) publica -- ordem determinística por
-        // paciente via MessageGroupId, nao um topico standard.
-        template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
-                "TopicName", "score-calculado.fifo",
-                "FifoTopic", true)));
-    }
-
-    @Test
     void noTaskRoleWithTriagemScoreServiceDescriptionExistsAnymore() {
-        // Story 1.1 do Epic 1 (AD-1): triagem-score-service foi renomeado
-        // para agendamento-confirmacao-service e a
-        // TriagemScoreServiceTaskRole (Story 3.0) foi removida sem
-        // substituto nesta story -- nenhum outbox/publisher existe ainda em
-        // agendamento-confirmacao-service (entra na Story 1.2). Este teste
-        // documenta a remocao intencional (Boundaries/Design Notes da spec
-        // 1.1: "nao recriar role fantasma sem uso") e evita que ela volte
-        // por engano num merge futuro.
+        // triagem-score-service (produto anterior, Score de Prioridade
+        // Clinica) foi decomissionado por restricao legal, sem substituto:
+        // nenhuma role com essa descricao deve existir na stack.
         Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "Description", Match.stringLikeRegexp(".*triagem-score-service.*"))))));
@@ -245,24 +230,89 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void scoreCalculadoConsumerQueueIsFifoWithDeadLetterQueue() {
-        // Story 3.1b (Code Map): fila SQS FIFO consumidora + DLQ com
-        // maxReceiveCount=5 (mesma convencao das demais filas do projeto).
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "score-calculado-matching.fifo",
-                "FifoQueue", true)));
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "score-calculado-matching-dlq.fifo",
-                "FifoQueue", true)));
+    void noScoreCalculadoTopicOrQueueExistsAnymore() {
+        // O topico/fila do evento ScoreCalculado (consumido pelo extinto
+        // triagem-score-service para priorizar por score de gravidade) foi
+        // removido junto com a priorizacao clinica -- nao deve haver
+        // resquicio na stack.
+        Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "TopicName", "score-calculado.fifo")))));
+        assertThat(topicos).isEmpty();
 
+        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", Match.stringLikeRegexp("score-calculado.*"))))));
+        assertThat(filas).isEmpty();
+    }
+
+    @Test
+    void liberacaoRepasseAndAuditoriaServicesAreDeployedWithServiceConnect() {
+        for (String nome : java.util.List.of("liberacao-repasse-service", "auditoria-service")) {
+            template.hasResourceProperties("AWS::ECS::Service", Match.objectLike(Map.of(
+                    "ServiceConnectConfiguration", Match.objectLike(Map.of(
+                            "Services", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                    "PortName", nome,
+                                    "ClientAliases", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                            "DnsName", nome)))))))))))));
+        }
+    }
+
+    @Test
+    void liberacaoRepasseAndAuditoriaAppPortsAreOnlyReachableFromGateway() {
+        for (int porta : new int[] {8083, 8085}) {
+            Map<String, Map<String, Object>> regras = template.findResources("AWS::EC2::SecurityGroupIngress",
+                    Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                            "FromPort", porta,
+                            "ToPort", porta,
+                            "SourceSecurityGroupId", Match.anyValue())))));
+            assertThat(regras).as("porta %d so via SG do gateway", porta).hasSize(1);
+        }
+        for (int porta : new int[] {8092, 8094}) {
+            template.hasResourceProperties("AWS::EC2::SecurityGroup", Match.objectLike(Map.of(
+                    "SecurityGroupIngress", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                            "CidrIp", "0.0.0.0/0", "FromPort", porta, "ToPort", porta)))))));
+        }
+    }
+
+    @Test
+    void liberacaoRepasseServiceReceivesOutboxTopicAndConsumerQueueAsEnvironment() {
+        assertContainerHasEnvironment("liberacao-repasse-service", "CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN");
+        assertContainerHasEnvironment("liberacao-repasse-service",
+                "CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_QUEUE_URL");
+        assertContainerHasEnvironment("liberacao-repasse-service",
+                "CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENABLED");
+    }
+
+    @Test
+    void auditoriaServiceReceivesQueueUrlPortsAndDbCredentials() {
+        assertContainerHasEnvironment("auditoria-service", "AUDITORIA_QUEUE_URL");
+        assertContainerHasEnvironment("auditoria-service", "SERVER_PORT");
+        assertContainerHasEnvironment("auditoria-service", "SPRING_DATASOURCE_URL");
+        assertContainerHasSecret("auditoria-service", "SPRING_DATASOURCE_USERNAME");
+        assertContainerHasSecret("auditoria-service", "SPRING_DATASOURCE_PASSWORD");
+    }
+
+    private static void assertContainerHasEnvironment(final String containerName, final String envName) {
+        Object environment = Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Name", envName))));
+        Object container = Match.objectLike(Map.of("Name", containerName, "Environment", environment));
+        template.hasResourceProperties("AWS::ECS::TaskDefinition", Match.objectLike(Map.of(
+                "ContainerDefinitions", Match.arrayWith(java.util.List.of(container)))));
+    }
+
+    @Test
+    void auditoriaQueueIsFifoWithDeadLetterQueue() {
         Map<String, Map<String, Object>> dlqs = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "score-calculado-matching-dlq.fifo")))));
+                        "QueueName", "auditoria-decisoes-dlq.fifo",
+                        "FifoQueue", true)))));
         assertThat(dlqs).hasSize(1);
         String dlqLogicalId = dlqs.keySet().iterator().next();
 
         template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "score-calculado-matching.fifo",
+                "QueueName", "auditoria-decisoes.fifo",
+                "FifoQueue", true,
+                "VisibilityTimeout", 60,
                 "RedrivePolicy", Match.objectLike(Map.of(
                         "deadLetterTargetArn", Match.objectLike(Map.of(
                                 "Fn::GetAtt", Match.arrayWith(java.util.List.of(dlqLogicalId, "Arn")))),
@@ -270,81 +320,40 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void scoreCalculadoConsumerQueueIsSubscribedToScoreCalculadoTopicWithRawMessageDelivery() {
-        // Story 3.1b: a fila consumidora assina o topico SNS FIFO da Story
-        // 3.0 com RawMessageDelivery=true -- ScoreCalculadoConsumerJob le o
-        // envelope direto, sem o wrapper JSON padrao do SNS.
-        Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
+    void auditoriaQueueSubscribesToBothEventTopicsWithRawDelivery() {
+        // Uma assinatura por topico de dominio, sem filtro, com raw delivery.
+        Map<String, Map<String, Object>> assinaturas = template.findResources("AWS::SNS::Subscription",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "TopicName", "score-calculado.fifo")))));
-        assertThat(topicos).hasSize(1);
-        String topicoLogicalId = topicos.keySet().iterator().next();
-
-        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "score-calculado-matching.fifo")))));
-        assertThat(filas).hasSize(1);
-        String filaLogicalId = filas.keySet().iterator().next();
-
-        template.hasResourceProperties("AWS::SNS::Subscription", Match.objectLike(Map.of(
-                "Protocol", "sqs",
-                "TopicArn", Match.objectLike(Map.of("Ref", topicoLogicalId)),
-                "Endpoint", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(java.util.List.of(
-                        filaLogicalId, "Arn")))),
-                "RawMessageDelivery", true)));
+                        "Protocol", "sqs",
+                        "RawMessageDelivery", true)))));
+        assertThat(assinaturas).hasSize(2);
     }
 
     @Test
-    void matchingAlocacaoServiceTaskRoleCanConsumeFromScoreCalculadoConsumerQueue() {
-        // Deploy do matching-alocacao-service no ECS continua deferido --
-        // mas a policy de consumo ja precisa existir (Code Map da spec
-        // 3.1b), presa a ESTA role, apontando para ESTA fila (mesmo
-        // raciocinio de matchingAlocacaoServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic
-        // abaixo).
+    void auditoriaServiceTaskRoleCanConsumeAuditoriaQueue() {
         Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "score-calculado-matching.fifo")))));
+                        "QueueName", "auditoria-decisoes.fifo")))));
         assertThat(filas).hasSize(1);
         String filaLogicalId = filas.keySet().iterator().next();
 
-        Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
-        assertThat(roles).hasSize(1);
-        String roleLogicalId = roles.keySet().iterator().next();
-
         template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
-                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
+                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref",
+                        Match.stringLikeRegexp("^AuditoriaTaskDefTaskRole.*"))))),
                 "PolicyDocument", Match.objectLike(Map.of(
                         "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
-                                // Achado do code review: grantConsumeMessages concede tanto
-                                // ReceiveMessage quanto DeleteMessage (entre outras) -- o
-                                // teste so travava a primeira, deixando DeleteMessage (a
-                                // permissao que o codigo de fato exercita via
-                                // sqsClient.deleteMessage) sem cobertura de regressao.
-                                "Action", Match.arrayWith(java.util.List.of(
-                                        "sqs:ReceiveMessage", "sqs:DeleteMessage")),
+                                "Action", Match.arrayWith(java.util.List.of("sqs:ReceiveMessage")),
                                 "Effect", "Allow",
                                 "Resource", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(
                                         java.util.List.of(filaLogicalId, "Arn")))))))))))));
     }
 
     @Test
-    void matchingAlocacaoServiceStillHasNoFargateServiceDeployed() {
-        // Boundaries da spec 3.1b -- "Never: deploy ECS/CDK do servico": a
-        // stack ganha a fila consumidora + DLQ + a role de consumo, mas nao
-        // um ECS::Service proprio. Regressao evitada: continua so postgres +
-        // gateway-service + auth-service + agendamento-confirmacao-service
-        // (Story 1.1 do Epic 1, o unico servico de dominio ja deployado).
-        template.resourceCountIs("AWS::ECS::Service", 4);
-    }
-
-    @Test
     void matchingAlocacaoEventosTopicIsFifo() {
         // Story 3-3a (emenda, AD-3): topico SNS FIFO proprio do
-        // matching-alocacao-service que RelaySnsPublisherJob publica --
+        // liberacao-repasse-service que RelaySnsPublisherJob publica --
         // ordem deterministica por recurso via MessageGroupId=recursoId,
-        // mesma propriedade do topico irmao ScoreCalculadoTopic
+        // mesma propriedade do topico irmao AgendamentoConfirmacaoEventosTopic
         // (ContentBasedDeduplication=false: MessageDeduplicationId sempre
         // explicito, o eventId do outbox).
         template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
@@ -354,11 +363,10 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void matchingAlocacaoServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic() {
-        // Deploy ECS do matching-alocacao-service continua deferido -- mas a
-        // policy de publish no topico outbox proprio ja precisa existir
-        // (Code Map da spec 3-3a), presa a MESMA MatchingAlocacaoServiceTaskRole
-        // ja usada pelo consumo da fila ScoreCalculado (Story 3.1b), nao uma
+    void liberacaoRepasseServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic() {
+        // A policy de publish no topico outbox proprio ja precisa existir
+        // (Code Map da spec 3-3a), presa a MESMA LiberacaoRepasseServiceTaskRole
+        // ja usada pela role de liberacao-repasse-service, nao uma
         // role nova: resolve os logical IDs reais do topico e da role,
         // confirma que E esta policy, presa a ESTA role, que aponta para
         // ESTE topico (mesmo raciocinio usado nos demais testes de
@@ -371,7 +379,7 @@ class ConfirmaSusStackTest {
 
         Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
+                        "Description", Match.stringLikeRegexp(".*liberacao-repasse-service.*"))))));
         assertThat(roles).hasSize(1);
         String roleLogicalId = roles.keySet().iterator().next();
 
@@ -385,47 +393,41 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void liberacaoAgendadaQueueIsStandardWithDeadLetterQueue() {
-        // Story 3-4a2 (Code Map): fila SQS STANDARD (nao FIFO -- ordem entre
-        // Recursos diferentes nao importa) + DLQ com maxReceiveCount=5
-        // (mesma convencao das demais filas do projeto).
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada")));
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada-dlq")));
-
-        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
-                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "liberacao-agendada")))));
-        assertThat(filas).hasSize(1);
-        // Standard, nao FIFO (Boundaries da spec 3-4a2): findResources com
-        // este Match.objectLike NAO acharia a fila se o synth tivesse
-        // gerado FifoQueue=true, pois o nome logico das duas filas FIFO do
-        // projeto sempre carrega o sufixo ".fifo" -- aqui a QueueName real e
-        // exatamente "liberacao-agendada", sem sufixo.
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada",
-                "FifoQueue", Match.absent())));
-
+    void vagaLiberadaQueueIsFifoWithDeadLetterQueue() {
+        // Story 6.2: fila FIFO (exigida pela assinatura no topico FIFO) + DLQ
+        // FIFO com maxReceiveCount=5 e visibilityTimeout=60s.
         Map<String, Map<String, Object>> dlqs = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "liberacao-agendada-dlq")))));
+                        "QueueName", "vaga-liberada-liberacao-repasse-dlq.fifo",
+                        "FifoQueue", true)))));
         assertThat(dlqs).hasSize(1);
         String dlqLogicalId = dlqs.keySet().iterator().next();
 
         template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada",
+                "QueueName", "vaga-liberada-liberacao-repasse.fifo",
+                "FifoQueue", true,
+                "VisibilityTimeout", 60,
                 "RedrivePolicy", Match.objectLike(Map.of(
                         "deadLetterTargetArn", Match.objectLike(Map.of(
                                 "Fn::GetAtt", Match.arrayWith(java.util.List.of(dlqLogicalId, "Arn")))),
                         "maxReceiveCount", 5)))));
+    }
 
-        // Achado do code review: 60s (nao o default do SQS de 30s) -- trava
-        // regressao futura desse valor, mesma convencao de
-        // scoreCalculadoConsumerQueueIsFifoWithDeadLetterQueue.
-        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
-                "QueueName", "liberacao-agendada",
-                "VisibilityTimeout", 60)));
+    @Test
+    void vagaLiberadaQueueIsSubscribedToAgendamentoConfirmacaoEventosTopic() {
+        // Envelope SNS mantido (sem RawMessageDelivery): o consumidor desembrulha.
+        template.hasResourceProperties("AWS::SNS::Subscription", Match.objectLike(Map.of(
+                "Protocol", "sqs",
+                "RawMessageDelivery", Match.absent(),
+                "FilterPolicyScope", "MessageBody",
+                "FilterPolicy", Map.of("eventType", java.util.List.of("VagaLiberada")))));
+        template.resourceCountIs("AWS::SNS::Subscription", 3);
+    }
+
+    @Test
+    void liberacaoAgendadaLegacyQueueWasRemoved() {
+        template.resourceCountIs("AWS::SQS::Queue", 4);
+        template.hasOutput("VagaLiberadaQueueUrl", Match.anyValue());
     }
 
     @Test
@@ -434,7 +436,7 @@ class ConfirmaSusStackTest {
         // agendamento-confirmacao-service que RelaySnsPublisherJob publica --
         // ordem deterministica por Agendamento via
         // MessageGroupId=agendamentoId, mesma propriedade dos topicos irmaos
-        // ScoreCalculadoTopic/MatchingAlocacaoEventosTopic
+        // MatchingAlocacaoEventosTopic
         // (ContentBasedDeduplication=false: MessageDeduplicationId sempre
         // explicito, o eventId do outbox).
         template.hasResourceProperties("AWS::SNS::Topic", Match.objectLike(Map.of(
@@ -445,11 +447,9 @@ class ConfirmaSusStackTest {
 
     @Test
     void agendamentoConfirmacaoServiceTaskRoleCanPublishToAgendamentoConfirmacaoEventosTopic() {
-        // Diferente de matching-alocacao-service (deploy ECS ainda
-        // deferido, role standalone pre-criada), agendamento-confirmacao-service
-        // ja tem um FargateService real -- a policy de publish precisa estar
-        // presa a TaskRole DE FATO usada em runtime (a task role default da
-        // AgendamentoConfirmacaoTaskDef), nao uma role a parte.
+        // Diferente de liberacao-repasse-service (role explicita), aqui a policy
+        // de publish precisa estar presa a task role default da
+        // AgendamentoConfirmacaoTaskDef, a TaskRole DE FATO usada em runtime.
         Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "TopicName", "agendamento-confirmacao-eventos.fifo")))));
@@ -481,21 +481,16 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void matchingAlocacaoServiceTaskRoleCanSendMessagesToLiberacaoAgendadaQueue() {
-        // Deploy ECS do matching-alocacao-service continua deferido -- mas a
-        // policy de publish na fila de liberacao agendada ja precisa existir
-        // (Code Map da spec 3-4a2), presa a MESMA MatchingAlocacaoServiceTaskRole
-        // ja usada pelo consumo/outbox acima (mesmo raciocinio dos testes
-        // analogos ja existentes).
+    void liberacaoRepasseServiceTaskRoleCanConsumeVagaLiberadaQueue() {
         Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "QueueName", "liberacao-agendada")))));
+                        "QueueName", "vaga-liberada-liberacao-repasse.fifo")))));
         assertThat(filas).hasSize(1);
         String filaLogicalId = filas.keySet().iterator().next();
 
         Map<String, Map<String, Object>> roles = template.findResources("AWS::IAM::Role",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
-                        "Description", Match.stringLikeRegexp(".*matching-alocacao-service.*"))))));
+                        "Description", Match.stringLikeRegexp(".*liberacao-repasse-service.*"))))));
         assertThat(roles).hasSize(1);
         String roleLogicalId = roles.keySet().iterator().next();
 
@@ -503,7 +498,7 @@ class ConfirmaSusStackTest {
                 "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref", roleLogicalId)))),
                 "PolicyDocument", Match.objectLike(Map.of(
                         "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
-                                "Action", Match.arrayWith(java.util.List.of("sqs:SendMessage")),
+                                "Action", Match.arrayWith(java.util.List.of("sqs:ReceiveMessage")),
                                 "Effect", "Allow",
                                 "Resource", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(
                                         java.util.List.of(filaLogicalId, "Arn")))))))))))));

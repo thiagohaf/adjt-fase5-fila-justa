@@ -76,7 +76,7 @@
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
 
-    <!-- AWS SQS SDK v2 (Software.amazon.awssdk) usado no matching-alocacao-service -->
+    <!-- AWS SQS SDK v2 (Software.amazon.awssdk) usado no liberacao-repasse-service -->
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>sqs</artifactId>
@@ -86,6 +86,13 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <!-- Encoder JSON para logs estruturados (Deferred P2) -->
+    <dependency>
+      <groupId>net.logstash.logback</groupId>
+      <artifactId>logstash-logback-encoder</artifactId>
+      <version>7.4</version>
     </dependency>
 
     <dependency>
@@ -134,7 +141,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.12</version>
+        <version>0.8.13</version>
         <executions>
           <execution>
             <goals>
@@ -147,6 +154,32 @@
             <goals>
               <goal>report</goal>
             </goals>
+          </execution>
+          <execution>
+            <id>check-domain-coverage</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <!-- element PACKAGE (nao BUNDLE): em regras BUNDLE o filtro includes
+                     casa com o nome do projeto e a regra nunca se aplicaria. -->
+                <rule>
+                  <element>PACKAGE</element>
+                  <includes>
+                    <include>com.confirmasus.auditoria.domain</include>
+                  </includes>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
           </execution>
         </executions>
       </plugin>

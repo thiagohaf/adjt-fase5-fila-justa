@@ -1,0 +1,673 @@
+{
+  "info": {
+    "name": "ConfirmaSUS",
+    "description": "Coleção do ciclo completo. Rode 'Login' primeiro. Servidor: gateway (docker-compose local). OpenAPI em docs/api/openapi.yaml.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Saúde",
+      "item": [
+        {
+          "name": "Health-check do gateway (público)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Autenticação",
+      "item": [
+        {
+          "name": "1. Login (salva o token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Salva o JWT na variável `token`; as demais requisições usam Bearer {{token}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Preparar dados",
+      "item": [
+        {
+          "name": "2. Criar recurso (salva recursoId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/recursos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "recursos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigoRecurso\": \"DEMO-CARDIO-01\",\n  \"especificidadeRank\": 1,\n  \"disponivel\": true,\n  \"especialidade\": \"Cardiologia\",\n  \"unidade\": \"UBS Centro\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('2xx', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.collectionVariables.set('recursoId', pm.response.json().recursoId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Entrar na Lista de Espera - paciente A",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lista-espera",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lista-espera"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"52998224725\",\n  \"recursoId\": \"{{recursoId}}\",\n  \"dataSolicitacao\": \"2026-09-10T12:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Chegou primeiro: será o primeiro sugerido."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 ou 409 (idempotente)', () => pm.expect(pm.response.code).to.be.oneOf([201,409]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Entrar na Lista de Espera - paciente B",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/lista-espera",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "lista-espera"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"11144477735\",\n  \"recursoId\": \"{{recursoId}}\",\n  \"dataSolicitacao\": \"2026-09-12T12:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 ou 409 (idempotente)', () => pm.expect(pm.response.code).to.be.oneOf([201,409]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Registrar agendamento (salva agendamentoId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/agendamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "agendamentos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"39053344705\",\n  \"recursoId\": \"{{recursoId}}\",\n  \"dataHoraAgendamento\": \"2026-12-15T13:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Nasce em AGUARDANDO_JANELA. A janela abre sozinha quando `janelaAbreEm` chega (poller). Para a demo use os dados do scripts/seed-demo.py, que já abre janelas."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json(); pm.collectionVariables.set('agendamentoId', j.id); pm.collectionVariables.set('pacienteId', j.pacienteId);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Confirmação de presença",
+      "item": [
+        {
+          "name": "Listar agendamentos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/agendamentos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "agendamentos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar agendamento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/agendamentos/{{agendamentoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "agendamentos",
+                "{{agendamentoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmar presença (idempotente)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/agendamentos/{{agendamentoId}}/confirmacao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "agendamentos",
+                "{{agendamentoId}}",
+                "confirmacao"
+              ]
+            },
+            "description": "Exige AGUARDANDO_CONFIRMACAO. Repetir devolve 200 sem novo registro."
+          }
+        },
+        {
+          "name": "Recusar presença (libera a vaga)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/agendamentos/{{agendamentoId}}/recusa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "agendamentos",
+                "{{agendamentoId}}",
+                "recusa"
+              ]
+            },
+            "description": "AGUARDANDO_CONFIRMACAO -> LIBERADO (motivo RECUSA). Gera a Sugestão de Repasse de forma assíncrona (alguns segundos)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Repasse (decisão humana)",
+      "item": [
+        {
+          "name": "Consultar recurso",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/recursos/{{recursoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "recursos",
+                "{{recursoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar sugestão de repasse (salva sugestaoId)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/recursos/{{recursoId}}/sugestao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "recursos",
+                "{{recursoId}}",
+                "sugestao"
+              ]
+            },
+            "description": "Próximo da Lista de Espera, por ordem de chegada. Se vier nulo, aguarde e repita (consumo assíncrono via SQS)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); if (j.sugestaoId) pm.collectionVariables.set('sugestaoId', j.sugestaoId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gestor CONFIRMA o repasse",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/sugestoes-repasse/{{sugestaoId}}/confirmacao",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "sugestoes-repasse",
+                "{{sugestaoId}}",
+                "confirmacao"
+              ]
+            },
+            "description": "Repasse definitivo. Repetir devolve 409."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gestor RECUSA a sugestão",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/sugestoes-repasse/{{sugestaoId}}/recusa",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "sugestoes-repasse",
+                "{{sugestaoId}}",
+                "recusa"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"motivo\": \"Paciente informou indisponibilidade na data\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Gera a próxima sugestão (pula o recusado). Consulte /sugestao de novo."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Auditoria",
+      "item": [
+        {
+          "name": "Auditoria do agendamento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auditoria/agendamento/{{agendamentoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auditoria",
+                "agendamento",
+                "{{agendamentoId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria do paciente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auditoria/paciente/{{pacienteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auditoria",
+                "paciente",
+                "{{pacienteId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria do agendamento - filtrada e paginada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v1/auditoria/agendamento/{{agendamentoId}}?tipoDecisao=RECUSA&limit=10&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "auditoria",
+                "agendamento",
+                "{{agendamentoId}}"
+              ],
+              "query": [
+                {
+                  "key": "tipoDecisao",
+                  "value": "RECUSA"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Com qualquer filtro a resposta vira {items,total,limit,offset}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "username",
+      "value": "admin-tecnico"
+    },
+    {
+      "key": "password",
+      "value": "senha-tecnica-segura"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "recursoId",
+      "value": ""
+    },
+    {
+      "key": "agendamentoId",
+      "value": ""
+    },
+    {
+      "key": "pacienteId",
+      "value": ""
+    },
+    {
+      "key": "sugestaoId",
+      "value": ""
+    }
+  ]
+}
