@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_DIR="${ROOT_DIR}/infra-cdk"
 
-echo "==> cdk destroy (remove VPC, ECS Fargate, Postgres/EFS, gateway-service, auth-service)..."
+echo "==> cdk destroy (remove VPC, ECS Fargate, Postgres/EFS, filas/topicos e os 5 servicos)..."
 (cd "${INFRA_DIR}" && cdk destroy --force "$@")
 
 rm -f "${INFRA_DIR}/cdk-outputs.json"

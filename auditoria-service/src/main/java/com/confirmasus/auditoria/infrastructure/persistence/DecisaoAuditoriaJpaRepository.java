@@ -75,9 +75,9 @@ public interface DecisaoAuditoriaJpaRepository extends JpaRepository<DecisaoAudi
                    d.motivo, d.timestamp, d.criado_em, d.payload_bruto
             FROM auditoria.decisao_auditoria d
             WHERE d.paciente_id = :pacienteId
-            AND (:startDate IS NULL OR d.timestamp >= :startDate)
-            AND (:endDate IS NULL OR d.timestamp <= :endDate)
-            AND (:tipoDecisao IS NULL OR d.tipo_decisao = :tipoDecisao)
+            AND (CAST(:startDate AS TIMESTAMP) IS NULL OR d.timestamp >= :startDate)
+            AND (CAST(:endDate AS TIMESTAMP) IS NULL OR d.timestamp <= :endDate)
+            AND (CAST(:tipoDecisao AS VARCHAR) IS NULL OR d.tipo_decisao = :tipoDecisao)
             ORDER BY d.timestamp ASC
             LIMIT :limit OFFSET :offset
             """, nativeQuery = true)
@@ -106,9 +106,9 @@ public interface DecisaoAuditoriaJpaRepository extends JpaRepository<DecisaoAudi
             SELECT COUNT(d.id)
             FROM auditoria.decisao_auditoria d
             WHERE d.paciente_id = :pacienteId
-            AND (:startDate IS NULL OR d.timestamp >= :startDate)
-            AND (:endDate IS NULL OR d.timestamp <= :endDate)
-            AND (:tipoDecisao IS NULL OR d.tipo_decisao = :tipoDecisao)
+            AND (CAST(:startDate AS TIMESTAMP) IS NULL OR d.timestamp >= :startDate)
+            AND (CAST(:endDate AS TIMESTAMP) IS NULL OR d.timestamp <= :endDate)
+            AND (CAST(:tipoDecisao AS VARCHAR) IS NULL OR d.tipo_decisao = :tipoDecisao)
             """, nativeQuery = true)
     long countByPacienteIdWithFilters(
             @Param("pacienteId") Long pacienteId,
@@ -139,9 +139,9 @@ public interface DecisaoAuditoriaJpaRepository extends JpaRepository<DecisaoAudi
                    d.motivo, d.timestamp, d.criado_em, d.payload_bruto
             FROM auditoria.decisao_auditoria d
             WHERE d.agendamento_id = :agendamentoId
-            AND (:startDate IS NULL OR d.timestamp >= :startDate)
-            AND (:endDate IS NULL OR d.timestamp <= :endDate)
-            AND (:tipoDecisao IS NULL OR d.tipo_decisao = :tipoDecisao)
+            AND (CAST(:startDate AS TIMESTAMP) IS NULL OR d.timestamp >= :startDate)
+            AND (CAST(:endDate AS TIMESTAMP) IS NULL OR d.timestamp <= :endDate)
+            AND (CAST(:tipoDecisao AS VARCHAR) IS NULL OR d.tipo_decisao = :tipoDecisao)
             ORDER BY d.timestamp ASC
             LIMIT :limit OFFSET :offset
             """, nativeQuery = true)
@@ -170,9 +170,9 @@ public interface DecisaoAuditoriaJpaRepository extends JpaRepository<DecisaoAudi
             SELECT COUNT(d.id)
             FROM auditoria.decisao_auditoria d
             WHERE d.agendamento_id = :agendamentoId
-            AND (:startDate IS NULL OR d.timestamp >= :startDate)
-            AND (:endDate IS NULL OR d.timestamp <= :endDate)
-            AND (:tipoDecisao IS NULL OR d.tipo_decisao = :tipoDecisao)
+            AND (CAST(:startDate AS TIMESTAMP) IS NULL OR d.timestamp >= :startDate)
+            AND (CAST(:endDate AS TIMESTAMP) IS NULL OR d.timestamp <= :endDate)
+            AND (CAST(:tipoDecisao AS VARCHAR) IS NULL OR d.tipo_decisao = :tipoDecisao)
             """, nativeQuery = true)
     long countByAgendamentoIdWithFilters(
             @Param("agendamentoId") Long agendamentoId,
@@ -279,10 +279,10 @@ public interface DecisaoAuditoriaJpaRepository extends JpaRepository<DecisaoAudi
             FROM auditoria.decisao_auditoria d
             LEFT JOIN agendamento_confirmacao.agendamentos a ON d.agendamento_id = a.id
             WHERE d.agendamento_id = :agendamentoId
-            AND (:startDate IS NULL OR d.timestamp >= :startDate)
-            AND (:endDate IS NULL OR d.timestamp <= :endDate)
-            AND (:tipoDecisao IS NULL OR d.tipo_decisao = :tipoDecisao)
-            AND (:statusAgendamento IS NULL OR a.status = :statusAgendamento)
+            AND (CAST(:startDate AS TIMESTAMP) IS NULL OR d.timestamp >= :startDate)
+            AND (CAST(:endDate AS TIMESTAMP) IS NULL OR d.timestamp <= :endDate)
+            AND (CAST(:tipoDecisao AS VARCHAR) IS NULL OR d.tipo_decisao = :tipoDecisao)
+            AND (CAST(:statusAgendamento AS VARCHAR) IS NULL OR a.status = :statusAgendamento)
             ORDER BY d.timestamp ASC
             LIMIT :limit OFFSET :offset
             """, nativeQuery = true)
@@ -314,10 +314,10 @@ public interface DecisaoAuditoriaJpaRepository extends JpaRepository<DecisaoAudi
             FROM auditoria.decisao_auditoria d
             LEFT JOIN agendamento_confirmacao.agendamentos a ON d.agendamento_id = a.id
             WHERE d.agendamento_id = :agendamentoId
-            AND (:startDate IS NULL OR d.timestamp >= :startDate)
-            AND (:endDate IS NULL OR d.timestamp <= :endDate)
-            AND (:tipoDecisao IS NULL OR d.tipo_decisao = :tipoDecisao)
-            AND (:statusAgendamento IS NULL OR a.status = :statusAgendamento)
+            AND (CAST(:startDate AS TIMESTAMP) IS NULL OR d.timestamp >= :startDate)
+            AND (CAST(:endDate AS TIMESTAMP) IS NULL OR d.timestamp <= :endDate)
+            AND (CAST(:tipoDecisao AS VARCHAR) IS NULL OR d.tipo_decisao = :tipoDecisao)
+            AND (CAST(:statusAgendamento AS VARCHAR) IS NULL OR a.status = :statusAgendamento)
             """, nativeQuery = true)
     long countByAgendamentoIdWithFiltersAndStatusAgendamento(
             @Param("agendamentoId") Long agendamentoId,

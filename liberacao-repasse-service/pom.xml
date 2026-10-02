@@ -213,9 +213,9 @@
             <configuration>
               <rules>
                 <rule>
-                  <element>BUNDLE</element>
+                  <element>PACKAGE</element>
                   <includes>
-                    <include>com.confirmasus.matching.domain.*</include>
+                    <include>com.confirmasus.matching.domain</include>
                   </includes>
                   <limits>
                     <limit>
@@ -226,9 +226,9 @@
                   </limits>
                 </rule>
                 <rule>
-                  <element>BUNDLE</element>
+                  <element>PACKAGE</element>
                   <includes>
-                    <include>com.confirmasus.matching.application.command.*</include>
+                    <include>com.confirmasus.matching.application.command</include>
                   </includes>
                   <limits>
                     <limit>
@@ -242,9 +242,9 @@
                      application.command - Verification da spec 3.1c
                      ("JaCoCo >=90% dominio/aplicacao"). -->
                 <rule>
-                  <element>BUNDLE</element>
+                  <element>PACKAGE</element>
                   <includes>
-                    <include>com.confirmasus.matching.application.query.*</include>
+                    <include>com.confirmasus.matching.application.query</include>
                   </includes>
                   <limits>
                     <limit>

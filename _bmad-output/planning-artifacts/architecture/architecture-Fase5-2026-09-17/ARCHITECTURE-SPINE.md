@@ -42,7 +42,7 @@ companions: []
 
 ## Design Paradigm
 
-Microsserviços, um por bounded context, herdado silenciosamente da fase anterior do mesmo projeto (memlog, PRD §8) — o mesmo modelo, não uma reavaliação. Dos serviços de runtime existentes, dois são **renomeados e podados** em vez de reescritos (decisão do memlog): `triagem-score-service` → `agendamento-confirmacao-service`, `matching-alocacao-service` → `liberacao-repasse-service`. Um terceiro é novo: `auditoria-service` (desenho já existente no spine antigo como AD-10, nunca implementado — retomado agora). `auth-service`, `gateway-service` e `infra-cdk` são reaproveitados sem alteração. `seed-adapter` continua um job Lambda (Quarkus), não um serviço de runtime — carga única no deploy, sem ciclo de vida próprio que justifique um serviço sempre no ar.
+Microsserviços, um por bounded context, herdado silenciosamente da fase anterior do mesmo projeto (memlog, PRD §8) — o mesmo modelo, não uma reavaliação. Dos serviços de runtime existentes, dois são **renomeados e podados** em vez de reescritos (decisão do memlog): `triagem-score-service` → `agendamento-confirmacao-service`, `matching-alocacao-service` → `liberacao-repasse-service`. Um terceiro é novo: `auditoria-service` (desenho já existente no spine antigo como AD-10, nunca implementado — retomado agora). `auth-service`, `gateway-service` e `infra-cdk` são reaproveitados sem alteração. `seed-adapter` é um CLI Java standalone (não Quarkus, não Lambda — ver AD-12, como construído), não um serviço de runtime — carga única, sem ciclo de vida próprio que justifique um serviço sempre no ar.
 
 Dentro de cada serviço de runtime, **Clean Architecture** — `domain/` (sem dependência de framework) → `application/` (casos de uso) → `infrastructure/` (web, gRPC, persistência, mensageria, scheduler). **CQRS lógico** por serviço: `application/command/*` muta e emite evento, `application/query/*` só lê (AD-2). Mesmo banco, sem store de leitura separado — o volume do MVP não justifica CQRS físico.
 
@@ -59,21 +59,20 @@ A topologia completa de contêineres e a rede que os conecta está em Structural
   - **`liberacao-repasse-service`** (renomeado de `matching-alocacao-service`) — dono de `Recurso` (catálogo, sem `especificidadeRank`/tiers), `Lista de Espera`, `Sugestão de Repasse`, `Repasse Confirmado`. Reaproveita `Alocacao`/`ConfirmarAlocacao`/`RecusarSugestao` como molde estrutural, **renomeados** para o domínio de Repasse: entidade `Alocacao` → `RepasseConfirmado`, comando `ConfirmarAlocacao` → `ConfirmarRepasse`, comando `RecusarSugestao` → `RecusarSugestaoRepasse`, registro de recusa `SugestaoRecusada` → `SugestaoRepasseRecusada` (escolha desta distilação: nome de domínio, não nome técnico legado — um auditor lendo o código não deveria precisar traduzir "Alocacao" mentalmente para "Repasse"). Descarta `Sugestão de Matching`/`Prioridade Efetiva`/tiers de especificidade — a Lista de Espera é ordenada exclusivamente por timestamp de entrada (FR-8, guardrail SM-C1). **Descarta também** toda a infraestrutura de réplica de Score herdada do domínio antigo — `ScoreReplica`, `ScoreBootstrapService`, `TriagemScoreClient`, `ScoreCalculadoConsumerJob` — e o mecanismo antigo de delay de liberação — `LiberacaoAgendadaRelayJob`/fila SQS standard de delay — já superado pelo poller do AD-5; nenhum desses sobrevive à renomeação, mesmo sem migração de dado que os force a desaparecer.
   - **`auditoria-service`** (novo, desenho reaproveitado do AD-10 do spine antigo) — só leitura + consumidor de eventos via SNS/SQS FIFO das filas dedicadas dos dois serviços de domínio acima. Nunca é chamado de forma síncrona pelo fluxo principal (ver AD-7).
   - `auth-service`, `gateway-service`, `infra-cdk` — sem alteração de nome nem de comportamento **de aplicação**; os *construtos* CDK concretos (`FargateService`/`SecurityGroup` por serviço, rotas do gateway) para `agendamento-confirmacao-service`/`liberacao-repasse-service`/`auditoria-service` são trabalho novo de `bmad-build` — só o padrão de `infra-cdk` é herdado, não a topologia já implantada (ver Deferred).
-  - `seed-adapter` (job Lambda, Quarkus) — entra pelo gateway como qualquer cliente (nunca chama serviço de domínio diretamente), autentica-se com usuário técnico pré-cadastrado (AD-13), e faz *upsert* idempotente de três coisas, nesta ordem de dependência: catálogo de `Recurso` por `codigoRecurso` (em `liberacao-repasse-service`, mesmo padrão do `seed-adapter` antigo), Agendamentos (em `agendamento-confirmacao-service`), e entradas de Lista de Espera (em `liberacao-repasse-service`, via `ResolverOuCriarPaciente`). A ingestão de Lista de Espera **só acontece por este caminho de seed** — não existe endpoint runtime-facing para um Paciente "entrar" na Lista de Espera (PRD não define um; FR-9 menciona repescagem como cenário não-automático, não como API a construir).
+  - `seed-adapter` (CLI Java standalone, ver AD-12) — entra pelo gateway como qualquer cliente (nunca chama serviço de domínio diretamente), autentica-se com usuário técnico pré-cadastrado (AD-13), e faz *upsert* idempotente de três coisas, nesta ordem de dependência: catálogo de `Recurso` por `codigoRecurso` (em `liberacao-repasse-service`, mesmo padrão do `seed-adapter` antigo), Agendamentos (em `agendamento-confirmacao-service`), e entradas de Lista de Espera (em `liberacao-repasse-service`, via `ResolverOuCriarPaciente`). A ingestão de Lista de Espera **só acontece por este caminho de seed** — não existe endpoint runtime-facing para um Paciente "entrar" na Lista de Espera (PRD não define um; FR-9 menciona repescagem como cenário não-automático, não como API a construir).
   - **Propriedade do catálogo de Recurso:** `liberacao-repasse-service` é o dono canônico de `Recurso` (herdeiro direto do `Recurso` antigo). `agendamento-confirmacao-service` guarda apenas `recursoId` + rótulo denormalizado no `Agendamento` — populado uma vez pelo `seed-adapter`, sem sincronização em runtime entre os dois serviços (catálogo estático no MVP). Qualquer dado de outro contexto só é obtido via API pública (pelo gateway), evento de domínio (AD-3) ou gRPC interno (AD-8) — nunca acesso direto a schema alheio (AD-9).
-  - Direção de dependência entre os três serviços de domínio:
+  - Direção de dependência entre os três serviços de domínio (como construído — só eventos assíncronos):
 
 ```mermaid
 graph LR
   ACc[agendamento-confirmacao-service] -- "evento: VagaLiberada (SNS/SQS FIFO)" --> LRc[liberacao-repasse-service]
-  LRc -- "gRPC: ResolverOuCriarPaciente (ingestão Lista de Espera)" --> ACc
   ACc -- "eventos (SNS/SQS FIFO)" --> AUc[auditoria-service]
   LRc -- "eventos (SNS/SQS FIFO)" --> AUc
   AUc -. "nunca chama nem é chamado de volta" .-> ACc
   AUc -. " " .-> LRc
 ```
 
-  Nenhum serviço de domínio chama `auditoria-service` de volta; `auditoria-service` nunca inicia uma chamada síncrona a outro serviço.
+  Como construído, não há chamada síncrona entre `liberacao-repasse-service` e `agendamento-confirmacao-service` (ver AD-8). Nenhum serviço de domínio chama `auditoria-service` de volta; `auditoria-service` nunca inicia uma chamada síncrona a outro serviço.
 
 ### AD-2 — CQRS lógico e Clean Architecture por serviço
 
@@ -123,6 +122,8 @@ graph LR
 - **Prevents:** CPF persistido ou trafegando fora de `agendamento-confirmacao-service`; CPF em evento de domínio, log ou schema de `liberacao-repasse-service`/`auditoria-service`; uma chamada síncrona travada indefinidamente se `agendamento-confirmacao-service` estiver fora do ar durante o seed.
 - **Rule:** `[ADOPTED — princípio herdado do AD-9 do spine antigo, adaptado: sem distinção "dado clínico" vs. administrativo]` validação de formato/checksum do CPF (FR-2) ocorre em `agendamento-confirmacao-service` antes de qualquer resolução de ID; a rejeição do registro de seed correspondente (FR-1) é a consequência observável dessa validação. CPF em texto claro só existe nesse serviço (agregado `Paciente`). O único meio de outro componente obter um `pacienteId` a partir de um CPF é o endpoint gRPC interno `ResolverOuCriarPaciente(cpf) -> pacienteId`, exclusivo para `liberacao-repasse-service` ao ingerir Lista de Espera sintética — chamado **apenas pelo `seed-adapter` em tempo de deploy** (AD-1), nunca por um endpoint REST runtime-facing (não existe no PRD). Sendo uma chamada só de deploy/seed, é síncrona com timeout curto (`[ASSUMPTION]` 5s) e sem retry — falha rápido; se `agendamento-confirmacao-service` estiver fora do ar, o `seed-adapter` falha aquele registro de Lista de Espera e pode ser reexecutado (idempotente, AD-1), sem exigir circuit-breaker para um caminho que não é de runtime. O CPF nunca é persistido em `liberacao-repasse-service` — só o `pacienteId` retornado pelo gRPC. Isolamento de rede (AD-11) mais um segredo compartilhado em metadata gRPC protegem esse endpoint. Nenhum evento de domínio (AD-3), Log Auditável (FR-12) ou schema fora de `agendamento-confirmacao-service` carrega CPF — apenas `pacienteId`.
 
+- **Como construído (2026-09-29):** a chamada `ResolverOuCriarPaciente` **não é gRPC nem REST entre serviços** — não existe endpoint `/internal` nem cliente gRPC para ela. Cada serviço que precisa de paciente executa seu próprio `ResolverOuCriarPaciente` (`application/command`) sobre uma tabela `paciente` **local** (`agendamento_confirmacao.pacientes` e `matching_alocacao.paciente`), resolvendo o CPF por `POST /v1/agendamentos` e `POST /v1/lista-espera`. Consequências: (1) o CPF, validado por checksum, é persistido nos dois serviços de escrita (desvio do princípio de minimização deste AD); (2) `pacienteId` é local a cada serviço — não há chave global de paciente. Eventos, Log Auditável e demais schemas continuam sem CPF. Unificar a identidade do paciente é dívida técnica registrada no relatório do projeto.
+
 ### AD-9 — Autenticação no Gateway
 
 - **Binds:** FR-14
@@ -139,13 +140,14 @@ graph LR
 
 - **Binds:** all (envelope operacional)
 - **Prevents:** um cliente externo ou serviço não autorizado acessando um serviço de domínio diretamente, contornando o gateway; custo de NAT Gateway 24/7.
-- **Rule:** `[ADOPTED — herdado sem alteração]` VPC com subnet pública única (2 AZs, sem NAT Gateway — custo). Tasks ECS Fargate com `assignPublicIp=ENABLED`, alcançando SNS/SQS/ECR pela Internet Gateway. Isolamento entre serviços por security group: apenas o SG do `gateway-service` alcança as portas HTTP de aplicação dos demais; SG de health-check do load balancer/ECS alcança só a porta de health-check de cada serviço. gRPC entre `liberacao-repasse-service` e `agendamento-confirmacao-service` (AD-8) é liberado explicitamente entre seus dois security groups; nenhum outro tráfego lateral é permitido.
+- **Rule:** `[ADOPTED — herdado sem alteração]` VPC com subnet pública única (2 AZs, sem NAT Gateway — custo). Tasks ECS Fargate com `assignPublicIp=ENABLED`, alcançando SNS/SQS/ECR pela Internet Gateway. Isolamento entre serviços por security group: apenas o SG do `gateway-service` alcança as portas HTTP de aplicação dos demais; SG de health-check do load balancer/ECS alcança só a porta de health-check de cada serviço. Como construído, não há gRPC entre `liberacao-repasse-service` e `agendamento-confirmacao-service` (AD-8): nenhum tráfego lateral é liberado entre security groups de serviços de domínio — só gateway → serviço (porta de app) e serviço → Postgres. Os cinco serviços, as filas SQS FIFO e o Postgres são provisionados no `infra-cdk`.
 
 ### AD-12 — Runtime por componente (Spring Boot vs. Quarkus)
 
 - **Binds:** all (build/runtime)
 - **Prevents:** um desenvolvedor introduzindo Quarkus num serviço de domínio "porque já tem no projeto".
-- **Rule:** `[ADOPTED — herdado sem alteração]` `gateway-service`, `agendamento-confirmacao-service`, `liberacao-repasse-service`, `auditoria-service` e `auth-service` usam Spring Boot/Spring Cloud. `seed-adapter`, função Lambda one-shot, usa Quarkus (cold-start otimizado) — a única mistura de runtime do projeto, deliberada.
+- **Rule:** `[ADOPTED — herdado sem alteração]` `gateway-service`, `agendamento-confirmacao-service`, `liberacao-repasse-service`, `auditoria-service` e `auth-service` usam Spring Boot/Spring Cloud. `seed-adapter` era planejado como função Lambda one-shot em Quarkus.
+- **Como construído (2026-09-29):** `seed-adapter` é um CLI Java standalone (Apache HttpClient5, fat JAR via `maven-shade-plugin`), fora do reactor Maven, executado sob demanda contra o gateway — não é Quarkus nem Lambda. A mistura de runtime planejada não se concretizou; todos os serviços de aplicação são Spring Boot.
 
 ### AD-13 — Emissão de token de autenticação via `auth-service` dedicado
 
@@ -179,7 +181,7 @@ graph LR
 | PostgreSQL | 18, em container Fargate + EFS (não RDS — reaproveitado de `infra-cdk`, ver Structural Seed) |
 | AWS SNS + SQS FIFO | mensageria assíncrona de eventos de domínio (Outbox/fan-out, AD-3) |
 | AWS ECS Fargate | hospedagem dos serviços, escalável a 0, `assignPublicIp=ENABLED` (AD-11) |
-| AWS Lambda | `seed-adapter` |
+| — (não Lambda) | `seed-adapter` — `[nota de execução]` executado como CLI local contra o gateway |
 | Cucumber-JVM | aceitação BDD ponta a ponta (PRD §7) |
 | Testcontainers (PostgreSQL) | testes de integração por serviço contra schema real (Consistency Conventions) |
 | JaCoCo | ≥ 0.8.14 — versão mínima com suporte oficial ao bytecode do Java 25; versões anteriores não suportam ou só experimentalmente |
@@ -199,7 +201,7 @@ graph TB
     end
     PG[("PostgreSQL 18 — 1 cluster, schema por serviço (AD-10)")]
     SNSQ[["SNS FIFO + SQS FIFO por consumidor + DLQ (AD-3)"]]
-    LM[["Lambda: seed-adapter"]]
+    LM[["seed-adapter (CLI Java)"]]
   end
   GWc --> AUTHc
   GWc --> ACc
@@ -214,7 +216,6 @@ graph TB
   SNSQ -- fila dedicada --> LRc
   SNSQ -- fila dedicada --> AUc
   LM --> GWc
-  LRc -. "gRPC ResolverOuCriarPaciente" .-> ACc
 ```
 
 ```mermaid
@@ -226,7 +227,6 @@ graph LR
     SGGW --> SGLR["SG liberacao-repasse-service"]
     SGGW --> SGAU["SG auditoria-service"]
     SGGW --> SGAUTH["SG auth-service"]
-    SGLR -. gRPC .-> SGAC
     SGAC --> PG[("PostgreSQL 18 — 1 cluster")]
     SGLR --> PG
     SGAU --> PG
@@ -259,7 +259,6 @@ confirma-sus/
       query/                              # ConsultarAgendamento
     infrastructure/
       web/                                # REST controllers (FR-1..FR-6)
-      grpc/                               # ResolverOuCriarPaciente (AD-8, chamado só por liberacao-repasse-service)
       scheduler/                          # poller @Scheduled de expiração (AD-5)
       persistence/                        # schema agendamento_confirmacao
       outbox/                             # publisher SNS FIFO (AD-3): ConfirmacaoRegistrada, RecusaRegistrada, AgendamentoNaoConfirmado, VagaLiberada
@@ -269,7 +268,7 @@ confirma-sus/
       command/                            # RegistrarRecurso (upsert catálogo, só via seed-adapter), RegistrarEntradaListaEspera, GerarSugestaoRepasse (idempotente por agendamentoId, AD-6), ConfirmarRepasse, RecusarSugestaoRepasse (grava SugestaoRepasseRecusada)
       query/                               # ConsultarListaEspera (FR-8), ConsultarSugestoesPendentes
     infrastructure/
-      web/ grpc-client/ persistence/       # schema liberacao_repasse
+      web/ persistence/                    # schema matching_alocacao (nome legado mantido)
       sqs-consumer/                       # consome VagaLiberada (AD-3, AD-6)
       outbox/                             # publisher SNS FIFO: SugestaoRepasseGerada, RepasseConfirmado, RepasseRecusado
   auditoria-service/
@@ -279,7 +278,7 @@ confirma-sus/
       query/                               # ConsultarAuditoriaPaciente, ConsultarAuditoriaAgendamento (FR-13)
     infrastructure/
       web/ persistence/ sqs-consumer/      # schema auditoria — sem grpc-client, nunca resolve CPF (AD-8)
-  seed-adapter/                            # job Lambda (Quarkus, AD-12) — catálogo de Recurso + Agendamentos + Lista de Espera sintéticos (FR-1), upsert idempotente, nesta ordem (AD-1)
+  seed-adapter/                            # CLI Java standalone (AD-12, como construído) — catálogo de Recurso + Agendamentos + Lista de Espera sintéticos (FR-1), upsert idempotente, nesta ordem (AD-1)
   infra-cdk/                               # inalterado
 ```
 

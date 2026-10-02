@@ -39,10 +39,10 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void fourFargateServicesAreProvisioned() {
-        // postgres, gateway-service, auth-service, agendamento-confirmacao-service
-        // (Story 1.1 do Epic 1) -- os demais servicos de dominio ficam deferidos.
-        template.resourceCountIs("AWS::ECS::Service", 4);
+    void sixFargateServicesAreProvisioned() {
+        // postgres, gateway-service, auth-service, agendamento-confirmacao-service,
+        // liberacao-repasse-service e auditoria-service.
+        template.resourceCountIs("AWS::ECS::Service", 6);
     }
 
     @Test
@@ -247,13 +247,105 @@ class ConfirmaSusStackTest {
     }
 
     @Test
-    void liberacaoRepasseServiceStillHasNoFargateServiceDeployed() {
-        // Boundaries da spec 3.1b -- "Never: deploy ECS/CDK do servico": a
-        // stack ganha a fila consumidora + DLQ + a role de consumo, mas nao
-        // um ECS::Service proprio. Regressao evitada: continua so postgres +
-        // gateway-service + auth-service + agendamento-confirmacao-service
-        // (Story 1.1 do Epic 1, o unico servico de dominio ja deployado).
-        template.resourceCountIs("AWS::ECS::Service", 4);
+    void liberacaoRepasseAndAuditoriaServicesAreDeployedWithServiceConnect() {
+        for (String nome : java.util.List.of("liberacao-repasse-service", "auditoria-service")) {
+            template.hasResourceProperties("AWS::ECS::Service", Match.objectLike(Map.of(
+                    "ServiceConnectConfiguration", Match.objectLike(Map.of(
+                            "Services", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                    "PortName", nome,
+                                    "ClientAliases", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                            "DnsName", nome)))))))))))));
+        }
+    }
+
+    @Test
+    void liberacaoRepasseAndAuditoriaAppPortsAreOnlyReachableFromGateway() {
+        for (int porta : new int[] {8083, 8085}) {
+            Map<String, Map<String, Object>> regras = template.findResources("AWS::EC2::SecurityGroupIngress",
+                    Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                            "FromPort", porta,
+                            "ToPort", porta,
+                            "SourceSecurityGroupId", Match.anyValue())))));
+            assertThat(regras).as("porta %d so via SG do gateway", porta).hasSize(1);
+        }
+        for (int porta : new int[] {8092, 8094}) {
+            template.hasResourceProperties("AWS::EC2::SecurityGroup", Match.objectLike(Map.of(
+                    "SecurityGroupIngress", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                            "CidrIp", "0.0.0.0/0", "FromPort", porta, "ToPort", porta)))))));
+        }
+    }
+
+    @Test
+    void liberacaoRepasseServiceReceivesOutboxTopicAndConsumerQueueAsEnvironment() {
+        assertContainerHasEnvironment("liberacao-repasse-service", "CONFIRMASUS_MATCHING_OUTBOX_RELAY_TOPIC_ARN");
+        assertContainerHasEnvironment("liberacao-repasse-service",
+                "CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_QUEUE_URL");
+        assertContainerHasEnvironment("liberacao-repasse-service",
+                "CONFIRMASUS_MATCHING_VAGA_LIBERADA_CONSUMER_ENABLED");
+    }
+
+    @Test
+    void auditoriaServiceReceivesQueueUrlPortsAndDbCredentials() {
+        assertContainerHasEnvironment("auditoria-service", "AUDITORIA_QUEUE_URL");
+        assertContainerHasEnvironment("auditoria-service", "SERVER_PORT");
+        assertContainerHasEnvironment("auditoria-service", "SPRING_DATASOURCE_URL");
+        assertContainerHasSecret("auditoria-service", "SPRING_DATASOURCE_USERNAME");
+        assertContainerHasSecret("auditoria-service", "SPRING_DATASOURCE_PASSWORD");
+    }
+
+    private static void assertContainerHasEnvironment(final String containerName, final String envName) {
+        Object environment = Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Name", envName))));
+        Object container = Match.objectLike(Map.of("Name", containerName, "Environment", environment));
+        template.hasResourceProperties("AWS::ECS::TaskDefinition", Match.objectLike(Map.of(
+                "ContainerDefinitions", Match.arrayWith(java.util.List.of(container)))));
+    }
+
+    @Test
+    void auditoriaQueueIsFifoWithDeadLetterQueue() {
+        Map<String, Map<String, Object>> dlqs = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "auditoria-decisoes-dlq.fifo",
+                        "FifoQueue", true)))));
+        assertThat(dlqs).hasSize(1);
+        String dlqLogicalId = dlqs.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::SQS::Queue", Match.objectLike(Map.of(
+                "QueueName", "auditoria-decisoes.fifo",
+                "FifoQueue", true,
+                "VisibilityTimeout", 60,
+                "RedrivePolicy", Match.objectLike(Map.of(
+                        "deadLetterTargetArn", Match.objectLike(Map.of(
+                                "Fn::GetAtt", Match.arrayWith(java.util.List.of(dlqLogicalId, "Arn")))),
+                        "maxReceiveCount", 5)))));
+    }
+
+    @Test
+    void auditoriaQueueSubscribesToBothEventTopicsWithRawDelivery() {
+        // Uma assinatura por topico de dominio, sem filtro, com raw delivery.
+        Map<String, Map<String, Object>> assinaturas = template.findResources("AWS::SNS::Subscription",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "Protocol", "sqs",
+                        "RawMessageDelivery", true)))));
+        assertThat(assinaturas).hasSize(2);
+    }
+
+    @Test
+    void auditoriaServiceTaskRoleCanConsumeAuditoriaQueue() {
+        Map<String, Map<String, Object>> filas = template.findResources("AWS::SQS::Queue",
+                Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
+                        "QueueName", "auditoria-decisoes.fifo")))));
+        assertThat(filas).hasSize(1);
+        String filaLogicalId = filas.keySet().iterator().next();
+
+        template.hasResourceProperties("AWS::IAM::Policy", Match.objectLike(Map.of(
+                "Roles", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of("Ref",
+                        Match.stringLikeRegexp("^AuditoriaTaskDefTaskRole.*"))))),
+                "PolicyDocument", Match.objectLike(Map.of(
+                        "Statement", Match.arrayWith(java.util.List.of(Match.objectLike(Map.of(
+                                "Action", Match.arrayWith(java.util.List.of("sqs:ReceiveMessage")),
+                                "Effect", "Allow",
+                                "Resource", Match.objectLike(Map.of("Fn::GetAtt", Match.arrayWith(
+                                        java.util.List.of(filaLogicalId, "Arn")))))))))))));
     }
 
     @Test
@@ -272,8 +364,7 @@ class ConfirmaSusStackTest {
 
     @Test
     void liberacaoRepasseServiceTaskRoleCanPublishToMatchingAlocacaoEventosTopic() {
-        // Deploy ECS do liberacao-repasse-service continua deferido -- mas a
-        // policy de publish no topico outbox proprio ja precisa existir
+        // A policy de publish no topico outbox proprio ja precisa existir
         // (Code Map da spec 3-3a), presa a MESMA LiberacaoRepasseServiceTaskRole
         // ja usada pela role de liberacao-repasse-service, nao uma
         // role nova: resolve os logical IDs reais do topico e da role,
@@ -330,12 +421,12 @@ class ConfirmaSusStackTest {
                 "RawMessageDelivery", Match.absent(),
                 "FilterPolicyScope", "MessageBody",
                 "FilterPolicy", Map.of("eventType", java.util.List.of("VagaLiberada")))));
-        template.resourceCountIs("AWS::SNS::Subscription", 1);
+        template.resourceCountIs("AWS::SNS::Subscription", 3);
     }
 
     @Test
     void liberacaoAgendadaLegacyQueueWasRemoved() {
-        template.resourceCountIs("AWS::SQS::Queue", 2);
+        template.resourceCountIs("AWS::SQS::Queue", 4);
         template.hasOutput("VagaLiberadaQueueUrl", Match.anyValue());
     }
 
@@ -356,11 +447,9 @@ class ConfirmaSusStackTest {
 
     @Test
     void agendamentoConfirmacaoServiceTaskRoleCanPublishToAgendamentoConfirmacaoEventosTopic() {
-        // Diferente de liberacao-repasse-service (deploy ECS ainda
-        // deferido, role standalone pre-criada), agendamento-confirmacao-service
-        // ja tem um FargateService real -- a policy de publish precisa estar
-        // presa a TaskRole DE FATO usada em runtime (a task role default da
-        // AgendamentoConfirmacaoTaskDef), nao uma role a parte.
+        // Diferente de liberacao-repasse-service (role explicita), aqui a policy
+        // de publish precisa estar presa a task role default da
+        // AgendamentoConfirmacaoTaskDef, a TaskRole DE FATO usada em runtime.
         Map<String, Map<String, Object>> topicos = template.findResources("AWS::SNS::Topic",
                 Match.objectLike(Map.of("Properties", Match.objectLike(Map.of(
                         "TopicName", "agendamento-confirmacao-eventos.fifo")))));
